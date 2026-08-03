@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_URL } from '../services/api';
 
 export default function AmiviDashboard() {
   const [text, setText] = useState('');
@@ -11,7 +12,7 @@ export default function AmiviDashboard() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('https://comic-l1ai.onrender.com/api/amivi/generate', {
+      const response = await fetch(`${API_URL}/api/amivi/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
@@ -64,7 +65,7 @@ export default function AmiviDashboard() {
           {result.video_url && (
             <div className="mb-8 rounded-lg overflow-hidden border border-gray-700 shadow-lg">
               <video controls className="w-full">
-                <source src={`https://comic-l1ai.onrender.com${result.video_url}`} type="video/mp4" />
+                <source src={`${API_URL}${result.video_url}`} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>
@@ -73,11 +74,11 @@ export default function AmiviDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {result.slides && result.slides.map((slide, idx) => (
               <div key={idx} className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition-colors">
-                <img src={`https://comic-l1ai.onrender.com${slide.image_path}`} alt={`Slide ${idx+1}`} className="w-full h-48 object-cover" />
+                <img src={`${API_URL}${slide.image_path}`} alt={`Slide ${idx+1}`} className="w-full h-48 object-cover" />
                 <div className="p-4">
                   <p className="text-sm text-gray-300 font-semibold">{slide.text}</p>
                   {slide.audio_path && (
-                    <audio controls className="w-full mt-4 h-8" src={`https://comic-l1ai.onrender.com${slide.audio_path}`} />
+                    <audio controls className="w-full mt-4 h-8" src={`${API_URL}${slide.audio_path}`} />
                   )}
                 </div>
               </div>
