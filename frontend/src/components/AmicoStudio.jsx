@@ -11,7 +11,7 @@ export default function AmicoStudio() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('http://localhost:8000/api/amico/generate', {
+      const response = await fetch('https://comic-l1ai.onrender.com/api/amico/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ homework_prompt: homeworkPrompt })
@@ -65,7 +65,7 @@ export default function AmicoStudio() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl shadow-inner">
             {result.panels && result.panels.map((panel, idx) => (
               <div key={idx} className="relative border-4 border-black rounded-sm overflow-hidden bg-white">
-                <img src={`http://localhost:8000${panel.image_url}`} alt={`Panel ${idx+1}`} className="w-full h-64 object-cover filter contrast-125" />
+                <img src={`https://comic-l1ai.onrender.com${panel.image_url}`} alt={`Panel ${idx+1}`} className="w-full h-64 object-cover filter contrast-125" />
                 
                 {/* Speech Bubble */}
                 {panel.dialogue && (

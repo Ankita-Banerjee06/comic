@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:8000',
-      '/static': 'http://localhost:8000',
+      '/api': 'https://comic-l1ai.onrender.com',
+      '/static': 'https://comic-l1ai.onrender.com',
     },
   },
 })
