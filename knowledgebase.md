@@ -65,3 +65,29 @@ Future iterations of the platform will integrate gamified elements:
 
 ## 5. Development Setup Guide
 Please refer to the `walkthrough.md` in the project artifacts or the setup sections in the respective backend/frontend `README.md` files to get the servers running locally.
+
+---
+
+## 6. Project Status (What is Done vs. Remaining)
+
+### ✅ What is Done (Phase 1)
+- **Backend Infrastructure**: Python FastAPI environment set up with robust dependency management.
+- **LLM Engine (`llm_service.py`)**: Groq API integrated for fast script and micro-bit generation (AMIVI & AMICO logic).
+- **Image Engine (`image_service.py`)**: Pollinations.ai integration complete for rapid, free image synthesis.
+- **Voice Engine (`voice_service.py`)**: Piper TTS wrapper integrated for local audio generation.
+- **Video Engine (`video_service.py`)**: MoviePy integration complete for stitching slides into `.mp4` video modules.
+- **API Endpoints**: `/api/amivi/generate` and `/api/amico/generate` are fully operational.
+- **Frontend Architecture**: React + Vite + Tailwind CSS initialized.
+- **AMIVI Dashboard UI**: Modern dark-themed dashboard built to input text and view generated video and slide breakdowns.
+- **AMICO Studio UI**: Interactive dashboard built to input homework prompts and view the resulting comic strip panels with speech bubbles.
+- **Full Integration**: Frontend successfully hooked up to the FastAPI backend endpoints.
+
+### 🚧 What is Remaining (Future Phases)
+- **Quizzes Module for AMIVI**: Extending the LLM engine to generate multi-choice quizzes based on the text chunks.
+- **Gamification Mechanics**: Adding User profiles, points, leaderboards, and streak tracking.
+- **Collaborative Digital Library**: Building the database (e.g., PostgreSQL or MongoDB) and UI for learners to save, tag, and share generated modules with friends.
+- **Board Game UI**: Creating the electronic quiz interfaces for "Visual Pursuit".
+- **Production Polish**: 
+  - Advanced error handling in the frontend (handling missing TTS engines gracefully).
+  - Adding Dockerfiles for easy deployment.
+  - Adding user authentication.
