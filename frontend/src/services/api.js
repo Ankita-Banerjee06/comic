@@ -1,4 +1,4 @@
-export const API_URL = ''; // Uses Vite proxy
+export const API_URL = 'https://comic-l1ai.onrender.com'; // Deployed backend
 
 export async function generateAmivi(text) {
   const response = await fetch(`${API_URL}/api/amivi/generate`, {

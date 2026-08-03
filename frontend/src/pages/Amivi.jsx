@@ -112,7 +112,7 @@ export default function Amivi() {
             <div className="space-y-4">
               <h3 className="text-xl font-bold text-white">Final Video</h3>
               <div className="rounded-2xl overflow-hidden border border-gray-800 shadow-2xl bg-black aspect-video">
-                <video controls className="w-full h-full object-contain" src={result.video_url}>
+                <video controls className="w-full h-full object-contain" src={'https://comic-l1ai.onrender.com' + result.video_url}>
                   Your browser does not support the video tag.
                 </video>
               </div>
@@ -123,7 +123,7 @@ export default function Amivi() {
                <Carousel items={result.slides.map((s, i) => ({
                  title: `Slide ${i + 1}`,
                  description: s.text,
-                 url: '/static/images/' + s.image_path.split('\\').pop().split('/').pop()
+                 url: 'https://comic-l1ai.onrender.com/static/images/' + s.image_path.split('\\').pop().split('/').pop()
                }))} />
             </div>
           </div>
