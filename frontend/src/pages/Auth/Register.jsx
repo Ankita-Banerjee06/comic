@@ -1,15 +1,19 @@
 import { Link } from 'react-router-dom';
+import { User, Mail } from 'lucide-react';
 
 export default function Register() {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <form className="space-y-6">
+      <form className="space-y-6" autoComplete="off">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-300">
             Full Name
           </label>
-          <div className="mt-1">
-            <input id="name" name="name" type="text" required className="appearance-none block w-full px-4 py-3 border border-gray-700 rounded-xl bg-gray-950/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500 sm:text-sm transition-all" placeholder="Alex Chen" />
+          <div className="mt-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500">
+              <User className="h-5 w-5" />
+            </div>
+            <input id="name" name="name" type="text" required className="appearance-none block w-full pl-12 pr-4 py-3 border border-gray-700 rounded-xl bg-gray-950/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500 sm:text-sm transition-all" defaultValue="Alex Chen" autoComplete="off" />
           </div>
         </div>
         
@@ -17,8 +21,11 @@ export default function Register() {
           <label htmlFor="email" className="block text-sm font-medium text-gray-300">
             Email address
           </label>
-          <div className="mt-1">
-            <input id="email" name="email" type="email" required className="appearance-none block w-full px-4 py-3 border border-gray-700 rounded-xl bg-gray-950/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500 sm:text-sm transition-all" placeholder="Enter your email" />
+          <div className="mt-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500">
+              <Mail className="h-5 w-5" />
+            </div>
+            <input id="email" name="email" type="email" required className="appearance-none block w-full pl-12 pr-4 py-3 border border-gray-700 rounded-xl bg-gray-950/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500 sm:text-sm transition-all" defaultValue="alex.chen@student.edu" autoComplete="off" />
           </div>
         </div>
 
@@ -27,7 +34,7 @@ export default function Register() {
             Password
           </label>
           <div className="mt-1">
-            <input id="password" name="password" type="password" required className="appearance-none block w-full px-4 py-3 border border-gray-700 rounded-xl bg-gray-950/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500 sm:text-sm transition-all" placeholder="••••••••" />
+            <input id="password" name="password" type="password" required className="appearance-none block w-full px-4 py-3 border border-gray-700 rounded-xl bg-gray-950/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500 sm:text-sm transition-all" defaultValue="12345" autoComplete="new-password" />
           </div>
         </div>
 
