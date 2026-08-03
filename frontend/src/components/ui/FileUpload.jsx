@@ -40,7 +40,9 @@ export default function FileUpload({ accept = "*", label = "Upload a file", onUp
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
-          if (onUpload) onUpload(selectedFile);
+          setTimeout(() => {
+            if (onUpload) onUpload(selectedFile);
+          }, 0);
           return 100;
         }
         return prev + 10;

@@ -102,6 +102,8 @@ async def generate_amivi(request: AmiviRequest):
         }
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/amico/generate")
@@ -143,4 +145,31 @@ async def generate_amico(request: AmicoRequest):
         }
         
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/amivi/generate_quiz")
+async def generate_quiz(request: AmiviRequest):
+    """
+    AMIVI flow: Generate a quiz from text.
+    """
+    try:
+        if not os.getenv("GROQ_API_KEY"):
+            raise HTTPException(status_code=500, detail="GROQ_API_KEY is not set.")
+            
+        from services.llm_service import generate_amivi_quiz
+        quiz_data = generate_amivi_quiz(request.text)
+        
+        # Robustly extract the quiz regardless of whether the LLM nested it under a 'quiz' key
+        final_quiz = quiz_data.get('quiz', {})
+        if not final_quiz and 'title' in quiz_data and 'questions' in quiz_data:
+            final_quiz = quiz_data
+        
+        return {
+            "status": "success",
+            "quiz": final_quiz
+        }
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

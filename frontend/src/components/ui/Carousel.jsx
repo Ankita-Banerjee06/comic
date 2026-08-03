@@ -15,7 +15,7 @@ export default function Carousel({ items = [] }) {
       <AnimatePresence mode="wait">
         <motion.img
           key={currentIndex}
-          src={items[currentIndex]?.url || 'https://via.placeholder.com/800x450/111827/06b6d4?text=AMIVI+Visual'}
+          src={items[currentIndex]?.url || 'https://dummyimage.com/800x450/111827/06b6d4.png&text=AMIVI+Visual'}
           alt={items[currentIndex]?.alt || 'Carousel Image'}
           className="w-full h-full object-contain"
           initial={{ opacity: 0, x: 50 }}
@@ -25,9 +25,9 @@ export default function Carousel({ items = [] }) {
         />
       </AnimatePresence>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
-        <h4 className="text-white font-medium text-lg">{items[currentIndex]?.title || 'Generated Visual'}</h4>
-        <p className="text-gray-300 text-sm mt-1">{items[currentIndex]?.description || 'AI Generated Content'}</p>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-6 pb-12 pointer-events-none">
+        <h4 className="text-white font-bold text-xl drop-shadow-md">{items[currentIndex]?.title || 'Generated Visual'}</h4>
+        <p className="text-gray-200 text-sm mt-2 drop-shadow-md max-w-2xl">{items[currentIndex]?.description || 'AI Generated Content'}</p>
       </div>
 
       <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-cyan-500/80 backdrop-blur-sm">

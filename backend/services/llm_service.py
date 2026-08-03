@@ -14,7 +14,8 @@ def generate_amivi_content(text_input: str) -> dict:
     """
     system_prompt = (
         "You are an educational AI assistant for AMIVI. Break down the provided educational text into "
-        "5 to 7 bite-sized visual chunks (slides). Respond ONLY in valid JSON format as a list of objects. "
+        "5 to 7 bite-sized visual chunks (slides). Respond ONLY in valid JSON format containing a single key 'slides' "
+        "which is a list of objects. "
         "Each object should have: 'slide_number', 'text' (a concise bullet point, max 10 words), "
         "'image_prompt' (a detailed prompt to generate an image for this slide), and "
         "'voice_script' (what the narrator should say for this slide, max 2 sentences)."
@@ -49,6 +50,33 @@ def generate_amico_comic(homework_prompt: str) -> dict:
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": homework_prompt}
+        ],
+        model="llama-3.1-8b-instant",
+        response_format={"type": "json_object"},
+        temperature=0.7,
+    )
+    
+    return json.loads(response.choices[0].message.content)
+
+def generate_amivi_quiz(text_input: str) -> dict:
+    """
+    Transforms educational text into a 5-question multiple choice quiz.
+    Returns a JSON string containing a 'quiz' object with 'title' and a 'questions' array.
+    """
+    system_prompt = (
+        "You are an educational AI assistant for AMIVI. Create a 5-question multiple-choice quiz based on the provided text. "
+        "Respond ONLY in valid JSON format containing a single key 'quiz' which is an object. "
+        "The 'quiz' object should have a 'title' (string) and a 'questions' (list of objects) key. "
+        "Each object in the 'questions' list should have: "
+        "'q' (the question string), 'options' (a list of 4 possible answers), "
+        "'correct' (the integer index 0-3 of the correct option), and "
+        "'explanation' (a brief explanation of why the answer is correct)."
+    )
+    
+    response = client.chat.completions.create(
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": text_input}
         ],
         model="llama-3.1-8b-instant",
         response_format={"type": "json_object"},

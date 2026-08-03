@@ -1,18 +1,37 @@
 import FileUpload from '../components/ui/FileUpload';
 import ProcessingAnimation from '../components/ui/ProcessingAnimation';
 import Carousel from '../components/ui/Carousel';
+import VideoPlayer from '../components/ui/VideoPlayer';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { generateAmivi, generateAmiviQuiz } from '../services/api';
 
 export default function Amivi() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [result, setResult] = useState(false);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [result, setResult] = useState(null);
+  const [textInput, setTextInput] = useState('');
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-  const handleUpload = () => {
+  const handleGenerate = async () => {
+    if (!textInput.trim()) return;
+    
     setIsProcessing(true);
-    setTimeout(() => {
+    setError(null);
+    try {
+      const data = await generateAmivi(textInput);
+      setResult(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
       setIsProcessing(false);
-      setResult(true);
-    }, 3000);
+    }
+  };
+
+  const handleUpload = (file) => {
+    // Simulate extracting text from a file for now
+    setTextInput("Simulated text extracted from " + file.name + ". In a real implementation, this would parse the document first.");
   };
 
   return (
@@ -22,45 +41,92 @@ export default function Amivi() {
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
             AMIVI Studio
           </h1>
-          <p className="text-gray-400 mt-2">Upload your documents and let AI generate stunning visuals.</p>
+          <p className="text-gray-400 mt-2">Paste text or upload documents and let AI generate stunning visuals.</p>
         </div>
       </div>
 
       {!isProcessing && !result && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-gray-900/50 p-6 rounded-3xl border border-gray-800">
-            <h2 className="text-xl font-semibold mb-6">Source Material</h2>
-            <FileUpload accept=".pdf,.docx,.txt,image/*" onUpload={handleUpload} />
+          <div className="bg-gray-900/50 p-6 rounded-3xl border border-gray-800 flex flex-col">
+            <h2 className="text-xl font-semibold mb-4">Source Material</h2>
+            <textarea 
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              placeholder="Paste your educational text here..."
+              className="w-full flex-1 min-h-[200px] p-4 bg-gray-950 border border-gray-800 rounded-xl text-white resize-none focus:ring-2 focus:ring-cyan-500 focus:outline-none mb-4"
+            />
+            <button 
+              onClick={handleGenerate}
+              disabled={!textInput.trim()}
+              className="w-full py-3 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 disabled:hover:bg-cyan-500 text-gray-950 font-bold rounded-xl transition-colors"
+            >
+              Generate AMIVI
+            </button>
+            {error && <p className="text-red-400 mt-4 text-sm">{error}</p>}
           </div>
           
-          <div className="bg-gray-900/50 p-6 rounded-3xl border border-gray-800 flex flex-col justify-center opacity-50">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-800 rounded-full mx-auto mb-4 flex items-center justify-center text-gray-600">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <p className="text-gray-400">Waiting for upload...</p>
-            </div>
+          <div className="bg-gray-900/50 p-6 rounded-3xl border border-gray-800 flex flex-col">
+             <h2 className="text-xl font-semibold mb-4 text-gray-500">Or Upload File</h2>
+             <div className="flex-1 flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity">
+               <FileUpload accept=".pdf,.docx,.txt,image/*" onUpload={handleUpload} />
+             </div>
           </div>
         </div>
       )}
 
       {isProcessing && (
-        <ProcessingAnimation title="Analyzing Document..." subtitle="Extracting key concepts for visualization" />
+        <ProcessingAnimation title="Analyzing Text..." subtitle="Groq is generating scripts, Piper is synthesizing voice, and MoviePy is rendering your video." />
       )}
 
       {result && (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
           <div className="flex justify-between items-center bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-xl text-cyan-400">
-            <p className="font-medium">Analysis complete! Generated 5 visual concepts.</p>
-            <button onClick={() => setResult(false)} className="text-sm underline hover:text-cyan-300">Start Over</button>
+            <p className="font-medium">Generation complete! Visuals and Video are ready.</p>
+            <div className="flex items-center space-x-4">
+               <button 
+                 onClick={async () => {
+                   setIsGeneratingQuiz(true);
+                   try {
+                     const quizData = await generateAmiviQuiz(textInput);
+                     if (quizData && quizData.quiz) {
+                       navigate('/quiz', { state: { quiz: quizData.quiz } });
+                     } else {
+                       throw new Error("Invalid quiz data returned");
+                     }
+                   } catch (e) {
+                     console.error(e);
+                     setIsGeneratingQuiz(false);
+                     alert("Failed to generate quiz. Please try again.");
+                   }
+                 }} 
+                 disabled={isGeneratingQuiz}
+                 className="text-sm px-4 py-2 bg-cyan-500 text-gray-900 rounded-lg hover:bg-cyan-400 disabled:opacity-50 transition-colors font-bold flex items-center"
+               >
+                 {isGeneratingQuiz ? 'Generating AI Quiz...' : 'Take Quiz on this Topic'}
+               </button>
+               <button onClick={() => { setResult(null); setTextInput(''); }} className="text-sm underline hover:text-cyan-300">Start Over</button>
+            </div>
           </div>
           
-          <Carousel items={[
-            { title: 'Concept 1: Neural Networks', description: 'A visualization of deep learning architecture' },
-            { title: 'Concept 2: Data Flow', description: 'How information propagates through the system' }
-          ]} />
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-white">Final Video</h3>
+              <div className="rounded-2xl overflow-hidden border border-gray-800 shadow-2xl bg-black aspect-video">
+                <video controls className="w-full h-full object-contain" src={result.video_url}>
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+               <h3 className="text-xl font-bold text-white">Generated Slides</h3>
+               <Carousel items={result.slides.map((s, i) => ({
+                 title: `Slide ${i + 1}`,
+                 description: s.text,
+                 url: '/static/images/' + s.image_path.split('\\').pop().split('/').pop()
+               }))} />
+            </div>
+          </div>
         </div>
       )}
     </div>
