@@ -26,8 +26,8 @@ app.add_middleware(
     allow_origins=[
         # "https://comic-weld.vercel.app/",
         "https://comic-khaki.vercel.app",
-        # "http://localhost:5173",
-        # "http://localhost:3000"
+        "http://localhost:5173",
+        "http://localhost:3000"
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
