@@ -13,6 +13,18 @@ from services.llm_service import generate_amivi_content, generate_amico_comic
 from services.image_service import generate_image
 from services.voice_service import generate_voice
 from services.video_service import create_amivi_video
+import sys
+
+# Ensure piper is installed on startup to avoid deployment issues
+piper_dir = os.path.join(os.path.dirname(__file__), "piper")
+piper_exe = os.path.join(piper_dir, "piper") if sys.platform != "win32" else os.path.join(piper_dir, "piper.exe")
+if not os.path.exists(piper_exe):
+    print("Piper not found on startup. Installing it now...")
+    try:
+        from install_piper import install_piper
+        install_piper()
+    except Exception as e:
+        print(f"Failed to install piper on startup: {e}")
 
 app = FastAPI(
     title="AMIVI & AMICO API",

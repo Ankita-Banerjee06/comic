@@ -52,6 +52,6 @@ def create_amivi_video(slides: list, output_filename: str) -> str:
     final_video = concatenate_videoclips(clips, method="compose")
     
     # Write the result to a file
-    final_video.write_videofile(output_path, fps=24, codec="libx264", audio_codec="aac")
+    final_video.write_videofile(output_path, fps=24, codec="libx264", audio_codec="aac", preset="ultrafast", threads=4)
     
     return output_path
