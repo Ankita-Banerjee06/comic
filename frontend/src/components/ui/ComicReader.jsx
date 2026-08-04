@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Maximize2, Download, BookOpen } from 'lucide-react';
 import { useState } from 'react';
+import { API_URL } from '../../services/api';
 
 export default function ComicReader({ panels = [] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -9,7 +10,7 @@ export default function ComicReader({ panels = [] }) {
   const currentPanel = panels[currentIndex];
   // the backend returns a URL like '/static/images/comic_ID_panel_idx.png'
   // it might have backslashes on windows, so let's parse it safely just like AMIVI
-  const imageUrl = currentPanel.image_url ? `https://comic-l1ai.onrender.com/static/images/${currentPanel.image_url.split('\\').pop().split('/').pop()}` : '';
+  const imageUrl = currentPanel.image_url ? `${API_URL}/static/images/${currentPanel.image_url.split('\\').pop().split('/').pop()}` : '';
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden flex flex-col h-[700px] shadow-2xl">
