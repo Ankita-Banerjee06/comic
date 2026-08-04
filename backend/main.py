@@ -24,8 +24,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://comic-weld.vercel.app/",
-        "https://comic-khaki.vercel.app/",
+        # "https://comic-weld.vercel.app/",
+        "https://comic-khaki.vercel.app",
         # "http://localhost:5173",
         # "http://localhost:3000"
     ],
