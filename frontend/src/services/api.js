@@ -1,4 +1,4 @@
-export const API_URL = ''; // Uses Vite proxy
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'; // Environment-based backend URL
 
 export async function generateAmivi(text) {
   const response = await fetch(`${API_URL}/api/amivi/generate`, {
