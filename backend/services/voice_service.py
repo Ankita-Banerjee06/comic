@@ -13,12 +13,14 @@ def generate_voice(text: str, filename: str) -> str:
     file_path = os.path.join(output_dir, filename)
     
     # Define Piper path (assuming a local installation for this project)
-    piper_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "piper", "piper.exe")
+    import platform
+    piper_exec = "piper.exe" if platform.system() == "Windows" else "piper"
+    piper_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "piper", piper_exec)
     model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "piper", "en_US-lessac-medium.onnx")
     
     # If the local piper is not found, attempt to use from PATH
     if not os.path.exists(piper_path):
-        piper_path = "piper"
+        piper_path = piper_exec
         
     try:
         # Construct the Piper command

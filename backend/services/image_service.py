@@ -24,9 +24,9 @@ def generate_image(prompt: str, filename: str) -> str:
             # Pollinations can be aggressive with rate limits (429) if hit instantly
             if attempt > 0:
                 print(f"Retry attempt {attempt} for image: {filename}")
-                time.sleep(4) # Wait before retrying
+                time.sleep(5) # Wait before retrying
                 
-            response = requests.get(url, timeout=15)
+            response = requests.get(url, timeout=60)
             
             if response.status_code == 200 and 'image' in response.headers.get('content-type', ''):
                 output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "images")
