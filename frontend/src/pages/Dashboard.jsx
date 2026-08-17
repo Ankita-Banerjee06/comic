@@ -1,109 +1,116 @@
-import { Trophy, TrendingUp, BookOpen, Video as VideoIcon, Clock, ArrowRight } from 'lucide-react';
+import { Trophy, TrendingUp, BookOpen, Video as VideoIcon, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
-      {/* Welcome Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end bg-gradient-to-r from-cyan-900/40 to-fuchsia-900/40 p-8 rounded-3xl border border-gray-800 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full pointer-events-none"></div>
+    <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* Welcome banner */}
+      <div className="relative bg-gradient-to-r from-blue-600 via-blue-500 to-purple-600 text-white rounded-4xl p-8 overflow-hidden shadow-2xl">
+        <div className="absolute top-0 right-0 text-[120px] opacity-10 leading-none select-none pointer-events-none">🎓</div>
         <div className="relative z-10">
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome back, Alex! 👋</h1>
-          <p className="text-gray-400 max-w-lg">You've learned 14 new concepts this week. Keep up the great momentum!</p>
+          <h1 className="text-3xl md:text-4xl font-black mb-2">Welcome back! 👋</h1>
+          <p className="text-blue-100 font-bold text-lg mb-6">You've learned 14 new concepts this week. Keep it up! 🔥</p>
+          <Link to="/amivi" className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-black py-3 px-6 rounded-2xl hover:scale-105 transition-transform shadow-lg">
+            <span>Resume Learning</span>
+            <ArrowRight className="w-5 h-5" />
+          </Link>
         </div>
-        <button className="mt-6 md:mt-0 px-6 py-2.5 bg-white text-gray-950 font-bold rounded-xl hover:bg-gray-200 transition-colors shadow-lg">
-          Resume Last Course
-        </button>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard icon={<Trophy className="text-yellow-400" />} title="Current Streak" value="12 Days" trend="+2 from last week" />
-        <StatCard icon={<TrendingUp className="text-emerald-400" />} title="Total XP" value="2,450" trend="Top 15% of learners" />
-        <StatCard icon={<BookOpen className="text-cyan-400" />} title="Comics Read" value="34" trend="12 this month" />
-        <StatCard icon={<VideoIcon className="text-fuchsia-400" />} title="Visuals Watched" value="128" trend="45 hours total" />
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        <StatCard emoji="🔥" title="Day Streak" value="12 Days"  trend="+2 days" color="from-orange-400 to-red-400" />
+        <StatCard emoji="⭐" title="Total XP"   value="2,450"    trend="Top 15%" color="from-yellow-400 to-orange-400" />
+        <StatCard emoji="📚" title="Comics Read" value="34"      trend="12 this month" color="from-pink-400 to-purple-400" />
+        <StatCard emoji="🎬" title="Visuals"    value="128"      trend="45 hours total" color="from-blue-400 to-cyan-400" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Recent Projects / Activity */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Continue learning */}
+        <div className="lg:col-span-2 space-y-5">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-white">Continue Learning</h2>
-            <Link to="/library" className="text-sm text-cyan-400 hover:text-cyan-300 font-medium">View all</Link>
+            <h2 className="text-2xl font-black text-gray-800">Continue Learning 🚀</h2>
+            <Link to="/library" className="text-blue-600 font-bold hover:text-blue-800 transition-colors text-sm">View all →</Link>
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ProjectCard title="Photosynthesis Journey" type="AMICO Comic" progress={75} image="https://dummyimage.com/400x200/15803d/ffffff.png&text=Bio+Comic" />
-            <ProjectCard title="Quantum Mechanics 101" type="AMIVI Visuals" progress={30} image="https://dummyimage.com/400x200/4338ca/ffffff.png&text=Physics+Visuals" />
-            <ProjectCard title="World War II Timeline" type="Interactive Quiz" progress={0} image="https://dummyimage.com/400x200/b91c1c/ffffff.png&text=History+Quiz" />
-            <ProjectCard title="Advanced Calculus" type="AMIVI Video" progress={100} image="https://dummyimage.com/400x200/0f766e/ffffff.png&text=Math+Video" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <ProjectCard title="Photosynthesis Journey" type="AMICO Comic" progress={75} emoji="🌿" color="bg-green-500" />
+            <ProjectCard title="Quantum Mechanics 101"  type="AMIVI Visuals" progress={30} emoji="⚛️" color="bg-blue-500" />
+            <ProjectCard title="World War II Timeline" type="Quiz" progress={0} emoji="🏛️" color="bg-red-500" />
+            <ProjectCard title="Advanced Calculus"     type="AMIVI Video" progress={100} emoji="📐" color="bg-purple-500" />
           </div>
         </div>
 
-        {/* Sidebar Widgets */}
-        <div className="space-y-6">
-          <div className="bg-gray-900/50 p-6 rounded-3xl border border-gray-800">
-            <h2 className="text-lg font-bold text-white mb-4">Daily Goals</h2>
+        {/* Quick launch + daily goals */}
+        <div className="space-y-5">
+          <div className="bg-white rounded-4xl border-2 border-gray-100 shadow-xl p-6">
+            <h2 className="text-xl font-black text-gray-800 mb-5">Quick Launch 🚀</h2>
+            <div className="space-y-3">
+              <Link to="/amivi" className="flex items-center gap-3 w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-black py-3 px-5 rounded-2xl hover:scale-105 transition-transform shadow-md">
+                <span className="text-2xl">🎨</span> AMIVI Studio
+              </Link>
+              <Link to="/amico" className="flex items-center gap-3 w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-black py-3 px-5 rounded-2xl hover:scale-105 transition-transform shadow-md">
+                <span className="text-2xl">📚</span> AMICO Comics
+              </Link>
+              <Link to="/quiz" className="flex items-center gap-3 w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black py-3 px-5 rounded-2xl hover:scale-105 transition-transform shadow-md">
+                <span className="text-2xl">🧩</span> Take a Quiz
+              </Link>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-4xl border-2 border-gray-100 shadow-xl p-6">
+            <h2 className="text-xl font-black text-gray-800 mb-5">Daily Goals 🎯</h2>
             <div className="space-y-4">
-              <GoalItem title="Complete 1 Quiz" current={0} target={1} />
-              <GoalItem title="Read a Comic Chapter" current={1} target={1} />
-              <GoalItem title="Generate new AMIVI" current={2} target={3} />
+              <GoalItem title="Complete 1 Quiz"      current={0} target={1} color="bg-purple-500" />
+              <GoalItem title="Read a Comic Chapter" current={1} target={1} color="bg-pink-500" />
+              <GoalItem title="Generate new AMIVI"   current={2} target={3} color="bg-blue-500" />
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
 }
 
-function StatCard({ icon, title, value, trend }) {
+function StatCard({ emoji, title, value, trend, color }) {
   return (
-    <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 flex items-start space-x-4">
-      <div className="p-3 bg-gray-800 rounded-xl">{icon}</div>
-      <div>
-        <p className="text-sm text-gray-500 font-medium">{title}</p>
-        <h3 className="text-2xl font-bold text-white mt-1">{value}</h3>
-        <p className="text-xs text-gray-500 mt-1">{trend}</p>
-      </div>
+    <div className={`bg-gradient-to-br ${color} text-white rounded-3xl p-5 shadow-xl card-hover`}>
+      <div className="text-4xl mb-3">{emoji}</div>
+      <div className="text-sm font-bold text-white/80">{title}</div>
+      <div className="text-2xl font-black mt-1">{value}</div>
+      <div className="text-xs text-white/60 font-bold mt-1">{trend}</div>
     </div>
   );
 }
 
-function ProjectCard({ title, type, progress, image }) {
+function ProjectCard({ title, type, progress, emoji, color }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden group cursor-pointer hover:border-gray-600 transition-colors">
-      <div className="h-32 bg-gray-800 relative overflow-hidden">
-        <img src={image} alt={title} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
+    <div className="bg-white border-2 border-gray-100 rounded-3xl p-5 shadow-lg card-hover group cursor-pointer">
+      <div className={`w-12 h-12 ${color} text-white rounded-2xl flex items-center justify-center text-2xl mb-4 shadow-md group-hover:scale-110 transition-transform`}>
+        {emoji}
       </div>
-      <div className="p-4">
-        <p className="text-xs font-semibold text-cyan-400 mb-1">{type}</p>
-        <h4 className="font-bold text-white mb-3 truncate">{title}</h4>
-        
-        <div className="flex items-center space-x-3">
-          <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-cyan-500 to-fuchsia-500" style={{ width: `${progress}%` }}></div>
-          </div>
-          <span className="text-xs text-gray-500 font-medium">{progress}%</span>
+      <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">{type}</p>
+      <h4 className="font-black text-gray-800 mb-4 text-lg leading-tight">{title}</h4>
+      <div className="flex items-center space-x-3">
+        <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
+        <span className="text-sm text-gray-500 font-black">{progress}%</span>
       </div>
     </div>
   );
 }
 
-function GoalItem({ title, current, target }) {
+function GoalItem({ title, current, target, color }) {
   const isComplete = current >= target;
   return (
     <div>
-      <div className="flex justify-between text-sm mb-2">
-        <span className={isComplete ? 'text-gray-500 line-through' : 'text-gray-300'}>{title}</span>
-        <span className="text-gray-500">{current}/{target}</span>
+      <div className="flex justify-between text-sm font-bold mb-2">
+        <span className={isComplete ? 'text-gray-400 line-through' : 'text-gray-700'}>{title} {isComplete ? '✅' : ''}</span>
+        <span className="text-gray-400">{current}/{target}</span>
       </div>
-      <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
-        <div className={`h-full ${isComplete ? 'bg-emerald-500' : 'bg-fuchsia-500'}`} style={{ width: `${(current/target)*100}%` }}></div>
+      <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full ${isComplete ? 'bg-green-400' : color} rounded-full transition-all`} style={{ width: `${(current / target) * 100}%` }} />
       </div>
     </div>
   );

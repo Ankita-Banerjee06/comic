@@ -5,11 +5,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 export default function Quiz() {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // Use dynamically generated quiz if passed via routing state and valid, else fallback to mock
+
   const passedQuiz = location.state?.quiz;
   const isValidPassedQuiz = passedQuiz && passedQuiz.title && passedQuiz.questions && Array.isArray(passedQuiz.questions);
-  
+
   const quizData = isValidPassedQuiz ? passedQuiz : {
     title: "Photosynthesis Masterclass",
     questions: [
@@ -35,30 +34,66 @@ export default function Quiz() {
 
   if (!started) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in zoom-in-95 duration-500">
-        <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-indigo-500/20 rotate-3">
-          <BrainCircuit className="w-12 h-12 text-white" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in zoom-in-95 duration-500 py-12">
+        <div className="w-28 h-28 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-purple-400/40 animate-float">
+          <span className="text-6xl">🧩</span>
         </div>
-        <h1 className="text-4xl font-bold text-white mb-4">Quiz Time!</h1>
-        <p className="text-gray-400 max-w-md mb-8">Test your knowledge on <strong>{quizData.title}</strong>. You have 10 minutes to complete {quizData.questions.length} questions.</p>
-        <button onClick={() => setStarted(true)} className="px-8 py-3 bg-white text-gray-950 font-bold rounded-xl hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-          Start Quiz
+        <h1 className="text-5xl font-black text-purple-700 mb-4">Quiz Time! 🎉</h1>
+        <p className="text-gray-600 font-bold text-xl max-w-md mb-8 leading-relaxed">
+          Test your knowledge on <strong className="text-purple-600">{quizData.title}</strong>.<br />
+          {quizData.questions.length} questions are waiting for you!
+        </p>
+        <div className="flex gap-4 justify-center mb-8">
+          {['⭐ Earn Points', '🏆 Win Badges', '🔥 Keep Streak'].map((t) => (
+            <div key={t} className="bg-purple-100 text-purple-700 rounded-2xl px-4 py-2 font-black text-sm">{t}</div>
+          ))}
+        </div>
+        <button
+          onClick={() => setStarted(true)}
+          className="px-10 py-5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black rounded-3xl text-2xl hover:scale-105 transition-transform shadow-[0_12px_30px_rgba(124,58,237,0.4)]"
+        >
+          🚀 Start Quiz!
         </button>
       </div>
     );
   }
 
   if (finished) {
+    const percentage = Math.round((score / quizData.questions.length) * 100);
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in zoom-in-95 duration-500">
-        <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-emerald-500/20">
-          <CheckCircle2 className="w-12 h-12 text-white" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in zoom-in-95 duration-500 py-12">
+        <div className="text-8xl mb-8 animate-float">
+          {percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '💪'}
         </div>
-        <h1 className="text-4xl font-bold text-white mb-4">Quiz Complete!</h1>
-        <p className="text-gray-400 max-w-md mb-2">You scored {score} out of {quizData.questions.length}.</p>
-        <button onClick={() => navigate('/dashboard')} className="mt-8 px-8 py-3 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-700 transition-all">
-          Back to Dashboard
-        </button>
+        <h1 className="text-5xl font-black text-purple-700 mb-4">
+          {percentage >= 80 ? 'Amazing! 🎉' : percentage >= 60 ? 'Well Done! ⭐' : 'Keep Going! 💪'}
+        </h1>
+        <div className="bg-white rounded-4xl border-2 border-purple-200 shadow-2xl p-8 mb-8 max-w-sm">
+          <div className={`text-6xl font-black mb-2 ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-orange-600'}`}>
+            {score}/{quizData.questions.length}
+          </div>
+          <div className="text-gray-600 font-bold text-xl">{percentage}% Score</div>
+          <div className="w-full h-4 bg-gray-100 rounded-full mt-4 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-1000 ${percentage >= 80 ? 'bg-green-500' : percentage >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+        </div>
+        <div className="flex gap-4">
+          <button
+            onClick={() => { setStarted(false); setCurrentQuestion(0); setScore(0); setSelectedAnswer(null); setFinished(false); }}
+            className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black rounded-3xl text-lg hover:scale-105 transition-transform shadow-lg"
+          >
+            🔄 Try Again
+          </button>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="px-8 py-4 bg-white border-2 border-purple-300 text-purple-700 font-black rounded-3xl text-lg hover:scale-105 transition-transform shadow-lg"
+          >
+            🏠 Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -67,10 +102,7 @@ export default function Quiz() {
   const isAnswered = selectedAnswer !== null;
 
   const handleNext = () => {
-    if (selectedAnswer === q.correct) {
-      setScore(s => s + 1);
-    }
-    
+    if (selectedAnswer === q.correct) setScore(s => s + 1);
     if (currentQuestion === quizData.questions.length - 1) {
       setFinished(true);
     } else {
@@ -79,37 +111,45 @@ export default function Quiz() {
     }
   };
 
+  const optionLabels = ['A', 'B', 'C', 'D'];
+
   return (
-    <div className="max-w-3xl mx-auto py-8 animate-in fade-in slide-in-from-right-8 duration-500">
-      
+    <div className="max-w-2xl mx-auto py-8 animate-in fade-in slide-in-from-right-8 duration-500">
       {/* Header */}
-      <div className="flex justify-between items-center mb-12">
-        <h2 className="text-xl font-bold text-gray-400">{quizData.title}</h2>
-        <div className="flex items-center space-x-4">
-          <span className="text-gray-500 font-medium">Question {currentQuestion + 1} of {quizData.questions.length}</span>
+      <div className="flex justify-between items-center mb-6">
+        <div className="bg-purple-100 text-purple-700 rounded-2xl px-5 py-2.5 font-black text-lg">
+          Q {currentQuestion + 1}/{quizData.questions.length}
+        </div>
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 rounded-2xl px-5 py-2.5 font-black text-lg shadow-lg">
+          ⭐ Score: {score}
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="w-full h-1 bg-gray-800 rounded-full mb-12 overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-cyan-500 to-fuchsia-500 transition-all duration-500" style={{ width: `${((currentQuestion) / quizData.questions.length) * 100}%` }}></div>
+      {/* Progress bar */}
+      <div className="w-full h-4 bg-purple-100 rounded-full mb-8 overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-700 shadow-md"
+          style={{ width: `${((currentQuestion) / quizData.questions.length) * 100}%` }}
+        />
       </div>
 
-      {/* Question */}
-      <h3 className="text-2xl md:text-3xl font-bold text-white mb-8 leading-tight">
-        {q.q}
-      </h3>
+      {/* Question card */}
+      <div className="bg-white rounded-4xl border-2 border-purple-100 shadow-2xl p-8 mb-6">
+        <h3 className="text-2xl md:text-3xl font-black text-gray-800 leading-tight">
+          {q.q}
+        </h3>
+      </div>
 
       {/* Options */}
-      <div className="space-y-4 mb-8">
+      <div className="space-y-4 mb-6">
         {q.options.map((opt, idx) => {
-          let stateClass = "bg-gray-900 border-gray-800 hover:border-gray-600 text-gray-300";
+          let cls = "bg-white border-2 border-gray-200 text-gray-700 hover:border-purple-400 hover:bg-purple-50";
           if (isAnswered) {
-            if (idx === q.correct) stateClass = "bg-emerald-900/30 border-emerald-500 text-emerald-400";
-            else if (idx === selectedAnswer) stateClass = "bg-red-900/30 border-red-500 text-red-400";
-            else stateClass = "bg-gray-900 border-gray-800 opacity-50";
+            if (idx === q.correct) cls = "bg-green-50 border-2 border-green-400 text-green-700";
+            else if (idx === selectedAnswer) cls = "bg-red-50 border-2 border-red-400 text-red-600";
+            else cls = "bg-gray-50 border-2 border-gray-200 text-gray-400 opacity-60";
           } else if (selectedAnswer === idx) {
-            stateClass = "bg-cyan-900/30 border-cyan-500 text-cyan-400";
+            cls = "bg-purple-50 border-2 border-purple-500 text-purple-700";
           }
 
           return (
@@ -117,32 +157,42 @@ export default function Quiz() {
               key={idx}
               disabled={isAnswered}
               onClick={() => setSelectedAnswer(idx)}
-              className={`w-full text-left p-5 rounded-2xl border-2 transition-all duration-200 flex justify-between items-center ${stateClass}`}
+              className={`w-full text-left px-6 py-4 rounded-3xl transition-all duration-200 flex justify-between items-center ${cls} font-bold text-lg shadow-sm hover:shadow-md`}
             >
-              <span className="font-medium text-lg">{opt}</span>
-              {isAnswered && idx === q.correct && <CheckCircle2 className="w-6 h-6 text-emerald-500" />}
-              {isAnswered && idx === selectedAnswer && idx !== q.correct && <XCircle className="w-6 h-6 text-red-500" />}
+              <span className="flex items-center gap-4">
+                <span className="w-9 h-9 rounded-full bg-current/10 flex items-center justify-center font-black text-base shrink-0" style={{ backgroundColor: isAnswered && idx === q.correct ? '#dcfce7' : isAnswered && idx === selectedAnswer ? '#fee2e2' : '#f3e8ff', color: 'currentColor' }}>
+                  {optionLabels[idx]}
+                </span>
+                {opt}
+              </span>
+              {isAnswered && idx === q.correct && <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />}
+              {isAnswered && idx === selectedAnswer && idx !== q.correct && <XCircle className="w-6 h-6 text-red-500 shrink-0" />}
             </button>
           );
         })}
       </div>
 
-      {/* Actions & Explanation */}
+      {/* Explanation + Next */}
       {isAnswered && (
-        <div className="animate-in fade-in slide-in-from-bottom-4">
-          <div className="p-6 bg-gray-800/50 rounded-2xl border border-gray-700 mb-8">
+        <div className="animate-in fade-in slide-in-from-bottom-4 space-y-4">
+          <div className="p-6 bg-blue-50 rounded-3xl border-2 border-blue-200">
             <div className="flex items-start space-x-3">
-              <HelpCircle className="w-6 h-6 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <span className="text-2xl">💡</span>
               <div>
-                <h4 className="text-white font-bold mb-2">AI Explanation</h4>
-                <p className="text-gray-300 leading-relaxed">{q.explanation}</p>
+                <h4 className="text-blue-800 font-black mb-2 text-lg">AI Explanation</h4>
+                <p className="text-blue-700 font-semibold leading-relaxed">{q.explanation}</p>
               </div>
             </div>
           </div>
-          <div className="flex justify-end">
-            <button onClick={handleNext} className="px-8 py-3 bg-white text-gray-950 font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center group">
-              {currentQuestion === quizData.questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
-              <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+          <div className="flex justify-between items-center">
+            <span className={`font-black px-4 py-2 rounded-2xl ${selectedAnswer === q.correct ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+              {selectedAnswer === q.correct ? '✅ Correct! +20 XP' : '❌ Not quite!'}
+            </span>
+            <button
+              onClick={handleNext}
+              className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black rounded-3xl hover:scale-105 transition-transform shadow-lg flex items-center gap-2 text-lg"
+            >
+              {currentQuestion === quizData.questions.length - 1 ? '🏆 Finish!' : 'Next →'}
             </button>
           </div>
         </div>

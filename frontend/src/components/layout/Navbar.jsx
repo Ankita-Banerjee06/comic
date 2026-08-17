@@ -1,49 +1,101 @@
-import { Search, Bell, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Menu, X, User, Globe, Home, Image as ImageIcon, BookOpen, HelpCircle, Library } from 'lucide-react';
+import { Link, NavLink } from 'react-router-dom';
+
+const navLinks = [
+  { name: 'Home',    path: '/',        icon: Home,       pill: 'bg-yellow-400 text-yellow-900 hover:bg-yellow-300'  },
+  { name: 'AMIVI',  path: '/amivi',   icon: ImageIcon,  pill: 'bg-green-400 text-green-900 hover:bg-green-300'     },
+  { name: 'AMICO',  path: '/amico',   icon: BookOpen,   pill: 'bg-pink-400 text-pink-900 hover:bg-pink-300'        },
+  { name: 'Quiz',   path: '/quiz',    icon: HelpCircle, pill: 'bg-purple-400 text-white hover:bg-purple-300'       },
+  { name: 'Library',path: '/library', icon: Library,    pill: 'bg-orange-400 text-orange-900 hover:bg-orange-300'  },
+];
 
 export default function Navbar() {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <header className="h-16 border-b border-gray-800 bg-gray-900/80 backdrop-blur-md sticky top-0 z-40 flex items-center justify-between px-6">
-      
-      {/* Mobile Menu Button (placeholder) */}
-      <div className="md:hidden flex items-center">
-        <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-fuchsia-500 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">
-          V
-        </div>
-      </div>
+    <header className="sticky top-0 z-50 bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-500 shadow-lg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
 
-      {/* Search Bar */}
-      <div className="flex-1 max-w-md hidden md:flex items-center">
-        <div className="relative w-full group">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 group-focus-within:text-cyan-400 transition-colors">
-            <Search className="h-4 w-4" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-700 rounded-xl leading-5 bg-gray-950/50 text-gray-300 placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 sm:text-sm transition-all shadow-inner"
-            placeholder="Search projects, visuals, or comics..."
+        {/* Logo */}
+        <Link to="/" className="flex flex-col items-center justify-center group mt-1" aria-label="VLQ Home">
+          <img
+            src="/vlq-logo-clean.png"
+            alt="VLQ – Visual Learning Platform"
+            className="h-16 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-xl"
           />
-        </div>
-      </div>
-
-      {/* Right Actions */}
-      <div className="flex items-center space-x-4">
-        <button className="relative p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-gray-800">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-fuchsia-500 shadow-[0_0_8px_rgba(217,70,239,0.8)]"></span>
-        </button>
-        
-        <div className="h-8 w-px bg-gray-800 hidden sm:block"></div>
-        
-        <Link to="/profile" className="flex items-center space-x-3 p-1 rounded-full hover:bg-gray-800 pr-3 transition-colors">
-          <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center border border-gray-600">
-            <User className="h-4 w-4 text-gray-400" />
-          </div>
-          <span className="text-sm font-medium hidden sm:block text-gray-200">
-            Alex Chen
+          <span className="text-[10px] font-bold tracking-[0.25em] text-white/90 uppercase mt-1 group-hover:text-white transition-colors drop-shadow-md">
+            Since 2026
           </span>
         </Link>
+
+        {/* Desktop Nav */}
+        <nav className="hidden md:flex items-center space-x-2">
+          {navLinks.map((link) => {
+            const Icon = link.icon;
+            return (
+              <NavLink
+                key={link.name}
+                to={link.path}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-2xl font-black text-sm transition-all hover:scale-105 shadow-md ${link.pill}`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{link.name}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        {/* Right actions */}
+        <div className="hidden md:flex items-center space-x-3">
+          <button className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/20 font-bold transition-all text-sm">
+            <Globe className="w-4 h-4" />
+            <span>EN</span>
+          </button>
+          <Link to="/profile" className="flex items-center space-x-2 px-4 py-2.5 bg-white text-blue-600 rounded-2xl font-black text-sm hover:bg-blue-50 hover:scale-105 transition-all shadow-md">
+            <User className="w-4 h-4" />
+            <span>Student</span>
+          </Link>
+        </div>
+
+        {/* Mobile toggle */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="md:hidden p-2 text-white hover:bg-white/20 rounded-xl transition-colors"
+        >
+          {isOpen ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
+        </button>
       </div>
+
+      {/* Mobile menu */}
+      {isOpen && (
+        <div className="md:hidden absolute top-24 left-0 w-full bg-gradient-to-br from-sky-500 to-indigo-600 border-t border-white/20 shadow-2xl px-4 py-6 space-y-2 z-50">
+          {navLinks.map((link) => {
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.name}
+                to={link.path}
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl font-black text-base transition-all ${link.pill}`}
+              >
+                <Icon className="w-5 h-5" />
+                <span>{link.name}</span>
+              </Link>
+            );
+          })}
+          <div className="pt-4 border-t border-white/20 flex items-center justify-between">
+            <button className="flex items-center space-x-2 px-4 py-2 rounded-xl font-bold text-white/80">
+              <Globe className="w-4 h-4" />
+              <span>Language: EN</span>
+            </button>
+            <Link to="/profile" onClick={() => setIsOpen(false)} className="flex items-center space-x-2 px-4 py-2.5 bg-white text-blue-600 rounded-xl font-black shadow-md">
+              <User className="w-4 h-4" />
+              <span>Student</span>
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

@@ -17,7 +17,7 @@ export default function AmiviDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
       });
-      
+
       const data = await response.json();
       if (response.ok) {
         setResult(data);
@@ -35,7 +35,7 @@ export default function AmiviDashboard() {
     <div className="p-6 bg-gray-800 rounded-xl shadow-2xl max-w-4xl mx-auto my-8 border border-gray-700 transition-all duration-300 hover:shadow-cyan-500/20">
       <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-6">AMIVI - Visual Synthesis</h2>
       <p className="text-gray-400 mb-4">Transform lengthy texts into engaging visual micro-bits and videos instantly.</p>
-      
+
       <div className="mb-6">
         <textarea
           className="w-full h-40 p-4 bg-gray-900 text-white rounded-lg border border-gray-600 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-900 transition-all outline-none resize-none"
@@ -44,7 +44,7 @@ export default function AmiviDashboard() {
           onChange={(e) => setText(e.target.value)}
         ></textarea>
       </div>
-      
+
       <button
         onClick={handleGenerate}
         disabled={loading}
@@ -70,11 +70,11 @@ export default function AmiviDashboard() {
               </video>
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {result.slides && result.slides.map((slide, idx) => (
               <div key={idx} className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition-colors">
-                <img src={`${API_URL}${slide.image_path}`} alt={`Slide ${idx+1}`} className="w-full h-48 object-cover" />
+                <img src={`${API_URL}${slide.image_path}`} alt={`Slide ${idx + 1}`} className="w-full h-48 object-cover" />
                 <div className="p-4">
                   <p className="text-sm text-gray-300 font-semibold">{slide.text}</p>
                   {slide.audio_path && (
