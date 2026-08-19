@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 // Layouts
 import MainLayout from './layouts/MainLayout';
@@ -16,6 +17,9 @@ import Library from './pages/Library';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
+import CollaborativeLearning from './pages/CollaborativeLearning';
+import Courses from './pages/Courses';
+import Tutorials from './pages/Tutorials';
 
 // Auth Pages
 import Login from './pages/Auth/Login';
@@ -24,8 +28,9 @@ import ForgotPassword from './pages/Auth/ForgotPassword';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <LanguageProvider>
+      <BrowserRouter>
+        <Routes>
         {/* Public Landing Page */}
         <Route element={<LandingLayout />}>
           <Route path="/" element={<Landing />} />
@@ -49,12 +54,16 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/collaborative" element={<CollaborativeLearning />} />
+          <Route path="/courses" element={<Courses />} />
+          <Route path="/tutorials" element={<Tutorials />} />
         </Route>
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </LanguageProvider>
   );
 }
 

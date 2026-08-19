@@ -35,8 +35,6 @@ def install_piper():
         raise Exception(f"Unsupported platform: {system} {machine}")
         
     piper_url = f"https://github.com/rhasspy/piper/releases/download/2023.11.14-2/{archive_name}"
-    model_onnx_url = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx"
-    model_json_url = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
     
     # 1. Download and extract Piper executable
     temp_archive = os.path.join(tempfile.gettempdir(), archive_name)
@@ -52,11 +50,26 @@ def install_piper():
     print("Extraction complete.")
     
     # 2. Download the voice models directly into the piper directory
-    onnx_dest = os.path.join(piper_dir, "en_US-lessac-medium.onnx")
-    json_dest = os.path.join(piper_dir, "en_US-lessac-medium.onnx.json")
+    models = [
+        {
+            "onnx": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
+            "json": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json",
+            "dest_base": "en_US-lessac-medium"
+        },
+        {
+            "onnx": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx",
+            "json": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx.json",
+            "dest_base": "es_ES-sharvard-medium"
+        }
+    ]
     
-    download_file(model_onnx_url, onnx_dest)
-    download_file(model_json_url, json_dest)
+    for m in models:
+        onnx_dest = os.path.join(piper_dir, f"{m['dest_base']}.onnx")
+        json_dest = os.path.join(piper_dir, f"{m['dest_base']}.onnx.json")
+        if not os.path.exists(onnx_dest):
+            download_file(m["onnx"], onnx_dest)
+        if not os.path.exists(json_dest):
+            download_file(m["json"], json_dest)
     
     # Make piper executable on Linux/Mac
     if system in ['Linux', 'Darwin']:

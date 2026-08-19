@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { HelpCircle, CheckCircle2, XCircle, ChevronRight, BrainCircuit } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Quiz() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
 
   const passedQuiz = location.state?.quiz;
   const isValidPassedQuiz = passedQuiz && passedQuiz.title && passedQuiz.questions && Array.isArray(passedQuiz.questions);
 
-  const quizData = isValidPassedQuiz ? passedQuiz : {
+  const fallbackQuizEn = {
     title: "Photosynthesis Masterclass",
     questions: [
       {
@@ -26,6 +28,26 @@ export default function Quiz() {
     ]
   };
 
+  const fallbackQuizEs = {
+    title: "Clase Magistral de Fotosíntesis",
+    questions: [
+      {
+        q: "¿Cuál es la función principal de la clorofila en la fotosíntesis?",
+        options: [
+          "Absorber agua del suelo",
+          "Capturar energía luminosa del sol",
+          "Convertir glucosa en ATP",
+          "Liberar oxígeno a la atmósfera"
+        ],
+        correct: 1,
+        explanation: "La clorofila es el pigmento verde de las plantas que absorbe la energía luminosa, principalmente en las longitudes de onda azul y roja, lo cual es necesario para impulsar el proceso de fotosíntesis."
+      }
+    ]
+  };
+
+  const fallbackQuiz = language === 'es' ? fallbackQuizEs : fallbackQuizEn;
+  const quizData = isValidPassedQuiz ? passedQuiz : fallbackQuiz;
+
   const [started, setStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -38,10 +60,10 @@ export default function Quiz() {
         <div className="w-28 h-28 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-purple-400/40 animate-float">
           <span className="text-6xl">🧩</span>
         </div>
-        <h1 className="text-5xl font-black text-purple-700 mb-4">Quiz Time! 🎉</h1>
+        <h1 className="text-5xl font-black text-purple-700 mb-4">{t('Quiz')} Time! 🎉</h1>
         <p className="text-gray-600 font-bold text-xl max-w-md mb-8 leading-relaxed">
-          Test your knowledge on <strong className="text-purple-600">{quizData.title}</strong>.<br />
-          {quizData.questions.length} questions are waiting for you!
+          {t('Test your knowledge on')} <strong className="text-purple-600">{quizData.title}</strong>.<br />
+          {quizData.questions.length} {t('Question').toLowerCase()}s!
         </p>
         <div className="flex gap-4 justify-center mb-8">
           {['⭐ Earn Points', '🏆 Win Badges', '🔥 Keep Streak'].map((t) => (
@@ -52,7 +74,7 @@ export default function Quiz() {
           onClick={() => setStarted(true)}
           className="px-10 py-5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black rounded-3xl text-2xl hover:scale-105 transition-transform shadow-[0_12px_30px_rgba(124,58,237,0.4)]"
         >
-          🚀 Start Quiz!
+          🚀 {t('Start Quiz')}!
         </button>
       </div>
     );
@@ -72,7 +94,7 @@ export default function Quiz() {
           <div className={`text-6xl font-black mb-2 ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-orange-600'}`}>
             {score}/{quizData.questions.length}
           </div>
-          <div className="text-gray-600 font-bold text-xl">{percentage}% Score</div>
+          <div className="text-gray-600 font-bold text-xl">{percentage}% {t('Score')}</div>
           <div className="w-full h-4 bg-gray-100 rounded-full mt-4 overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-1000 ${percentage >= 80 ? 'bg-green-500' : percentage >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
@@ -85,13 +107,13 @@ export default function Quiz() {
             onClick={() => { setStarted(false); setCurrentQuestion(0); setScore(0); setSelectedAnswer(null); setFinished(false); }}
             className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black rounded-3xl text-lg hover:scale-105 transition-transform shadow-lg"
           >
-            🔄 Try Again
+            🔄 {t('Retake Quiz')}
           </button>
           <button
             onClick={() => navigate('/dashboard')}
             className="px-8 py-4 bg-white border-2 border-purple-300 text-purple-700 font-black rounded-3xl text-lg hover:scale-105 transition-transform shadow-lg"
           >
-            🏠 Dashboard
+            🏠 {t('Home')}
           </button>
         </div>
       </div>
@@ -118,10 +140,10 @@ export default function Quiz() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div className="bg-purple-100 text-purple-700 rounded-2xl px-5 py-2.5 font-black text-lg">
-          Q {currentQuestion + 1}/{quizData.questions.length}
+          {t('Question')} {currentQuestion + 1}/{quizData.questions.length}
         </div>
         <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 rounded-2xl px-5 py-2.5 font-black text-lg shadow-lg">
-          ⭐ Score: {score}
+          ⭐ {t('Score')}: {score}
         </div>
       </div>
 
@@ -179,20 +201,20 @@ export default function Quiz() {
             <div className="flex items-start space-x-3">
               <span className="text-2xl">💡</span>
               <div>
-                <h4 className="text-blue-800 font-black mb-2 text-lg">AI Explanation</h4>
+                <h4 className="text-blue-800 font-black mb-2 text-lg">{t('Explanation')}</h4>
                 <p className="text-blue-700 font-semibold leading-relaxed">{q.explanation}</p>
               </div>
             </div>
           </div>
           <div className="flex justify-between items-center">
             <span className={`font-black px-4 py-2 rounded-2xl ${selectedAnswer === q.correct ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-              {selectedAnswer === q.correct ? '✅ Correct! +20 XP' : '❌ Not quite!'}
+              {selectedAnswer === q.correct ? '✅ ' + t('Correct Answer') : '❌ ' + t('Wrong Answer')}
             </span>
             <button
               onClick={handleNext}
               className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-black rounded-3xl hover:scale-105 transition-transform shadow-lg flex items-center gap-2 text-lg"
             >
-              {currentQuestion === quizData.questions.length - 1 ? '🏆 Finish!' : 'Next →'}
+              {currentQuestion === quizData.questions.length - 1 ? '🏆 ' + t('Final Score') : t('Next') + ' →'}
             </button>
           </div>
         </div>

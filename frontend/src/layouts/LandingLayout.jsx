@@ -3,7 +3,7 @@ import Navbar from '../components/layout/Navbar';
 
 export default function LandingLayout() {
   return (
-    <div className="min-h-screen bg-sky-50 text-gray-900 font-sans selection:bg-yellow-200/60 flex flex-col">
+    <div className="min-h-screen text-gray-900 font-sans selection:bg-yellow-200/60 flex flex-col">
       <Navbar />
       <main className="flex-1">
         <Outlet />

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { API_URL } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function AmicoStudio() {
   const [homeworkPrompt, setHomeworkPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const { language, t } = useLanguage();
 
   const handleGenerate = async () => {
     if (!homeworkPrompt) return;
@@ -15,7 +17,7 @@ export default function AmicoStudio() {
       const response = await fetch(`${API_URL}/api/amico/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ homework_prompt: homeworkPrompt })
+        body: JSON.stringify({ homework_prompt: homeworkPrompt, language })
       });
       
       const data = await response.json();
@@ -50,7 +52,7 @@ export default function AmicoStudio() {
         disabled={loading}
         className="w-full bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:from-fuchsia-400 hover:to-purple-500 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? 'Drawing Comic...' : 'Generate Comic'}
+        {loading ? t('Loading') + '...' : t('Create Comic')}
       </button>
 
       {error && (

@@ -54,20 +54,29 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 class AmiviRequest(BaseModel):
     text: str
+    language: str = "en"
 
 class AmicoRequest(BaseModel):
     homework_prompt: str
+    language: str = "en"
 
 # ----------------- Service Functions -----------------
 
-def generate_amivi_content(text_input: str) -> dict:
+def get_language_instruction(language: str) -> str:
+    if language == "es":
+        return "Generate ALL output in Spanish (Español). Do not mix English and Spanish. Do not return English headings, slogans, descriptions or narration. All generated educational content must be natural and child-friendly Spanish."
+    return "Generate all output in English."
+
+def generate_amivi_content(text_input: str, language: str = "en") -> dict:
+    lang_instr = get_language_instruction(language)
     system_prompt = (
         "You are an educational AI assistant for AMIVI. Break down the provided educational text into "
         "5 to 7 bite-sized visual chunks (slides). Respond ONLY in valid JSON format containing a single key 'slides' "
         "which is a list of objects. "
         "Each object should have: 'slide_number', 'text' (a concise bullet point, max 10 words), "
         "'image_prompt' (a detailed prompt to generate an image for this slide), and "
-        "'voice_script' (what the narrator should say for this slide, max 2 sentences)."
+        "'voice_script' (what the narrator should say for this slide, max 2 sentences). "
+        f"{lang_instr}"
     )
     
     response = client.chat.completions.create(
@@ -81,12 +90,14 @@ def generate_amivi_content(text_input: str) -> dict:
     )
     return json.loads(response.choices[0].message.content)
 
-def generate_amico_comic(homework_prompt: str) -> dict:
+def generate_amico_comic(homework_prompt: str, language: str = "en") -> dict:
+    lang_instr = get_language_instruction(language)
     system_prompt = (
         "You are a creative storyteller for AMICO. Transform the user's homework topic into a "
         "fun, educational 4-panel comic strip script. Respond ONLY in valid JSON format containing a key 'panels' "
         "which is a list of 4 objects. Each object should have: 'panel_number', 'image_prompt' "
-        "(detailed visual description of the comic panel), and 'dialogue' (what characters are saying)."
+        "(detailed visual description of the comic panel), and 'dialogue' (what characters are saying). "
+        f"{lang_instr}"
     )
     
     response = client.chat.completions.create(
@@ -100,7 +111,8 @@ def generate_amico_comic(homework_prompt: str) -> dict:
     )
     return json.loads(response.choices[0].message.content)
 
-def generate_amivi_quiz(text_input: str) -> dict:
+def generate_amivi_quiz(text_input: str, language: str = "en") -> dict:
+    lang_instr = get_language_instruction(language)
     system_prompt = (
         "You are an educational AI assistant for AMIVI. Create a 5-question multiple-choice quiz based on the provided text. "
         "Respond ONLY in valid JSON format containing a single key 'quiz' which is an object. "
@@ -108,7 +120,8 @@ def generate_amivi_quiz(text_input: str) -> dict:
         "Each object in the 'questions' list should have: "
         "'q' (the question string), 'options' (a list of 4 possible answers), "
         "'correct' (the integer index 0-3 of the correct option), and "
-        "'explanation' (a brief explanation of why the answer is correct)."
+        "'explanation' (a brief explanation of why the answer is correct). "
+        f"{lang_instr}"
     )
     
     response = client.chat.completions.create(
@@ -161,13 +174,19 @@ def generate_image(prompt: str, filename: str) -> str:
     except:
         raise Exception("Failed to generate image and fallback failed.")
 
-def generate_voice(text: str, filename: str) -> str:
+def generate_voice(text: str, filename: str, language: str = "en") -> str:
     output_dir = os.path.join(os.path.dirname(__file__), "static", "audio")
     os.makedirs(output_dir, exist_ok=True)
     file_path = os.path.join(output_dir, filename)
     piper_exec = "piper.exe" if platform.system() == "Windows" else "piper"
     piper_path = os.path.join(os.path.dirname(__file__), "piper", piper_exec)
-    model_path = os.path.join(os.path.dirname(__file__), "piper", "en_US-lessac-medium.onnx")
+    
+    if language == "es":
+        model_name = "es_ES-sharvard-medium.onnx"
+    else:
+        model_name = "en_US-lessac-medium.onnx"
+        
+    model_path = os.path.join(os.path.dirname(__file__), "piper", model_name)
     
     if not os.path.exists(piper_path):
         piper_path = piper_exec
@@ -239,7 +258,7 @@ async def generate_amivi(request: AmiviRequest):
         if not os.getenv("GROQ_API_KEY"):
             raise HTTPException(status_code=500, detail="GROQ_API_KEY is not set.")
             
-        slides_data = generate_amivi_content(request.text)
+        slides_data = generate_amivi_content(request.text, request.language)
         
         processed_slides = []
         video_id = str(uuid.uuid4())
@@ -258,7 +277,7 @@ async def generate_amivi(request: AmiviRequest):
             audio_filename = f"{video_id}_slide_{idx}.wav"
             
             image_path = generate_image(image_prompt, image_filename)
-            audio_path = generate_voice(voice_script, audio_filename)
+            audio_path = generate_voice(voice_script, audio_filename, request.language)
             
             processed_slides.append({
                 'image_path': image_path,
@@ -286,7 +305,7 @@ async def generate_amico(request: AmicoRequest):
         if not os.getenv("GROQ_API_KEY"):
             raise HTTPException(status_code=500, detail="GROQ_API_KEY is not set.")
             
-        comic_data = generate_amico_comic(request.homework_prompt)
+        comic_data = generate_amico_comic(request.homework_prompt, request.language)
         comic_id = str(uuid.uuid4())
         
         panels_list = comic_data.get('panels', [])
@@ -321,7 +340,7 @@ async def generate_quiz(request: AmiviRequest):
         if not os.getenv("GROQ_API_KEY"):
             raise HTTPException(status_code=500, detail="GROQ_API_KEY is not set.")
             
-        quiz_data = generate_amivi_quiz(request.text)
+        quiz_data = generate_amivi_quiz(request.text, request.language)
         
         final_quiz = quiz_data.get('quiz', {})
         if not final_quiz and 'title' in quiz_data and 'questions' in quiz_data:

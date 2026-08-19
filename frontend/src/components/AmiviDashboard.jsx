@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { API_URL } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function AmiviDashboard() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const { language, t } = useLanguage();
 
   const handleGenerate = async () => {
     if (!text) return;
@@ -15,7 +17,7 @@ export default function AmiviDashboard() {
       const response = await fetch(`${API_URL}/api/amivi/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, language })
       });
 
       const data = await response.json();
@@ -50,7 +52,7 @@ export default function AmiviDashboard() {
         disabled={loading}
         className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:from-cyan-400 hover:to-blue-500 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? 'Synthesizing Visuals...' : 'Generate Learning Module'}
+        {loading ? t('Loading') + '...' : t('Generate Visuals')}
       </button>
 
       {error && (

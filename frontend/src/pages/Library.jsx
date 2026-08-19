@@ -2,20 +2,21 @@ import { useState } from 'react';
 import { Search, Filter, Play, Share2, Trash2 } from 'lucide-react';
 
 const mockData = [
-  { id: 1, title: "Biology Cells", type: "Video",    date: "2 hours ago",   emoji: "🎬", color: "from-blue-400 to-cyan-400"    },
-  { id: 2, title: "History Chapter 4", type: "Comic",  date: "Yesterday",     emoji: "📚", color: "from-pink-400 to-purple-400"  },
-  { id: 3, title: "Calculus Basics", type: "Visual",  date: "Oct 12, 2026",  emoji: "🎨", color: "from-orange-400 to-yellow-400" },
-  { id: 4, title: "Geography Quiz", type: "Quiz",    date: "Oct 10, 2026",  emoji: "🧩", color: "from-purple-400 to-indigo-400" },
-  { id: 5, title: "English Essay Prep", type: "Homework", date: "Oct 8, 2026", emoji: "📝", color: "from-green-400 to-teal-400"  },
+  { id: 1, title: "Biology Cells", type: "Video",    date: "2 hours ago",   emoji: "🔬", color: "from-blue-400 to-blue-600", bgIcon: "🎬" },
+  { id: 2, title: "History Chapter 4", type: "Comic",  date: "Yesterday",     emoji: "👑", color: "from-pink-400 to-rose-500", bgIcon: "📚" },
+  { id: 3, title: "Calculus Basics", type: "Visual",  date: "Oct 12, 2026",  emoji: "📐", color: "from-orange-400 to-red-500", bgIcon: "🎨" },
+  { id: 4, title: "Geography Quiz", type: "Quiz",    date: "Oct 10, 2026",  emoji: "🌍", color: "from-purple-500 to-indigo-600", bgIcon: "🧩" },
+  { id: 5, title: "English Essay Prep", type: "Homework", date: "Oct 8, 2026", emoji: "📝", color: "from-green-400 to-teal-500", bgIcon: "📝" },
+  { id: 6, title: "Photosynthesis", type: "Visual", date: "Oct 5, 2026", emoji: "🍃", color: "from-emerald-400 to-green-600", bgIcon: "🎨" },
 ];
 
 const tabs = [
-  { label: '📚 All Files',    key: 'All Files'   },
-  { label: '🎨 My Visuals',   key: 'My Visuals'  },
-  { label: '🎬 My Videos',    key: 'My Videos'   },
-  { label: '📚 My Comics',    key: 'My Comics'   },
-  { label: '🧩 My Quizzes',   key: 'My Quizzes'  },
-  { label: '📝 My Homework',  key: 'My Homework' },
+  { label: '🌟 All',    key: 'All Files'   },
+  { label: '🎨 Visuals',   key: 'My Visuals'  },
+  { label: '🎬 Videos',    key: 'My Videos'   },
+  { label: '📚 Comics',    key: 'My Comics'   },
+  { label: '🧩 Quizzes',   key: 'My Quizzes'  },
+  { label: '📝 Homework',  key: 'My Homework' },
 ];
 
 export default function Library() {
@@ -36,46 +37,45 @@ export default function Library() {
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-4xl p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 text-[100px] opacity-10 leading-none select-none pointer-events-none">📖</div>
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="flex items-center gap-4">
-            <span className="text-5xl animate-float">📖</span>
+      <div className="bg-gradient-to-br from-[#1e40af] to-[#3b82f6] text-white rounded-[40px] p-10 shadow-2xl relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 text-[180px] opacity-10 leading-none select-none pointer-events-none transform rotate-12">🖼️</div>
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+          <div className="flex items-center gap-6">
+            <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md border border-white/30">
+               <span className="text-5xl drop-shadow-md">🖼️</span>
+            </div>
             <div>
-              <h1 className="text-4xl font-black">Your Library</h1>
-              <p className="text-orange-100 font-bold text-lg">All your amazing creations in one place! 🌟</p>
+              <h1 className="text-5xl font-black mb-2 tracking-tight">Visual Library</h1>
+              <p className="text-blue-100 font-bold text-xl">Browse all your beautiful learning creations.</p>
             </div>
           </div>
 
           {/* Search + Filter */}
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:w-72">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/70" />
+            <div className="relative flex-1 md:w-80">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-white/70" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search your library..."
-                className="w-full pl-12 pr-4 py-3 bg-white/20 border-2 border-white/30 rounded-2xl text-white placeholder-white/60 font-bold focus:outline-none focus:bg-white/30 transition-all backdrop-blur-sm"
+                placeholder="Search gallery..."
+                className="w-full pl-14 pr-4 py-4 bg-white/10 border-2 border-white/20 rounded-3xl text-white placeholder-white/60 font-bold text-lg focus:outline-none focus:bg-white/20 focus:border-white/40 transition-all backdrop-blur-sm shadow-inner"
               />
             </div>
-            <button className="p-3 bg-white/20 border-2 border-white/30 rounded-2xl text-white hover:bg-white/30 transition-colors backdrop-blur-sm">
-              <Filter className="w-5 h-5" />
-            </button>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-4 justify-center md:justify-start">
         {tabs.map(({ label, key }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`px-5 py-2.5 rounded-2xl font-black text-sm transition-all ${
+            className={`px-6 py-3 rounded-full font-black text-base transition-all ${
               activeTab === key
-                ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-lg shadow-orange-300/50 scale-105'
-                : 'bg-white border-2 border-gray-200 text-gray-600 hover:border-orange-300 hover:text-orange-600'
+                ? 'bg-[#1e40af] text-white shadow-lg scale-105 border-b-4 border-blue-900'
+                : 'bg-white border-2 border-gray-100 text-gray-500 hover:border-blue-300 hover:text-blue-600 hover:-translate-y-1 shadow-sm'
             }`}
           >
             {label}
@@ -84,16 +84,16 @@ export default function Library() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredData.length > 0 ? (
           filteredData.map(item => (
             <LibraryCard key={item.id} {...item} />
           ))
         ) : (
-          <div className="col-span-full py-20 text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <p className="text-gray-500 font-black text-2xl">No files found!</p>
-            <p className="text-gray-400 font-bold mt-2">Try a different search or category.</p>
+          <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200">
+            <div className="text-7xl mb-6 opacity-50 animate-float">🎨</div>
+            <p className="text-gray-400 font-black text-3xl mb-2">No visuals found!</p>
+            <p className="text-gray-400 font-bold text-lg">Try a different search or create something new.</p>
           </div>
         )}
       </div>
@@ -101,34 +101,35 @@ export default function Library() {
   );
 }
 
-function LibraryCard({ title, type, date, emoji, color }) {
+function LibraryCard({ title, type, date, emoji, color, bgIcon }) {
   return (
-    <div className="bg-white border-2 border-gray-100 rounded-4xl overflow-hidden shadow-lg card-hover group">
-      {/* Thumbnail */}
-      <div className={`h-40 w-full bg-gradient-to-br ${color} flex items-center justify-center relative`}>
-        <span className="text-7xl group-hover:scale-110 transition-transform">{emoji}</span>
-        <div className="absolute top-3 right-3 bg-white/25 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-xs font-black uppercase tracking-wider">
-          {type}
+    <div className="bg-white rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.08)] card-hover group border-4 border-white cursor-pointer relative">
+      {/* Large Thumbnail */}
+      <div className={`h-56 w-full bg-gradient-to-br ${color} flex items-center justify-center relative overflow-hidden`}>
+        {/* Abstract background icon */}
+        <div className="absolute -right-8 -bottom-8 text-[120px] opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform duration-500">
+           {bgIcon}
+        </div>
+        
+        {/* Main visual emoji */}
+        <div className="relative bg-white/20 p-6 rounded-[32px] backdrop-blur-md shadow-lg border border-white/30 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+           <span className="text-7xl drop-shadow-md">{emoji}</span>
+        </div>
+        
+        {/* Badge */}
+        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-gray-800 text-xs font-black uppercase tracking-wider shadow-sm border border-white flex items-center gap-2">
+          {bgIcon} {type}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-5">
-        <h3 className="text-lg font-black text-gray-800 group-hover:text-blue-600 transition-colors mb-1 line-clamp-1">{title}</h3>
-        <p className="text-sm text-gray-400 font-bold mb-5">{date}</p>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <button className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-black py-2.5 px-4 rounded-2xl hover:scale-105 transition-transform text-sm shadow-md">
-            <Play className="w-4 h-4 fill-white" />
-            Open
-          </button>
-          <button className="p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-colors" title="Share">
-            <Share2 className="w-4 h-4" />
-          </button>
-          <button className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors" title="Delete">
-            <Trash2 className="w-4 h-4" />
-          </button>
+      {/* Minimal Content */}
+      <div className="p-6 bg-white">
+        <h3 className="text-xl font-black text-gray-800 group-hover:text-[#1e40af] transition-colors mb-2 line-clamp-1 truncate">{title}</h3>
+        <div className="flex justify-between items-center">
+           <p className="text-sm text-gray-400 font-bold">{date}</p>
+           <button className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+             <Play className="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="currentColor"/>
+           </button>
         </div>
       </div>
     </div>

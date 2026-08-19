@@ -1,12 +1,12 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'; // Environment-based backend URL
 
-export async function generateAmivi(text) {
+export async function generateAmivi(text, language = 'en') {
   const response = await fetch(`${API_URL}/api/amivi/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, language }),
   });
   
   if (!response.ok) {
@@ -17,13 +17,13 @@ export async function generateAmivi(text) {
   return response.json();
 }
 
-export async function generateAmico(homeworkPrompt) {
+export async function generateAmico(homeworkPrompt, language = 'en') {
   const response = await fetch(`${API_URL}/api/amico/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ homework_prompt: homeworkPrompt }),
+    body: JSON.stringify({ homework_prompt: homeworkPrompt, language }),
   });
   
   if (!response.ok) {
@@ -34,13 +34,13 @@ export async function generateAmico(homeworkPrompt) {
   return response.json();
 }
 
-export async function generateAmiviQuiz(text) {
+export async function generateAmiviQuiz(text, language = 'en') {
   const response = await fetch(`${API_URL}/api/amivi/generate_quiz`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, language }),
   });
   
   if (!response.ok) {
