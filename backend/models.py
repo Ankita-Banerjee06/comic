@@ -198,3 +198,55 @@ class Quiz(Base):
         "Project",
         back_populates="quizzes",
     )
+
+
+class AmiviChunk(Base):
+    __tablename__ = "amivi_chunks"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    chunk_number = Column(Integer, nullable=False)
+    
+    key_point = Column(Text, nullable=True)
+
+    text = Column(Text, nullable=True)
+
+    slogan = Column(Text, nullable=True)
+
+    description = Column(Text, nullable=True)
+
+    image_id = Column(
+        Integer,
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    audio_id = Column(
+        Integer,
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    voice_script = Column(Text, nullable=True)
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    project = relationship("Project")

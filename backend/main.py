@@ -1,77 +1,83 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, LargeBinary, JSON
-from sqlalchemy.orm import declarative_base, sessionmaker
+
+import os
+import json
+import base64
+import tempfile
+import subprocess
+import platform
+import io
+
 from openai import OpenAI
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, TextClip, CompositeVideoClip
-import os, sys, json, base64, tempfile, subprocess, platform
-from datetime import datetime
+
+from moviepy.editor import (
+    ImageClip,
+    AudioFileClip,
+    concatenate_videoclips,
+    TextClip,
+    CompositeVideoClip,
+)
+
+from pypdf import PdfReader
+from docx import Document
+
+from database import SessionLocal, engine, create_tables
+
+from models import (
+    User,
+    Project,
+    MediaAsset,
+    Comic,
+    Quiz,
+    AmiviChunk,
+)
+
+
+# ============================================================
+# ENVIRONMENT
+# ============================================================
 
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+
+# ============================================================
+# OPENAI MODELS
+# ============================================================
+
 TERRA_MODEL = "gpt-5.6-terra"
 SOL_MODEL = "gpt-5.6-sol"
 LUNA_MODEL = "gpt-5.6-luna"
 IMAGE_MODEL = "gpt-image-2"
 
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-Base = declarative_base()
-engine = create_engine(DATABASE_URL, pool_pre_ping=True) if DATABASE_URL else None
-SessionLocal = sessionmaker(bind=engine) if engine else None
-
-
-class Project(Base):
-    __tablename__ = "projects"
-    id = Column(Integer, primary_key=True)
-    project_type = Column(String(50), nullable=False)
-    title = Column(String(255))
-    input_text = Column(Text)
-    language = Column(String(10), default="en")
-    data = Column(JSON)
-    created_at = Column(DateTime, default=datetime.utcnow)
+client = (
+    OpenAI(api_key=OPENAI_API_KEY)
+    if OPENAI_API_KEY
+    else None
+)
 
 
-class MediaAsset(Base):
-    __tablename__ = "media_assets"
-    id = Column(Integer, primary_key=True)
-    project_id = Column(Integer)
-    asset_type = Column(String(30), nullable=False)
-    filename = Column(String(255), nullable=False)
-    mime_type = Column(String(100), nullable=False)
-    data = Column(LargeBinary, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-
-class Comic(Base):
-    __tablename__ = "comics"
-    id = Column(Integer, primary_key=True)
-    project_id = Column(Integer)
-    title = Column(String(255))
-    data = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-
-class Quiz(Base):
-    __tablename__ = "quizzes"
-    id = Column(Integer, primary_key=True)
-    project_id = Column(Integer)
-    title = Column(String(255))
-    data = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
+# ============================================================
+# FASTAPI
+# ============================================================
 
 app = FastAPI(
     title="AMIVI & AMICO API",
-    description="Backend for Visual Learning, Comic Generation",
-    version="2.0.0",
+    description="Backend for Visual Learning and Comic Generation",
+    version="2.1.0",
 )
+
+
+# ============================================================
+# CORS
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -85,20 +91,32 @@ app.add_middleware(
 )
 
 
+# ============================================================
+# STARTUP
+# ============================================================
+
 @app.on_event("startup")
 def startup():
+
     if not OPENAI_API_KEY:
         print("WARNING: OPENAI_API_KEY is not set.")
+
     if not DATABASE_URL:
         print("WARNING: DATABASE_URL is not set.")
+
     if engine:
-        Base.metadata.create_all(bind=engine)
+        create_tables()
         print("PostgreSQL tables are ready.")
 
+
+# ============================================================
+# REQUEST MODELS
+# ============================================================
 
 class AmiviRequest(BaseModel):
     text: str
     language: str = "en"
+    generate_video: bool = True
 
 
 class AmicoRequest(BaseModel):
@@ -106,286 +124,1519 @@ class AmicoRequest(BaseModel):
     language: str = "en"
 
 
+# ============================================================
+# BASIC HELPERS
+# ============================================================
+
 def require_services():
+
     if not client:
-        raise HTTPException(500, "OPENAI_API_KEY is not set.")
+        raise HTTPException(
+            status_code=500,
+            detail="OPENAI_API_KEY is not set.",
+        )
+
     if not SessionLocal:
-        raise HTTPException(500, "DATABASE_URL is not set.")
+        raise HTTPException(
+            status_code=500,
+            detail="DATABASE_URL is not set.",
+        )
 
 
-def language_instruction(language: str) -> str:
+def get_language_instruction(language: str) -> str:
+
     if language == "es":
-        return "Generate ALL output in natural, child-friendly Spanish. Do not mix English and Spanish."
+
+        return (
+            "Generate ALL output in natural, child-friendly Spanish. "
+            "Do not mix English and Spanish. "
+            "All chunks, slogans, descriptions, image prompts, "
+            "dialogue and narration must be written in Spanish."
+        )
+
     return "Generate all output in English."
 
 
-def call_json_model(model: str, instructions: str, user_input: str) -> dict:
+# ============================================================
+# OPENAI JSON HELPER
+# ============================================================
+
+def call_json_model(
+    model: str,
+    instructions: str,
+    user_input: str,
+) -> dict:
+
     require_services()
+
     response = client.responses.create(
         model=model,
         instructions=instructions,
         input=user_input,
     )
-    raw = response.output_text.strip().replace("```json", "").replace("```", "").strip()
+
+    raw_output = response.output_text.strip()
+
+    raw_output = (
+        raw_output
+        .replace("```json", "")
+        .replace("```", "")
+        .strip()
+    )
+
     try:
-        return json.loads(raw)
+
+        return json.loads(raw_output)
+
     except json.JSONDecodeError as exc:
-        raise Exception(f"{model} returned invalid JSON: {exc}; output={raw[:1000]}")
+
+        raise Exception(
+            f"{model} returned invalid JSON: {exc}. "
+            f"Output: {raw_output[:1500]}"
+        )
 
 
-def save_project(project_type, title, input_text, language, data):
+# ============================================================
+# DATABASE HELPERS
+# ============================================================
+
+def save_project(
+    project_type,
+    title,
+    input_text,
+    language,
+    data,
+):
+
     db = SessionLocal()
+
     try:
-        row = Project(project_type=project_type, title=title, input_text=input_text, language=language, data=data)
-        db.add(row); db.commit(); db.refresh(row)
+
+        row = Project(
+            project_type=project_type,
+            title=title,
+            input_text=input_text,
+            language=language,
+            data=data,
+        )
+
+        db.add(row)
+
+        db.commit()
+
+        db.refresh(row)
+
         return row.id
+
     finally:
+
         db.close()
 
 
-def save_media(data: bytes, filename: str, mime_type: str, asset_type: str, project_id=None):
+def save_media(
+    data: bytes,
+    filename: str,
+    mime_type: str,
+    asset_type: str,
+    project_id=None,
+):
+
     db = SessionLocal()
+
     try:
-        row = MediaAsset(project_id=project_id, asset_type=asset_type, filename=filename, mime_type=mime_type, data=data)
-        db.add(row); db.commit(); db.refresh(row)
+
+        row = MediaAsset(
+            project_id=project_id,
+            asset_type=asset_type,
+            filename=filename,
+            mime_type=mime_type,
+            data=data,
+        )
+
+        db.add(row)
+
+        db.commit()
+
+        db.refresh(row)
+
         return row.id
+
     finally:
+
         db.close()
 
 
-def save_comic(project_id, title, data):
+def save_amivi_chunk(
+    project_id,
+    chunk_number,
+    key_point,
+    text,
+    slogan,
+    description,
+    image_id,
+    audio_id,
+    voice_script,
+):
+
     db = SessionLocal()
+
     try:
-        row = Comic(project_id=project_id, title=title, data=data)
-        db.add(row); db.commit(); db.refresh(row)
+
+        row = AmiviChunk(
+            project_id=project_id,
+            chunk_number=chunk_number,
+            key_point=key_point,
+            text=text,
+            slogan=slogan,
+            description=description,
+            image_id=image_id,
+            audio_id=audio_id,
+            voice_script=voice_script,
+        )
+
+        db.add(row)
+
+        db.commit()
+
+        db.refresh(row)
+
         return row.id
+
     finally:
+
         db.close()
 
 
-def save_quiz(project_id, title, data):
+def save_comic(
+    project_id,
+    title,
+    data,
+):
+
     db = SessionLocal()
+
     try:
-        row = Quiz(project_id=project_id, title=title, data=data)
-        db.add(row); db.commit(); db.refresh(row)
+
+        row = Comic(
+            project_id=project_id,
+            title=title,
+            data=data,
+        )
+
+        db.add(row)
+
+        db.commit()
+
+        db.refresh(row)
+
         return row.id
+
     finally:
+
+        db.close()
+
+
+def save_quiz(
+    project_id,
+    title,
+    data,
+):
+
+    db = SessionLocal()
+
+    try:
+
+        row = Quiz(
+            project_id=project_id,
+            title=title,
+            data=data,
+        )
+
+        db.add(row)
+
+        db.commit()
+
+        db.refresh(row)
+
+        return row.id
+
+    finally:
+
         db.close()
 
 
 def get_media(media_id: int):
+
     db = SessionLocal()
+
     try:
-        row = db.query(MediaAsset).filter(MediaAsset.id == media_id).first()
+
+        row = (
+            db.query(MediaAsset)
+            .filter(
+                MediaAsset.id == media_id
+            )
+            .first()
+        )
+
         if not row:
-            raise HTTPException(404, "Media not found.")
+
+            raise HTTPException(
+                status_code=404,
+                detail="Media not found.",
+            )
+
         return row
+
     finally:
+
         db.close()
 
 
-def generate_amivi_content(text_input, language="en"):
-    prompt = f"""
-You are AMIVI's educational AI engine. Turn the material into 5-7 bite-sized visual learning slides.
-Each slide must contain: slide_number, text (max 10 words), slogan, image_prompt, voice_script (max 2 sentences).
-Return ONLY JSON in this form:
-{{"slides":[{{"slide_number":1,"text":"...","slogan":"...","image_prompt":"...","voice_script":"..."}}]}}
-{language_instruction(language)}
-"""
-    return call_json_model(TERRA_MODEL, prompt, text_input)
+# ============================================================
+# FILE EXTRACTION
+# ============================================================
+
+def extract_text_from_file(
+    file_bytes: bytes,
+    filename: str,
+) -> str:
+
+    extension = (
+        os.path.splitext(filename)[1]
+        .lower()
+    )
+
+    # ----------------------------------------
+    # TXT
+    # ----------------------------------------
+
+    if extension == ".txt":
+
+        return file_bytes.decode(
+            "utf-8",
+            errors="ignore",
+        )
 
 
-def generate_amico_comic(topic, language="en"):
-    prompt = f"""
-You are AMICO's storytelling engine. Create a connected 4-panel educational comic.
-Return ONLY JSON with title, learning_objective, characters and panels.
-Each panel needs panel_number, scene, image_prompt and dialogue.
-{language_instruction(language)}
-"""
-    return call_json_model(TERRA_MODEL, prompt, topic)
+    # ----------------------------------------
+    # PDF
+    # ----------------------------------------
+
+    if extension == ".pdf":
+
+        pdf_file = io.BytesIO(
+            file_bytes
+        )
+
+        reader = PdfReader(
+            pdf_file
+        )
+
+        pages = []
+
+        for page in reader.pages:
+
+            text = page.extract_text()
+
+            if text:
+
+                pages.append(text)
+
+        return "\n".join(pages)
 
 
-def review_amico_comic(comic, language="en"):
-    prompt = f"""
-You are AMICO quality control. Review and correct educational accuracy, story continuity,
-character consistency, panel continuity, dialogue and image-prompt consistency.
-Return the COMPLETE corrected comic as JSON using the same structure.
-{language_instruction(language)}
-"""
-    return call_json_model(SOL_MODEL, prompt, json.dumps(comic, ensure_ascii=False))
+    # ----------------------------------------
+    # DOCX
+    # ----------------------------------------
+
+    if extension == ".docx":
+
+        doc_file = io.BytesIO(
+            file_bytes
+        )
+
+        document = Document(
+            doc_file
+        )
+
+        paragraphs = []
+
+        for paragraph in document.paragraphs:
+
+            if paragraph.text.strip():
+
+                paragraphs.append(
+                    paragraph.text
+                )
+
+        return "\n".join(
+            paragraphs
+        )
 
 
-def generate_amivi_quiz(text_input, language="en"):
-    prompt = f"""
-Create a 5-question multiple-choice quiz strictly from the supplied material.
-Each question needs q, exactly 4 options, correct (0-3), and explanation.
-Return ONLY JSON: {{"quiz":{{"title":"...","questions":[...]}}}}
-{language_instruction(language)}
-"""
-    return call_json_model(TERRA_MODEL, prompt, text_input)
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            "Unsupported file type. "
+            "Supported formats: PDF, DOCX and TXT."
+        ),
+    )
 
 
-def generate_quiz_metadata(quiz, language="en"):
-    prompt = f"""
-You are AMIVI's lightweight metadata engine. Do not change quiz questions or answers.
-Return ONLY JSON with category, difficulty (easy|medium|hard), tags and language.
-{language_instruction(language)}
-"""
-    return call_json_model(LUNA_MODEL, prompt, json.dumps(quiz, ensure_ascii=False))
+# ============================================================
+# AMIVI CONTENT GENERATION
+#
+# LARGE PARAGRAPH
+#        ↓
+# TERRА
+#        ↓
+# 5–10 MEANINGFUL CHUNKS
+# ============================================================
+
+def generate_amivi_content(
+    text_input,
+    language="en",
+):
+
+    prompt = (
+
+        "You are AMIVI, an educational visual synthesis engine.\n\n"
+
+        "The user will provide one large educational passage.\n\n"
+
+        "Your job is to transform that passage into meaningful "
+        "educational micro-bits or chunks.\n\n"
+
+        "IMPORTANT RULES:\n"
+
+        "- Create 5 to 10 chunks depending on the length and complexity "
+        "of the material.\n"
+
+        "- Do not split the text randomly.\n"
+
+        "- Each chunk must represent ONE important learning idea.\n"
+
+        "- Keep all important educational information.\n"
+
+        "- Do not invent facts that are not supported by the source.\n"
+
+        "- Rewrite the content in simple learner-friendly language.\n"
+
+        "- Each chunk should be understandable on its own.\n"
+
+        "- Create a short memorable slogan for each chunk.\n"
+
+        "- Create a clear explanation for each chunk.\n"
+
+        "- Create a detailed supporting image prompt for each chunk.\n"
+
+        "- The image prompt should describe an educational visual such as "
+        "a diagram, process illustration, labeled concept, map, chart, "
+        "scientific illustration, or realistic educational scene when appropriate.\n"
+
+        "- Create a short narration script for each chunk.\n\n"
+
+        "Return ONLY valid JSON in this exact structure:\n"
+
+        "{\n"
+        '  "chunks": [\n'
+        "    {\n"
+        '      "chunk_number": 1,\n'
+        '      "key_point": "...",\n'
+        '      "text": "...",\n'
+        '      "slogan": "...",\n'
+        '      "description": "...",\n'
+        '      "image_prompt": "...",\n'
+        '      "voice_script": "..."\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+
+        + get_language_instruction(
+            language
+        )
+    )
+
+    return call_json_model(
+        TERRA_MODEL,
+        prompt,
+        text_input,
+    )
 
 
-def generate_image(prompt, filename, project_id=None):
+# ============================================================
+# AMICO GENERATION
+# ============================================================
+
+def generate_amico_comic(
+    topic,
+    language="en",
+):
+
+    prompt = (
+
+        "You are AMICO's storytelling engine.\n\n"
+
+        "Create a connected 4-panel educational comic "
+        "from the supplied educational topic.\n\n"
+
+        "The story must be fun, accurate and child-friendly.\n\n"
+
+        "Return ONLY JSON containing:\n"
+        "- title\n"
+        "- learning_objective\n"
+        "- characters\n"
+        "- panels\n\n"
+
+        "Each panel must contain:\n"
+        "- panel_number\n"
+        "- scene\n"
+        "- image_prompt\n"
+        "- dialogue\n\n"
+
+        + get_language_instruction(
+            language
+        )
+    )
+
+    return call_json_model(
+        TERRA_MODEL,
+        prompt,
+        topic,
+    )
+
+
+def review_amico_comic(
+    comic,
+    language="en",
+):
+
+    prompt = (
+
+        "You are AMICO quality control.\n\n"
+
+        "Review and correct the comic for:\n"
+        "- educational accuracy\n"
+        "- story continuity\n"
+        "- character consistency\n"
+        "- panel continuity\n"
+        "- dialogue quality\n"
+        "- image prompt consistency\n\n"
+
+        "Return the COMPLETE corrected comic "
+        "using the same JSON structure.\n\n"
+
+        + get_language_instruction(
+            language
+        )
+    )
+
+    return call_json_model(
+        SOL_MODEL,
+        prompt,
+        json.dumps(
+            comic,
+            ensure_ascii=False,
+        ),
+    )
+
+
+# ============================================================
+# QUIZ
+# ============================================================
+
+def generate_amivi_quiz(
+    text_input,
+    language="en",
+):
+
+    prompt = (
+
+        "Create a 5-question multiple-choice quiz "
+        "strictly from the supplied educational material.\n\n"
+
+        "Each question must contain:\n"
+        "- q\n"
+        "- exactly 4 options\n"
+        "- correct as integer 0-3\n"
+        "- explanation\n\n"
+
+        "Return ONLY valid JSON in this structure:\n"
+
+        '{'
+        '"quiz": {'
+        '"title": "...",'
+        '"questions": [...]'
+        "}"
+        "}\n\n"
+
+        + get_language_instruction(
+            language
+        )
+    )
+
+    return call_json_model(
+        TERRA_MODEL,
+        prompt,
+        text_input,
+    )
+
+
+def generate_quiz_metadata(
+    quiz,
+    language="en",
+):
+
+    prompt = (
+
+        "You are AMIVI's lightweight metadata engine.\n\n"
+
+        "Do not change the quiz questions or answers.\n\n"
+
+        "Return ONLY JSON containing:\n"
+        "- category\n"
+        "- difficulty (easy, medium or hard)\n"
+        "- tags\n"
+        "- language\n\n"
+
+        + get_language_instruction(
+            language
+        )
+    )
+
+    return call_json_model(
+        LUNA_MODEL,
+        prompt,
+        json.dumps(
+            quiz,
+            ensure_ascii=False,
+        ),
+    )
+
+
+# ============================================================
+# GPT IMAGE 2
+# IMAGE -> POSTGRESQL
+# ============================================================
+
+def generate_image(
+    prompt,
+    filename,
+    project_id=None,
+):
+
     require_services()
-    result = client.images.generate(model=IMAGE_MODEL, prompt=prompt or "Educational illustration", size="1024x1024")
-    if not result.data or not result.data[0].b64_json:
-        raise Exception("OpenAI returned no image data.")
-    data = base64.b64decode(result.data[0].b64_json)
-    return save_media(data, filename, "image/png", "image", project_id)
+
+    result = client.images.generate(
+        model=IMAGE_MODEL,
+        prompt=(
+            prompt
+            or "Educational illustration"
+        ),
+        size="1024x1024",
+    )
+
+    if (
+        not result.data
+        or not result.data[0].b64_json
+    ):
+
+        raise Exception(
+            "OpenAI returned no image data."
+        )
+
+    image_data = base64.b64decode(
+        result.data[0].b64_json
+    )
+
+    return save_media(
+        data=image_data,
+        filename=filename,
+        mime_type="image/png",
+        asset_type="image",
+        project_id=project_id,
+    )
 
 
-def generate_voice(text, filename, language="en", project_id=None):
-    piper_exec = "piper.exe" if platform.system() == "Windows" else "piper"
-    piper_path = os.path.join(os.path.dirname(__file__), "piper", piper_exec)
-    if not os.path.exists(piper_path):
+# ============================================================
+# PIPER TTS
+# AUDIO -> POSTGRESQL
+# ============================================================
+
+def generate_voice(
+    text,
+    filename,
+    language="en",
+    project_id=None,
+):
+
+    if not text:
+
+        raise Exception(
+            "Voice text is empty."
+        )
+
+    piper_exec = (
+        "piper.exe"
+        if platform.system()
+        == "Windows"
+        else "piper"
+    )
+
+    piper_path = os.path.join(
+        os.path.dirname(__file__),
+        "piper",
+        piper_exec,
+    )
+
+    if not os.path.exists(
+        piper_path
+    ):
+
         piper_path = piper_exec
-    model_name = "es_ES-sharvard-medium.onnx" if language == "es" else "en_US-lessac-medium.onnx"
-    model_path = os.path.join(os.path.dirname(__file__), "piper", model_name)
-    if not os.path.exists(model_path):
-        raise Exception(f"Piper model not found: {model_path}")
+
+    if language == "es":
+
+        model_name = (
+            "es_ES-sharvard-medium.onnx"
+        )
+
+    else:
+
+        model_name = (
+            "en_US-lessac-medium.onnx"
+        )
+
+    model_path = os.path.join(
+        os.path.dirname(__file__),
+        "piper",
+        model_name,
+    )
+
+    if not os.path.exists(
+        model_path
+    ):
+
+        raise Exception(
+            f"Piper model not found: {model_path}"
+        )
+
     temp_path = None
+
     try:
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-            temp_path = f.name
-        subprocess.run([piper_path, "--model", model_path, "--output_file", temp_path], input=text.encode("utf-8"), check=True)
-        with open(temp_path, "rb") as f:
-            data = f.read()
-        return save_media(data, filename, "audio/wav", "audio", project_id)
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".wav",
+            delete=False,
+        ) as temp_file:
+
+            temp_path = temp_file.name
+
+        subprocess.run(
+            [
+                piper_path,
+                "--model",
+                model_path,
+                "--output_file",
+                temp_path,
+            ],
+            input=text.encode(
+                "utf-8"
+            ),
+            check=True,
+        )
+
+        with open(
+            temp_path,
+            "rb",
+        ) as audio_file:
+
+            audio_data = (
+                audio_file.read()
+            )
+
+        return save_media(
+            data=audio_data,
+            filename=filename,
+            mime_type="audio/wav",
+            asset_type="audio",
+            project_id=project_id,
+        )
+
     finally:
-        if temp_path and os.path.exists(temp_path):
+
+        if (
+            temp_path
+            and os.path.exists(temp_path)
+        ):
+
             os.remove(temp_path)
 
 
-def create_amivi_video(slides, filename, project_id=None):
-    clips, temp_paths = [], []
-    output_path = None
-    try:
-        for slide in slides:
-            image = get_media(slide["image_id"])
-            audio = get_media(slide["audio_id"])
-            img_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-            img_file.write(image.data); img_file.close()
-            aud_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-            aud_file.write(audio.data); aud_file.close()
-            temp_paths += [img_file.name, aud_file.name]
-            audio_clip = AudioFileClip(aud_file.name)
-            duration = audio_clip.duration
-            img_clip = ImageClip(img_file.name).set_duration(duration)
-            try:
-                txt = TextClip(slide.get("text", ""), fontsize=70, color="white", bg_color="black", size=(img_clip.w, None), method="caption").set_pos("bottom").set_duration(duration)
-                clip = CompositeVideoClip([img_clip, txt])
-            except Exception:
-                clip = img_clip
-            clip = clip.set_audio(audio_clip)
-            clips.append(clip)
-        if not clips:
-            raise Exception("No valid clips generated.")
-        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
-            output_path = f.name
-        final = concatenate_videoclips(clips, method="compose")
-        final.write_videofile(output_path, fps=24, codec="libx264", audio_codec="aac", preset="ultrafast", threads=4, logger=None)
-        with open(output_path, "rb") as f:
-            data = f.read()
-        return save_media(data, filename, "video/mp4", "video", project_id)
-    finally:
-        for clip in clips:
-            try: clip.close()
-            except Exception: pass
-        for path in temp_paths:
-            if os.path.exists(path): os.remove(path)
-        if output_path and os.path.exists(output_path): os.remove(output_path)
+# ============================================================
+# MOVIEPY VIDEO
+# IMAGES + AUDIO -> VIDEO -> POSTGRESQL
+# ============================================================
 
+def create_amivi_video(
+    chunks,
+    filename,
+    project_id=None,
+):
+    clips = []
+    temp_paths = []
+    output_path = None
+
+    try:
+        for chunk in chunks:
+
+            # Get image and audio from PostgreSQL
+            image_asset = get_media(
+                chunk["image_id"]
+            )
+
+            audio_asset = get_media(
+                chunk["audio_id"]
+            )
+
+            # ------------------------------------------------
+            # Create temporary image file
+            # ------------------------------------------------
+            image_file = tempfile.NamedTemporaryFile(
+                suffix=".png",
+                delete=False,
+            )
+
+            image_file.write(
+                image_asset.data
+            )
+
+            image_file.close()
+
+            # ------------------------------------------------
+            # Create temporary audio file
+            # ------------------------------------------------
+            audio_file = tempfile.NamedTemporaryFile(
+                suffix=".wav",
+                delete=False,
+            )
+
+            audio_file.write(
+                audio_asset.data
+            )
+
+            audio_file.close()
+
+            temp_paths.append(
+                image_file.name
+            )
+
+            temp_paths.append(
+                audio_file.name
+            )
+
+            # ------------------------------------------------
+            # Load audio
+            # ------------------------------------------------
+            audio_clip = AudioFileClip(
+                audio_file.name
+            )
+
+            duration = audio_clip.duration
+
+            # ------------------------------------------------
+            # Load image
+            # ------------------------------------------------
+            image_clip = (
+                ImageClip(
+                    image_file.name
+                )
+                .set_duration(duration)
+            )
+
+            # ------------------------------------------------
+            # No TextClip / ImageMagick
+            #
+            # We use the generated image directly.
+            # This avoids the ImageMagick dependency.
+            # ------------------------------------------------
+            video_clip = image_clip
+
+            # Add Piper narration
+            video_clip = video_clip.set_audio(
+                audio_clip
+            )
+
+            clips.append(
+                video_clip
+            )
+
+        # ----------------------------------------------------
+        # Make sure we have clips
+        # ----------------------------------------------------
+        if not clips:
+            raise Exception(
+                "No valid clips generated."
+            )
+
+        # ----------------------------------------------------
+        # Temporary output video
+        # ----------------------------------------------------
+        with tempfile.NamedTemporaryFile(
+            suffix=".mp4",
+            delete=False,
+        ) as video_file:
+
+            output_path = video_file.name
+
+        # ----------------------------------------------------
+        # Combine all clips
+        # ----------------------------------------------------
+        final_video = concatenate_videoclips(
+            clips,
+            method="compose",
+        )
+
+        # ----------------------------------------------------
+        # Render video
+        # ----------------------------------------------------
+        final_video.write_videofile(
+            output_path,
+            fps=24,
+            codec="libx264",
+            audio_codec="aac",
+            preset="ultrafast",
+            threads=4,
+            logger=None,
+        )
+
+        # ----------------------------------------------------
+        # Read final video
+        # ----------------------------------------------------
+        with open(
+            output_path,
+            "rb",
+        ) as video_file:
+
+            video_data = video_file.read()
+
+        # ----------------------------------------------------
+        # Store video in PostgreSQL
+        # ----------------------------------------------------
+        video_id = save_media(
+            data=video_data,
+            filename=filename,
+            mime_type="video/mp4",
+            asset_type="video",
+            project_id=project_id,
+        )
+
+        return video_id
+
+    finally:
+
+        # ----------------------------------------------------
+        # Close clips
+        # ----------------------------------------------------
+        for clip in clips:
+            try:
+                clip.close()
+            except Exception:
+                pass
+
+        # ----------------------------------------------------
+        # Remove temporary image/audio files
+        # ----------------------------------------------------
+        for path in temp_paths:
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                pass
+
+        # ----------------------------------------------------
+        # Remove temporary video
+        # ----------------------------------------------------
+        if (
+            output_path
+            and os.path.exists(output_path)
+        ):
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
+
+# ============================================================
+# ROOT
+# ============================================================
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to the AMIVI & AMICO API"}
 
+    return {
+        "message": (
+            "Welcome to the AMIVI & AMICO API"
+        )
+    }
+
+
+# ============================================================
+# HEALTH
+# ============================================================
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "openai_configured": bool(OPENAI_API_KEY), "database_configured": bool(DATABASE_URL)}
 
+    return {
+        "status": "ok",
+        "openai_configured": bool(
+            OPENAI_API_KEY
+        ),
+        "database_configured": bool(
+            DATABASE_URL
+        ),
+    }
+
+
+# ============================================================
+# AMIVI FILE EXTRACTION
+# ============================================================
+
+@app.post("/api/amivi/extract")
+async def amivi_extract(
+    file: UploadFile = File(...)
+):
+
+    try:
+
+        if not file.filename:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Filename is required.",
+            )
+
+        file_bytes = await file.read()
+
+        if not file_bytes:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded file is empty.",
+            )
+
+        text = extract_text_from_file(
+            file_bytes,
+            file.filename,
+        )
+
+        if not text.strip():
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No readable text could be "
+                    "extracted from this file."
+                ),
+            )
+
+        extension = os.path.splitext(
+            file.filename
+        )[1].lower()
+
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "source_type": (
+                extension
+                .replace(".", "")
+            ),
+            "text": text,
+        }
+
+    except HTTPException:
+
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMIVI GENERATE
+#
+# LARGE PARAGRAPH
+#       ↓
+# TERRA
+#       ↓
+# CHUNKS
+#       ↓
+# IMAGE + AUDIO
+#       ↓
+# OPTIONAL VIDEO
+#       ↓
+# POSTGRESQL
+# ============================================================
 
 @app.post("/api/amivi/generate")
-async def amivi_generate(request: AmiviRequest):
-    try:
-        require_services()
-        content = generate_amivi_content(request.text, request.language)
-        project_id = save_project("amivi", "AMIVI Visual Learning", request.text, request.language, content)
-        processed = []
-        for i, slide in enumerate(content.get("slides", [])):
-            image_id = generate_image(slide.get("image_prompt", ""), f"amivi_{project_id}_{i}.png", project_id)
-            audio_id = generate_voice(slide.get("voice_script", ""), f"amivi_{project_id}_{i}.wav", request.language, project_id)
-            processed.append({"slide_number": slide.get("slide_number", i + 1), "text": slide.get("text", ""), "slogan": slide.get("slogan", ""), "image_id": image_id, "image_url": f"/api/media/{image_id}", "audio_id": audio_id, "audio_url": f"/api/media/{audio_id}"})
-        video_id = create_amivi_video(processed, f"amivi_{project_id}.mp4", project_id)
-        return {"status": "success", "project_id": project_id, "video_id": video_id, "video_url": f"/api/media/{video_id}", "slides": processed}
-    except HTTPException: raise
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        raise HTTPException(500, str(e))
+async def amivi_generate(
+    request: AmiviRequest,
+):
 
+    try:
+
+        require_services()
+
+        # ----------------------------------------
+        # Generate chunks
+        # ----------------------------------------
+
+        content = (
+            generate_amivi_content(
+                request.text,
+                request.language,
+            )
+        )
+
+        chunks = content.get(
+            "chunks",
+            [],
+        )
+
+        if not chunks:
+
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "AMIVI did not generate "
+                    "any chunks."
+                ),
+            )
+
+        # ----------------------------------------
+        # Create project
+        # ----------------------------------------
+
+        project_id = save_project(
+            project_type="amivi",
+            title="AMIVI Visual Learning",
+            input_text=request.text,
+            language=request.language,
+            data=content,
+        )
+
+        processed_chunks = []
+
+        # ----------------------------------------
+        # Process every chunk
+        # ----------------------------------------
+
+        for index, chunk in enumerate(
+            chunks
+        ):
+
+            chunk_number = chunk.get(
+                "chunk_number",
+                index + 1,
+            )
+
+            key_point = chunk.get(
+                "key_point",
+                "",
+            )
+
+            text = chunk.get(
+                "text",
+                "",
+            )
+
+            slogan = chunk.get(
+                "slogan",
+                "",
+            )
+
+            description = chunk.get(
+                "description",
+                "",
+            )
+
+            voice_script = chunk.get(
+                "voice_script",
+                "",
+            )
+
+            # ----------------------------------------
+            # Generate image
+            # ----------------------------------------
+
+            image_id = generate_image(
+                prompt=chunk.get(
+                    "image_prompt",
+                    "",
+                ),
+                filename=(
+                    f"amivi_{project_id}"
+                    f"_chunk_{index}.png"
+                ),
+                project_id=project_id,
+            )
+
+            # ----------------------------------------
+            # Generate voice
+            # ----------------------------------------
+
+            audio_id = generate_voice(
+                text=voice_script,
+                filename=(
+                    f"amivi_{project_id}"
+                    f"_chunk_{index}.wav"
+                ),
+                language=request.language,
+                project_id=project_id,
+            )
+
+            # ----------------------------------------
+            # Save chunk
+            # ----------------------------------------
+
+            chunk_id = save_amivi_chunk(
+                project_id=project_id,
+                chunk_number=chunk_number,
+                key_point=key_point,
+                text=text,
+                slogan=slogan,
+                description=description,
+                image_id=image_id,
+                audio_id=audio_id,
+                voice_script=voice_script,
+            )
+
+            # ----------------------------------------
+            # Response object
+            # ----------------------------------------
+
+            processed_chunks.append(
+                {
+                    "chunk_id": chunk_id,
+                    "chunk_number": chunk_number,
+                    "key_point": key_point,
+                    "text": text,
+                    "slogan": slogan,
+                    "description": description,
+                    "image_prompt": chunk.get(
+                        "image_prompt",
+                        "",
+                    ),
+                    "voice_script": voice_script,
+                    "image_id": image_id,
+                    "image_url": (
+                        f"/api/media/{image_id}"
+                    ),
+                    "audio_id": audio_id,
+                    "audio_url": (
+                        f"/api/media/{audio_id}"
+                    ),
+                }
+            )
+
+        # ----------------------------------------
+        # Optional video
+        # ----------------------------------------
+
+        video_id = None
+
+        if (
+            request.generate_video
+            and processed_chunks
+        ):
+
+            video_id = (
+                create_amivi_video(
+                    processed_chunks,
+                    f"amivi_{project_id}.mp4",
+                    project_id,
+                )
+            )
+
+        # ----------------------------------------
+        # Final response
+        # ----------------------------------------
+
+        return {
+            "status": "success",
+            "project_id": project_id,
+            "video_id": video_id,
+            "video_url": (
+                f"/api/media/{video_id}"
+                if video_id
+                else None
+            ),
+            "chunks": processed_chunks,
+        }
+
+    except HTTPException:
+
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMICO
+# ============================================================
 
 @app.post("/api/amico/generate")
-async def amico_generate(request: AmicoRequest):
-    try:
-        require_services()
-        comic = review_amico_comic(generate_amico_comic(request.homework_prompt, request.language), request.language)
-        project_id = save_project("amico", comic.get("title", "AMICO Comic"), request.homework_prompt, request.language, comic)
-        panels = []
-        for i, panel in enumerate(comic.get("panels", [])):
-            image_id = generate_image(panel.get("image_prompt", ""), f"comic_{project_id}_{i}.png", project_id)
-            panels.append({"panel_number": i + 1, "scene": panel.get("scene", ""), "dialogue": panel.get("dialogue", ""), "image_id": image_id, "image_url": f"/api/media/{image_id}"})
-        comic["panels"] = panels
-        dbid = save_comic(project_id, comic.get("title", "AMICO Comic"), comic)
-        return {"status": "success", "project_id": project_id, "comic_id": dbid, **{k: comic.get(k) for k in ["title", "learning_objective", "characters", "panels"]}}
-    except HTTPException: raise
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        raise HTTPException(500, str(e))
+async def amico_generate(
+    request: AmicoRequest,
+):
 
+    try:
+
+        require_services()
+
+        # Terra creates
+        comic = generate_amico_comic(
+            request.homework_prompt,
+            request.language,
+        )
+
+        # Sol reviews
+        comic = review_amico_comic(
+            comic,
+            request.language,
+        )
+
+        project_id = save_project(
+            project_type="amico",
+            title=comic.get(
+                "title",
+                "AMICO Comic",
+            ),
+            input_text=request.homework_prompt,
+            language=request.language,
+            data=comic,
+        )
+
+        processed_panels = []
+
+        for index, panel in enumerate(
+            comic.get("panels", [])
+        ):
+
+            image_id = generate_image(
+                prompt=panel.get(
+                    "image_prompt",
+                    "",
+                ),
+                filename=(
+                    f"comic_{project_id}"
+                    f"_panel_{index}.png"
+                ),
+                project_id=project_id,
+            )
+
+            processed_panels.append(
+                {
+                    "panel_number": index + 1,
+                    "scene": panel.get(
+                        "scene",
+                        "",
+                    ),
+                    "dialogue": panel.get(
+                        "dialogue",
+                        "",
+                    ),
+                    "image_id": image_id,
+                    "image_url": (
+                        f"/api/media/{image_id}"
+                    ),
+                }
+            )
+
+        comic["panels"] = (
+            processed_panels
+        )
+
+        comic_id = save_comic(
+            project_id,
+            comic.get(
+                "title",
+                "AMICO Comic",
+            ),
+            comic,
+        )
+
+        return {
+            "status": "success",
+            "project_id": project_id,
+            "comic_id": comic_id,
+            "title": comic.get(
+                "title",
+                "",
+            ),
+            "learning_objective": comic.get(
+                "learning_objective",
+                "",
+            ),
+            "characters": comic.get(
+                "characters",
+                [],
+            ),
+            "panels": processed_panels,
+        }
+
+    except HTTPException:
+
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# QUIZ
+# ============================================================
 
 @app.post("/api/amivi/generate_quiz")
-async def generate_quiz(request: AmiviRequest):
-    try:
-        require_services()
-        result = generate_amivi_quiz(request.text, request.language)
-        quiz = result.get("quiz", result)
-        quiz["metadata"] = generate_quiz_metadata(quiz, request.language)
-        project_id = save_project("quiz", quiz.get("title", "AMIVI Quiz"), request.text, request.language, quiz)
-        quiz_id = save_quiz(project_id, quiz.get("title", "AMIVI Quiz"), quiz)
-        return {"status": "success", "project_id": project_id, "quiz_id": quiz_id, "quiz": quiz}
-    except HTTPException: raise
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        raise HTTPException(500, str(e))
+async def generate_quiz(
+    request: AmiviRequest,
+):
 
+    try:
+
+        require_services()
+
+        result = generate_amivi_quiz(
+            request.text,
+            request.language,
+        )
+
+        quiz = result.get(
+            "quiz",
+            result,
+        )
+
+        metadata = (
+            generate_quiz_metadata(
+                quiz,
+                request.language,
+            )
+        )
+
+        quiz["metadata"] = metadata
+
+        project_id = save_project(
+            project_type="quiz",
+            title=quiz.get(
+                "title",
+                "AMIVI Quiz",
+            ),
+            input_text=request.text,
+            language=request.language,
+            data=quiz,
+        )
+
+        quiz_id = save_quiz(
+            project_id,
+            quiz.get(
+                "title",
+                "AMIVI Quiz",
+            ),
+            quiz,
+        )
+
+        return {
+            "status": "success",
+            "project_id": project_id,
+            "quiz_id": quiz_id,
+            "quiz": quiz,
+        }
+
+    except HTTPException:
+
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# MEDIA
+#
+# PostgreSQL -> browser
+# ============================================================
 
 @app.get("/api/media/{media_id}")
-def media(media_id: int):
-    asset = get_media(media_id)
-    return Response(content=asset.data, media_type=asset.mime_type, headers={"Content-Disposition": f'inline; filename="{asset.filename}"'})
+def media(
+    media_id: int,
+):
 
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=False)
-
-#test
-@app.middleware("http")
-async def log_requests(request, call_next):
-    print(
-        f"REQUEST: {request.method} {request.url.path} "
-        f"FROM: {request.client.host}"
+    asset = get_media(
+        media_id
     )
 
-    response = await call_next(request)
-    return response
+    return Response(
+        content=asset.data,
+        media_type=asset.mime_type,
+        headers={
+            "Content-Disposition": (
+                f'inline; '
+                f'filename="{asset.filename}"'
+            )
+        },
+    )
+
+
+# ============================================================
+# RUN DIRECTLY
+# ============================================================
+
+if __name__ == "__main__":
+
+    import uvicorn
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(
+            os.getenv(
+                "PORT",
+                "8000",
+            )
+        ),
+        reload=False,
+    )

@@ -36,7 +36,13 @@ def get_db():
 
 
 def create_tables():
-    # Import models so SQLAlchemy registers all tables.
-    from models import User, Project, MediaAsset, Comic, Quiz  # noqa: F401
+    from models import (
+        User,
+        Project,
+        MediaAsset,
+        Comic,
+        Quiz,
+        AmiviChunk,
+    )
 
     Base.metadata.create_all(bind=engine)
