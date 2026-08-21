@@ -11,6 +11,11 @@ import tempfile
 import subprocess
 import platform
 import io
+import glob
+import re
+from urllib.parse import urlparse
+
+import yt_dlp
 
 from openai import OpenAI
 
@@ -117,6 +122,7 @@ class AmiviRequest(BaseModel):
     text: str
     language: str = "en"
     generate_video: bool = True
+    video_url:str | None=None
 
 
 class AmicoRequest(BaseModel):
@@ -493,6 +499,436 @@ def extract_text_from_file(
 #        ↓
 # 5–10 MEANINGFUL CHUNKS
 # ============================================================
+
+def clean_caption_text(text: str) -> str:
+    """
+    Convert subtitle/caption text into clean readable text.
+    """
+    text = re.sub(
+        r"<[^>]+>",
+        " ",
+        text,
+    )
+
+    text = re.sub(
+        r"\[[^\]]*\]",
+        " ",
+        text,
+    )
+
+    text = re.sub(
+        r"\([^)]*\)",
+        " ",
+        text,
+    )
+
+    text = re.sub(
+        r"\s+",
+        " ",
+        text,
+    )
+
+    return text.strip()
+
+
+def get_caption_url(
+    caption_dict,
+    language,
+):
+    """
+    Find a suitable caption URL from yt-dlp's
+    subtitles/automatic_captions dictionary.
+    """
+
+    if not caption_dict:
+        return None
+
+    language = (language or "en").lower()
+
+    preferred_languages = []
+
+    if language == "es":
+        preferred_languages = [
+            "es",
+            "es-ES",
+            "es.*",
+            "en",
+            "en.*",
+        ]
+    else:
+        preferred_languages = [
+            "en",
+            "en-US",
+            "en-GB",
+            "en.*",
+            "es",
+            "es.*",
+        ]
+
+    for preferred in preferred_languages:
+
+        # Exact language
+        if preferred in caption_dict:
+
+            tracks = caption_dict[
+                preferred
+            ]
+
+            if tracks:
+                return tracks[-1].get(
+                    "url"
+                )
+
+        # Regex-like matching
+        if preferred.endswith(".*"):
+
+            prefix = preferred[:-2]
+
+            for key, tracks in caption_dict.items():
+
+                if key.lower().startswith(
+                    prefix
+                ):
+                    if tracks:
+                        return tracks[-1].get(
+                            "url"
+                        )
+
+    # Fall back to first available language
+    for tracks in caption_dict.values():
+
+        if tracks:
+            url = tracks[-1].get(
+                "url"
+            )
+
+            if url:
+                return url
+
+    return None
+
+
+def parse_vtt_text(vtt_text: str) -> str:
+    """
+    Convert WebVTT subtitle content into plain text.
+    """
+
+    lines = []
+
+    for raw_line in vtt_text.splitlines():
+
+        line = raw_line.strip()
+
+        if not line:
+            continue
+
+        if line.upper() == "WEBVTT":
+            continue
+
+        if "-->" in line:
+            continue
+
+        if re.match(
+            r"^\d+$",
+            line,
+        ):
+            continue
+
+        line = re.sub(
+            r"<[^>]+>",
+            "",
+            line,
+        )
+
+        if line:
+            lines.append(line)
+
+    # Remove repeated consecutive captions
+    cleaned = []
+
+    previous = None
+
+    for line in lines:
+
+        if line != previous:
+            cleaned.append(line)
+
+        previous = line
+
+    return clean_caption_text(
+        " ".join(cleaned)
+    )
+
+
+def transcribe_video_audio(
+    audio_path: str,
+    language: str = "en",
+) -> str:
+    """
+    Transcribe downloaded video audio using OpenAI.
+    """
+
+    require_services()
+
+    with open(
+        audio_path,
+        "rb",
+    ) as audio_file:
+
+        transcript = (
+            client.audio.transcriptions.create(
+                model="gpt-4o-mini-transcribe",
+                file=audio_file,
+                response_format="text",
+            )
+        )
+
+    if hasattr(
+        transcript,
+        "text",
+    ):
+        return transcript.text
+
+    return str(transcript)
+
+
+def extract_video_text(
+    video_url: str,
+    language: str = "en",
+) -> dict:
+    """
+    Extract educational text from a YouTube
+    or another publicly accessible video URL.
+
+    Strategy:
+    1. Try subtitles.
+    2. Try automatic captions.
+    3. If unavailable, download audio.
+    4. Transcribe audio with OpenAI.
+    """
+
+    if not video_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Video URL is required.",
+        )
+
+    parsed = urlparse(
+        video_url
+    )
+
+    if parsed.scheme not in {
+        "http",
+        "https",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a valid http/https video URL.",
+        )
+
+    temp_dir = tempfile.mkdtemp(
+        prefix="amivi_video_"
+    )
+
+    try:
+
+        # ====================================================
+        # First attempt: subtitles / automatic captions
+        # ====================================================
+
+        subtitle_options = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "writesubtitles": False,
+            "writeautomaticsub": False,
+        }
+
+        with yt_dlp.YoutubeDL(
+            subtitle_options
+        ) as ydl:
+
+            info = ydl.extract_info(
+                video_url,
+                download=False,
+            )
+
+        title = info.get(
+            "title",
+            "Video",
+        )
+
+        duration = info.get(
+            "duration"
+        )
+
+        # Manual captions
+        manual_caption_url = (
+            get_caption_url(
+                info.get("subtitles"),
+                language,
+            )
+        )
+
+        # Automatic captions
+        auto_caption_url = (
+            get_caption_url(
+                info.get(
+                    "automatic_captions"
+                ),
+                language,
+            )
+        )
+
+        caption_url = (
+            manual_caption_url
+            or auto_caption_url
+        )
+
+        if caption_url:
+
+            import requests
+
+            response = requests.get(
+                caption_url,
+                timeout=30,
+            )
+
+            response.raise_for_status()
+
+            caption_text = (
+                parse_vtt_text(
+                    response.text
+                )
+            )
+
+            if len(caption_text) > 100:
+
+                return {
+                    "title": title,
+                    "duration": duration,
+                    "text": caption_text,
+                    "source": "captions",
+                    "url": video_url,
+                }
+
+        # ====================================================
+        # Fallback: download audio
+        # ====================================================
+
+        output_template = os.path.join(
+            temp_dir,
+            "%(id)s.%(ext)s",
+        )
+
+        download_options = {
+            "format": "bestaudio/best",
+            "outtmpl": output_template,
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+        }
+
+        with yt_dlp.YoutubeDL(
+            download_options
+        ) as ydl:
+
+            info = ydl.extract_info(
+                video_url,
+                download=True,
+            )
+
+            title = info.get(
+                "title",
+                title,
+            )
+
+            duration = info.get(
+                "duration",
+                duration,
+            )
+
+        downloaded_files = glob.glob(
+            os.path.join(
+                temp_dir,
+                "*",
+            )
+        )
+
+        audio_files = [
+            path
+            for path in downloaded_files
+            if os.path.isfile(path)
+        ]
+
+        if not audio_files:
+
+            raise Exception(
+                "The video audio could not be downloaded."
+            )
+
+        audio_path = audio_files[0]
+
+        # ====================================================
+        # OpenAI transcription
+        # ====================================================
+
+        transcript_text = (
+            transcribe_video_audio(
+                audio_path,
+                language,
+            )
+        )
+
+        transcript_text = clean_caption_text(
+            transcript_text
+        )
+
+        if len(
+            transcript_text
+        ) < 50:
+
+            raise Exception(
+                "Could not extract enough spoken content from the video."
+            )
+
+        return {
+            "title": title,
+            "duration": duration,
+            "text": transcript_text,
+            "source": "openai_transcription",
+            "url": video_url,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Could not process this video URL. "
+                f"{str(exc)}"
+            ),
+        )
+
+    finally:
+
+        import shutil
+
+        if os.path.exists(
+            temp_dir
+        ):
+
+            shutil.rmtree(
+                temp_dir,
+                ignore_errors=True,
+            )
 
 def generate_amivi_content(
     text_input,
@@ -1186,6 +1622,42 @@ async def amivi_extract(
 #       ↓
 # POSTGRESQL
 # ============================================================
+
+@app.post("/api/amivi/extract-video")
+async def amivi_extract_video(
+    request: AmiviRequest,
+):
+    try:
+
+        if not request.video_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Please provide a video URL.",
+            )
+
+        result = extract_video_text(
+            request.video_url,
+            request.language,
+        )
+
+        return {
+            "status": "success",
+            "title": result["title"],
+            "duration": result["duration"],
+            "source": result["source"],
+            "url": result["url"],
+            "text": result["text"],
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
 
 @app.post("/api/amivi/generate")
 async def amivi_generate(
