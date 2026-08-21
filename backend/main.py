@@ -13,25 +13,21 @@ import platform
 import io
 import glob
 import re
+import shutil
 from urllib.parse import urlparse
 
-import yt_dlp
-
 from openai import OpenAI
-
 from moviepy.editor import (
     ImageClip,
     AudioFileClip,
     concatenate_videoclips,
-    TextClip,
-    CompositeVideoClip,
 )
-
 from pypdf import PdfReader
 from docx import Document
+import requests
+import yt_dlp
 
 from database import SessionLocal, engine, create_tables
-
 from models import (
     User,
     Project,
@@ -60,7 +56,7 @@ TERRA_MODEL = "gpt-5.6-terra"
 SOL_MODEL = "gpt-5.6-sol"
 LUNA_MODEL = "gpt-5.6-luna"
 IMAGE_MODEL = "gpt-image-2"
-
+TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
 
 client = (
     OpenAI(api_key=OPENAI_API_KEY)
@@ -76,7 +72,7 @@ client = (
 app = FastAPI(
     title="AMIVI & AMICO API",
     description="Backend for Visual Learning and Comic Generation",
-    version="2.1.0",
+    version="2.2.0",
 )
 
 
@@ -86,10 +82,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -119,10 +112,10 @@ def startup():
 # ============================================================
 
 class AmiviRequest(BaseModel):
-    text: str
+    text: str = ""
     language: str = "en"
     generate_video: bool = True
-    video_url:str | None=None
+    video_url: str | None = None
 
 
 class AmicoRequest(BaseModel):
@@ -152,7 +145,6 @@ def require_services():
 def get_language_instruction(language: str) -> str:
 
     if language == "es":
-
         return (
             "Generate ALL output in natural, child-friendly Spanish. "
             "Do not mix English and Spanish. "
@@ -162,10 +154,6 @@ def get_language_instruction(language: str) -> str:
 
     return "Generate all output in English."
 
-
-# ============================================================
-# OPENAI JSON HELPER
-# ============================================================
 
 def call_json_model(
     model: str,
@@ -191,14 +179,13 @@ def call_json_model(
     )
 
     try:
-
         return json.loads(raw_output)
 
     except json.JSONDecodeError as exc:
 
         raise Exception(
-            f"{model} returned invalid JSON: {exc}. "
-            f"Output: {raw_output[:1500]}"
+            f"{model} returned invalid JSON: "
+            f"{exc}. Output: {raw_output[:1500]}"
         )
 
 
@@ -227,15 +214,12 @@ def save_project(
         )
 
         db.add(row)
-
         db.commit()
-
         db.refresh(row)
 
         return row.id
 
     finally:
-
         db.close()
 
 
@@ -260,15 +244,12 @@ def save_media(
         )
 
         db.add(row)
-
         db.commit()
-
         db.refresh(row)
 
         return row.id
 
     finally:
-
         db.close()
 
 
@@ -301,15 +282,12 @@ def save_amivi_chunk(
         )
 
         db.add(row)
-
         db.commit()
-
         db.refresh(row)
 
         return row.id
 
     finally:
-
         db.close()
 
 
@@ -330,15 +308,12 @@ def save_comic(
         )
 
         db.add(row)
-
         db.commit()
-
         db.refresh(row)
 
         return row.id
 
     finally:
-
         db.close()
 
 
@@ -359,15 +334,12 @@ def save_quiz(
         )
 
         db.add(row)
-
         db.commit()
-
         db.refresh(row)
 
         return row.id
 
     finally:
-
         db.close()
 
 
@@ -386,7 +358,6 @@ def get_media(media_id: int):
         )
 
         if not row:
-
             raise HTTPException(
                 status_code=404,
                 detail="Media not found.",
@@ -395,7 +366,6 @@ def get_media(media_id: int):
         return row
 
     finally:
-
         db.close()
 
 
@@ -408,15 +378,11 @@ def extract_text_from_file(
     filename: str,
 ) -> str:
 
-    extension = (
-        os.path.splitext(filename)[1]
-        .lower()
-    )
+    extension = os.path.splitext(
+        filename
+    )[1].lower()
 
-    # ----------------------------------------
     # TXT
-    # ----------------------------------------
-
     if extension == ".txt":
 
         return file_bytes.decode(
@@ -424,19 +390,11 @@ def extract_text_from_file(
             errors="ignore",
         )
 
-
-    # ----------------------------------------
     # PDF
-    # ----------------------------------------
-
     if extension == ".pdf":
 
-        pdf_file = io.BytesIO(
-            file_bytes
-        )
-
         reader = PdfReader(
-            pdf_file
+            io.BytesIO(file_bytes)
         )
 
         pages = []
@@ -446,40 +404,22 @@ def extract_text_from_file(
             text = page.extract_text()
 
             if text:
-
                 pages.append(text)
 
         return "\n".join(pages)
 
-
-    # ----------------------------------------
     # DOCX
-    # ----------------------------------------
-
     if extension == ".docx":
 
-        doc_file = io.BytesIO(
-            file_bytes
-        )
-
         document = Document(
-            doc_file
+            io.BytesIO(file_bytes)
         )
-
-        paragraphs = []
-
-        for paragraph in document.paragraphs:
-
-            if paragraph.text.strip():
-
-                paragraphs.append(
-                    paragraph.text
-                )
 
         return "\n".join(
-            paragraphs
+            paragraph.text
+            for paragraph in document.paragraphs
+            if paragraph.text.strip()
         )
-
 
     raise HTTPException(
         status_code=400,
@@ -491,19 +431,13 @@ def extract_text_from_file(
 
 
 # ============================================================
-# AMIVI CONTENT GENERATION
-#
-# LARGE PARAGRAPH
-#        ↓
-# TERRА
-#        ↓
-# 5–10 MEANINGFUL CHUNKS
+# VIDEO URL EXTRACTION
 # ============================================================
 
-def clean_caption_text(text: str) -> str:
-    """
-    Convert subtitle/caption text into clean readable text.
-    """
+def clean_caption_text(
+    text: str,
+) -> str:
+
     text = re.sub(
         r"<[^>]+>",
         " ",
@@ -535,39 +469,34 @@ def get_caption_url(
     caption_dict,
     language,
 ):
-    """
-    Find a suitable caption URL from yt-dlp's
-    subtitles/automatic_captions dictionary.
-    """
 
     if not caption_dict:
         return None
 
-    language = (language or "en").lower()
+    language = (
+        language or "en"
+    ).lower()
 
-    preferred_languages = []
-
-    if language == "es":
-        preferred_languages = [
+    preferred_languages = (
+        [
             "es",
             "es-ES",
-            "es.*",
-            "en",
-            "en.*",
-        ]
-    else:
-        preferred_languages = [
             "en",
             "en-US",
             "en-GB",
-            "en.*",
-            "es",
-            "es.*",
         ]
+        if language == "es"
+        else [
+            "en",
+            "en-US",
+            "en-GB",
+            "es",
+            "es-ES",
+        ]
+    )
 
     for preferred in preferred_languages:
 
-        # Exact language
         if preferred in caption_dict:
 
             tracks = caption_dict[
@@ -579,25 +508,21 @@ def get_caption_url(
                     "url"
                 )
 
-        # Regex-like matching
-        if preferred.endswith(".*"):
+    for key, tracks in caption_dict.items():
 
-            prefix = preferred[:-2]
+        if key.lower().startswith(
+            language
+        ):
 
-            for key, tracks in caption_dict.items():
+            if tracks:
+                return tracks[-1].get(
+                    "url"
+                )
 
-                if key.lower().startswith(
-                    prefix
-                ):
-                    if tracks:
-                        return tracks[-1].get(
-                            "url"
-                        )
-
-    # Fall back to first available language
     for tracks in caption_dict.values():
 
         if tracks:
+
             url = tracks[-1].get(
                 "url"
             )
@@ -608,10 +533,9 @@ def get_caption_url(
     return None
 
 
-def parse_vtt_text(vtt_text: str) -> str:
-    """
-    Convert WebVTT subtitle content into plain text.
-    """
+def parse_vtt_text(
+    vtt_text: str,
+) -> str:
 
     lines = []
 
@@ -643,9 +567,7 @@ def parse_vtt_text(vtt_text: str) -> str:
         if line:
             lines.append(line)
 
-    # Remove repeated consecutive captions
     cleaned = []
-
     previous = None
 
     for line in lines:
@@ -664,9 +586,6 @@ def transcribe_video_audio(
     audio_path: str,
     language: str = "en",
 ) -> str:
-    """
-    Transcribe downloaded video audio using OpenAI.
-    """
 
     require_services()
 
@@ -677,9 +596,8 @@ def transcribe_video_audio(
 
         transcript = (
             client.audio.transcriptions.create(
-                model="gpt-4o-mini-transcribe",
+                model=TRANSCRIBE_MODEL,
                 file=audio_file,
-                response_format="text",
             )
         )
 
@@ -696,18 +614,9 @@ def extract_video_text(
     video_url: str,
     language: str = "en",
 ) -> dict:
-    """
-    Extract educational text from a YouTube
-    or another publicly accessible video URL.
-
-    Strategy:
-    1. Try subtitles.
-    2. Try automatic captions.
-    3. If unavailable, download audio.
-    4. Transcribe audio with OpenAI.
-    """
 
     if not video_url:
+
         raise HTTPException(
             status_code=400,
             detail="Video URL is required.",
@@ -721,9 +630,13 @@ def extract_video_text(
         "http",
         "https",
     }:
+
         raise HTTPException(
             status_code=400,
-            detail="Please provide a valid http/https video URL.",
+            detail=(
+                "Please provide a valid "
+                "http/https video URL."
+            ),
         )
 
     temp_dir = tempfile.mkdtemp(
@@ -732,20 +645,19 @@ def extract_video_text(
 
     try:
 
-        # ====================================================
-        # First attempt: subtitles / automatic captions
-        # ====================================================
+        # --------------------------------------------
+        # Read video metadata / captions
+        # --------------------------------------------
 
-        subtitle_options = {
+        info_options = {
             "quiet": True,
             "no_warnings": True,
             "skip_download": True,
-            "writesubtitles": False,
-            "writeautomaticsub": False,
+            "noplaylist": True,
         }
 
         with yt_dlp.YoutubeDL(
-            subtitle_options
+            info_options
         ) as ydl:
 
             info = ydl.extract_info(
@@ -762,16 +674,12 @@ def extract_video_text(
             "duration"
         )
 
-        # Manual captions
-        manual_caption_url = (
+        caption_url = (
             get_caption_url(
                 info.get("subtitles"),
                 language,
             )
-        )
-
-        # Automatic captions
-        auto_caption_url = (
+            or
             get_caption_url(
                 info.get(
                     "automatic_captions"
@@ -780,14 +688,11 @@ def extract_video_text(
             )
         )
 
-        caption_url = (
-            manual_caption_url
-            or auto_caption_url
-        )
+        # --------------------------------------------
+        # Captions available
+        # --------------------------------------------
 
         if caption_url:
-
-            import requests
 
             response = requests.get(
                 caption_url,
@@ -812,9 +717,9 @@ def extract_video_text(
                     "url": video_url,
                 }
 
-        # ====================================================
-        # Fallback: download audio
-        # ====================================================
+        # --------------------------------------------
+        # Download audio as fallback
+        # --------------------------------------------
 
         output_template = os.path.join(
             temp_dir,
@@ -848,40 +753,34 @@ def extract_video_text(
                 duration,
             )
 
-        downloaded_files = glob.glob(
-            os.path.join(
-                temp_dir,
-                "*",
-            )
-        )
-
-        audio_files = [
+        downloaded_files = [
             path
-            for path in downloaded_files
+            for path in glob.glob(
+                os.path.join(
+                    temp_dir,
+                    "*",
+                )
+            )
             if os.path.isfile(path)
         ]
 
-        if not audio_files:
+        if not downloaded_files:
 
             raise Exception(
                 "The video audio could not be downloaded."
             )
 
-        audio_path = audio_files[0]
-
-        # ====================================================
-        # OpenAI transcription
-        # ====================================================
-
         transcript_text = (
             transcribe_video_audio(
-                audio_path,
+                downloaded_files[0],
                 language,
             )
         )
 
-        transcript_text = clean_caption_text(
-            transcript_text
+        transcript_text = (
+            clean_caption_text(
+                transcript_text
+            )
         )
 
         if len(
@@ -912,23 +811,22 @@ def extract_video_text(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Could not process this video URL. "
-                f"{str(exc)}"
+                "Could not process this video URL: "
+                f"{exc}"
             ),
         )
 
     finally:
 
-        import shutil
+        shutil.rmtree(
+            temp_dir,
+            ignore_errors=True,
+        )
 
-        if os.path.exists(
-            temp_dir
-        ):
 
-            shutil.rmtree(
-                temp_dir,
-                ignore_errors=True,
-            )
+# ============================================================
+# AMIVI CONTENT GENERATION
+# ============================================================
 
 def generate_amivi_content(
     text_input,
@@ -941,15 +839,14 @@ def generate_amivi_content(
 
         "The user will provide one large educational passage.\n\n"
 
-        "Your job is to transform that passage into meaningful "
-        "educational micro-bits or chunks.\n\n"
+        "Transform that material into meaningful educational "
+        "micro-bits or chunks.\n\n"
 
-        "IMPORTANT RULES:\n"
+        "Rules:\n"
 
-        "- Create 5 to 10 chunks depending on the length and complexity "
-        "of the material.\n"
+        "- Create 5 to 10 chunks depending on the length and complexity.\n"
 
-        "- Do not split the text randomly.\n"
+        "- Do not split randomly.\n"
 
         "- Each chunk must represent ONE important learning idea.\n"
 
@@ -967,9 +864,8 @@ def generate_amivi_content(
 
         "- Create a detailed supporting image prompt for each chunk.\n"
 
-        "- The image prompt should describe an educational visual such as "
-        "a diagram, process illustration, labeled concept, map, chart, "
-        "scientific illustration, or realistic educational scene when appropriate.\n"
+        "- Prefer educational visuals such as diagrams, labeled illustrations, "
+        "process visuals, maps, charts or realistic educational scenes when appropriate.\n"
 
         "- Create a short narration script for each chunk.\n\n"
 
@@ -1002,7 +898,7 @@ def generate_amivi_content(
 
 
 # ============================================================
-# AMICO GENERATION
+# AMICO
 # ============================================================
 
 def generate_amico_comic(
@@ -1014,22 +910,13 @@ def generate_amico_comic(
 
         "You are AMICO's storytelling engine.\n\n"
 
-        "Create a connected 4-panel educational comic "
-        "from the supplied educational topic.\n\n"
+        "Create a connected 4-panel educational comic.\n\n"
 
-        "The story must be fun, accurate and child-friendly.\n\n"
+        "Return ONLY JSON containing title, "
+        "learning_objective, characters and panels.\n"
 
-        "Return ONLY JSON containing:\n"
-        "- title\n"
-        "- learning_objective\n"
-        "- characters\n"
-        "- panels\n\n"
-
-        "Each panel must contain:\n"
-        "- panel_number\n"
-        "- scene\n"
-        "- image_prompt\n"
-        "- dialogue\n\n"
+        "Each panel must contain panel_number, "
+        "scene, image_prompt and dialogue.\n\n"
 
         + get_language_instruction(
             language
@@ -1052,13 +939,9 @@ def review_amico_comic(
 
         "You are AMICO quality control.\n\n"
 
-        "Review and correct the comic for:\n"
-        "- educational accuracy\n"
-        "- story continuity\n"
-        "- character consistency\n"
-        "- panel continuity\n"
-        "- dialogue quality\n"
-        "- image prompt consistency\n\n"
+        "Review and correct educational accuracy, "
+        "story continuity, character consistency, "
+        "panel continuity, dialogue and image-prompt consistency.\n\n"
 
         "Return the COMPLETE corrected comic "
         "using the same JSON structure.\n\n"
@@ -1089,23 +972,14 @@ def generate_amivi_quiz(
 
     prompt = (
 
-        "Create a 5-question multiple-choice quiz "
-        "strictly from the supplied educational material.\n\n"
+        "Create a 5-question multiple-choice quiz strictly "
+        "from the supplied educational material.\n\n"
 
-        "Each question must contain:\n"
-        "- q\n"
-        "- exactly 4 options\n"
-        "- correct as integer 0-3\n"
-        "- explanation\n\n"
+        "Each question must contain q, exactly 4 options, "
+        "correct as integer 0-3, and explanation.\n\n"
 
-        "Return ONLY valid JSON in this structure:\n"
-
-        '{'
-        '"quiz": {'
-        '"title": "...",'
-        '"questions": [...]'
-        "}"
-        "}\n\n"
+        'Return ONLY JSON in this structure: '
+        '{"quiz":{"title":"...","questions":[...]}}\n\n'
 
         + get_language_instruction(
             language
@@ -1126,15 +1000,12 @@ def generate_quiz_metadata(
 
     prompt = (
 
-        "You are AMIVI's lightweight metadata engine.\n\n"
+        "You are AMIVI's lightweight metadata engine.\n"
 
         "Do not change the quiz questions or answers.\n\n"
 
-        "Return ONLY JSON containing:\n"
-        "- category\n"
-        "- difficulty (easy, medium or hard)\n"
-        "- tags\n"
-        "- language\n\n"
+        "Return ONLY JSON containing category, "
+        "difficulty (easy, medium or hard), tags and language.\n\n"
 
         + get_language_instruction(
             language
@@ -1153,7 +1024,6 @@ def generate_quiz_metadata(
 
 # ============================================================
 # GPT IMAGE 2
-# IMAGE -> POSTGRESQL
 # ============================================================
 
 def generate_image(
@@ -1196,8 +1066,7 @@ def generate_image(
 
 
 # ============================================================
-# PIPER TTS
-# AUDIO -> POSTGRESQL
+# PIPER
 # ============================================================
 
 def generate_voice(
@@ -1215,8 +1084,7 @@ def generate_voice(
 
     piper_exec = (
         "piper.exe"
-        if platform.system()
-        == "Windows"
+        if platform.system() == "Windows"
         else "piper"
     )
 
@@ -1232,17 +1100,11 @@ def generate_voice(
 
         piper_path = piper_exec
 
-    if language == "es":
-
-        model_name = (
-            "es_ES-sharvard-medium.onnx"
-        )
-
-    else:
-
-        model_name = (
-            "en_US-lessac-medium.onnx"
-        )
+    model_name = (
+        "es_ES-sharvard-medium.onnx"
+        if language == "es"
+        else "en_US-lessac-medium.onnx"
+    )
 
     model_path = os.path.join(
         os.path.dirname(__file__),
@@ -1311,8 +1173,8 @@ def generate_voice(
 
 
 # ============================================================
-# MOVIEPY VIDEO
-# IMAGES + AUDIO -> VIDEO -> POSTGRESQL
+# MOVIEPY
+# No TextClip/ImageMagick required
 # ============================================================
 
 def create_amivi_video(
@@ -1320,14 +1182,15 @@ def create_amivi_video(
     filename,
     project_id=None,
 ):
+
     clips = []
     temp_paths = []
     output_path = None
 
     try:
+
         for chunk in chunks:
 
-            # Get image and audio from PostgreSQL
             image_asset = get_media(
                 chunk["image_id"]
             )
@@ -1336,12 +1199,11 @@ def create_amivi_video(
                 chunk["audio_id"]
             )
 
-            # ------------------------------------------------
-            # Create temporary image file
-            # ------------------------------------------------
-            image_file = tempfile.NamedTemporaryFile(
-                suffix=".png",
-                delete=False,
+            image_file = (
+                tempfile.NamedTemporaryFile(
+                    suffix=".png",
+                    delete=False,
+                )
             )
 
             image_file.write(
@@ -1350,12 +1212,11 @@ def create_amivi_video(
 
             image_file.close()
 
-            # ------------------------------------------------
-            # Create temporary audio file
-            # ------------------------------------------------
-            audio_file = tempfile.NamedTemporaryFile(
-                suffix=".wav",
-                delete=False,
+            audio_file = (
+                tempfile.NamedTemporaryFile(
+                    suffix=".wav",
+                    delete=False,
+                )
             )
 
             audio_file.write(
@@ -1364,79 +1225,63 @@ def create_amivi_video(
 
             audio_file.close()
 
-            temp_paths.append(
-                image_file.name
+            temp_paths.extend(
+                [
+                    image_file.name,
+                    audio_file.name,
+                ]
             )
 
-            temp_paths.append(
-                audio_file.name
-            )
-
-            # ------------------------------------------------
-            # Load audio
-            # ------------------------------------------------
             audio_clip = AudioFileClip(
                 audio_file.name
             )
 
-            duration = audio_clip.duration
+            duration = (
+                audio_clip.duration
+            )
 
-            # ------------------------------------------------
-            # Load image
-            # ------------------------------------------------
             image_clip = (
                 ImageClip(
                     image_file.name
                 )
-                .set_duration(duration)
+                .set_duration(
+                    duration
+                )
             )
 
-            # ------------------------------------------------
-            # No TextClip / ImageMagick
-            #
-            # We use the generated image directly.
-            # This avoids the ImageMagick dependency.
-            # ------------------------------------------------
-            video_clip = image_clip
-
-            # Add Piper narration
-            video_clip = video_clip.set_audio(
-                audio_clip
+            # No TextClip, so ImageMagick is not required.
+            video_clip = (
+                image_clip.set_audio(
+                    audio_clip
+                )
             )
 
             clips.append(
                 video_clip
             )
 
-        # ----------------------------------------------------
-        # Make sure we have clips
-        # ----------------------------------------------------
         if not clips:
+
             raise Exception(
                 "No valid clips generated."
             )
 
-        # ----------------------------------------------------
-        # Temporary output video
-        # ----------------------------------------------------
         with tempfile.NamedTemporaryFile(
             suffix=".mp4",
             delete=False,
         ) as video_file:
 
-            output_path = video_file.name
+            output_path = (
+                video_file.name
+            )
 
-        # ----------------------------------------------------
-        # Combine all clips
-        # ----------------------------------------------------
-        final_video = concatenate_videoclips(
-            clips,
-            method="compose",
+        final_video = (
+            concatenate_videoclips(
+                clips,
+                method="compose",
+            )
         )
 
-        # ----------------------------------------------------
-        # Render video
-        # ----------------------------------------------------
         final_video.write_videofile(
             output_path,
             fps=24,
@@ -1447,20 +1292,16 @@ def create_amivi_video(
             logger=None,
         )
 
-        # ----------------------------------------------------
-        # Read final video
-        # ----------------------------------------------------
         with open(
             output_path,
             "rb",
         ) as video_file:
 
-            video_data = video_file.read()
+            video_data = (
+                video_file.read()
+            )
 
-        # ----------------------------------------------------
-        # Store video in PostgreSQL
-        # ----------------------------------------------------
-        video_id = save_media(
+        return save_media(
             data=video_data,
             filename=filename,
             mime_type="video/mp4",
@@ -1468,70 +1309,62 @@ def create_amivi_video(
             project_id=project_id,
         )
 
-        return video_id
-
     finally:
 
-        # ----------------------------------------------------
-        # Close clips
-        # ----------------------------------------------------
         for clip in clips:
+
             try:
                 clip.close()
             except Exception:
                 pass
 
-        # ----------------------------------------------------
-        # Remove temporary image/audio files
-        # ----------------------------------------------------
         for path in temp_paths:
-            try:
-                if os.path.exists(path):
-                    os.remove(path)
-            except Exception:
-                pass
 
-        # ----------------------------------------------------
-        # Remove temporary video
-        # ----------------------------------------------------
+            if os.path.exists(path):
+                os.remove(path)
+
         if (
             output_path
-            and os.path.exists(output_path)
+            and os.path.exists(
+                output_path
+            )
         ):
-            try:
-                os.remove(output_path)
-            except Exception:
-                pass
+
+            os.remove(
+                output_path
+            )
+
 
 # ============================================================
-# ROOT
+# BASIC ENDPOINTS
 # ============================================================
 
 @app.get("/")
 def root():
 
     return {
-        "message": (
-            "Welcome to the AMIVI & AMICO API"
-        )
+        "message":
+            "Welcome to the AMIVI & AMICO API",
+        "models": {
+            "amivi": TERRA_MODEL,
+            "amico_generation": TERRA_MODEL,
+            "amico_review": SOL_MODEL,
+            "quiz_generation": TERRA_MODEL,
+            "quiz_metadata": LUNA_MODEL,
+            "image": IMAGE_MODEL,
+        },
     }
 
-
-# ============================================================
-# HEALTH
-# ============================================================
 
 @app.get("/health")
 def health():
 
     return {
         "status": "ok",
-        "openai_configured": bool(
-            OPENAI_API_KEY
-        ),
-        "database_configured": bool(
-            DATABASE_URL
-        ),
+        "openai_configured":
+            bool(OPENAI_API_KEY),
+        "database_configured":
+            bool(DATABASE_URL),
     }
 
 
@@ -1541,7 +1374,7 @@ def health():
 
 @app.post("/api/amivi/extract")
 async def amivi_extract(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
 ):
 
     try:
@@ -1562,9 +1395,11 @@ async def amivi_extract(
                 detail="Uploaded file is empty.",
             )
 
-        text = extract_text_from_file(
-            file_bytes,
-            file.filename,
+        text = (
+            extract_text_from_file(
+                file_bytes,
+                file.filename,
+            )
         )
 
         if not text.strip():
@@ -1584,10 +1419,8 @@ async def amivi_extract(
         return {
             "status": "success",
             "filename": file.filename,
-            "source_type": (
-                extension
-                .replace(".", "")
-            ),
+            "source_type":
+                extension.replace(".", ""),
             "text": text,
         }
 
@@ -1608,28 +1441,18 @@ async def amivi_extract(
 
 
 # ============================================================
-# AMIVI GENERATE
-#
-# LARGE PARAGRAPH
-#       ↓
-# TERRA
-#       ↓
-# CHUNKS
-#       ↓
-# IMAGE + AUDIO
-#       ↓
-# OPTIONAL VIDEO
-#       ↓
-# POSTGRESQL
+# AMIVI VIDEO EXTRACTION
 # ============================================================
 
 @app.post("/api/amivi/extract-video")
 async def amivi_extract_video(
     request: AmiviRequest,
 ):
+
     try:
 
         if not request.video_url:
+
             raise HTTPException(
                 status_code=400,
                 detail="Please provide a video URL.",
@@ -1642,14 +1465,20 @@ async def amivi_extract_video(
 
         return {
             "status": "success",
-            "title": result["title"],
-            "duration": result["duration"],
-            "source": result["source"],
-            "url": result["url"],
-            "text": result["text"],
+            "title":
+                result["title"],
+            "duration":
+                result["duration"],
+            "source":
+                result["source"],
+            "url":
+                result["url"],
+            "text":
+                result["text"],
         }
 
     except HTTPException:
+
         raise
 
     except Exception as exc:
@@ -1658,6 +1487,11 @@ async def amivi_extract_video(
             status_code=500,
             detail=str(exc),
         )
+
+
+# ============================================================
+# AMIVI GENERATE
+# ============================================================
 
 @app.post("/api/amivi/generate")
 async def amivi_generate(
@@ -1668,13 +1502,59 @@ async def amivi_generate(
 
         require_services()
 
-        # ----------------------------------------
-        # Generate chunks
-        # ----------------------------------------
+        source_text = (
+            request.text.strip()
+        )
+
+        source_title = (
+            "AMIVI Visual Learning"
+        )
+
+        source_url = None
+
+        # -----------------------------------------------------
+        # Video URL supplied
+        # -----------------------------------------------------
+
+        if request.video_url:
+
+            video_result = (
+                extract_video_text(
+                    request.video_url,
+                    request.language,
+                )
+            )
+
+            source_text = (
+                video_result["text"]
+            )
+
+            source_title = (
+                f"AMIVI - "
+                f"{video_result['title']}"
+            )
+
+            source_url = (
+                request.video_url
+            )
+
+        if not source_text:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Please provide learning "
+                    "text or a video URL."
+                ),
+            )
+
+        # -----------------------------------------------------
+        # Generate chunks with Terra
+        # -----------------------------------------------------
 
         content = (
             generate_amivi_content(
-                request.text,
+                source_text,
                 request.language,
             )
         )
@@ -1694,23 +1574,27 @@ async def amivi_generate(
                 ),
             )
 
-        # ----------------------------------------
-        # Create project
-        # ----------------------------------------
+        # -----------------------------------------------------
+        # Save project
+        # -----------------------------------------------------
 
         project_id = save_project(
             project_type="amivi",
-            title="AMIVI Visual Learning",
-            input_text=request.text,
+            title=source_title,
+            input_text=source_text,
             language=request.language,
-            data=content,
+            data={
+                **content,
+                "source_url":
+                    source_url,
+            },
         )
 
         processed_chunks = []
 
-        # ----------------------------------------
-        # Process every chunk
-        # ----------------------------------------
+        # -----------------------------------------------------
+        # Generate each chunk's media
+        # -----------------------------------------------------
 
         for index, chunk in enumerate(
             chunks
@@ -1746,83 +1630,84 @@ async def amivi_generate(
                 "",
             )
 
-            # ----------------------------------------
-            # Generate image
-            # ----------------------------------------
-
-            image_id = generate_image(
-                prompt=chunk.get(
-                    "image_prompt",
-                    "",
-                ),
-                filename=(
-                    f"amivi_{project_id}"
-                    f"_chunk_{index}.png"
-                ),
-                project_id=project_id,
-            )
-
-            # ----------------------------------------
-            # Generate voice
-            # ----------------------------------------
-
-            audio_id = generate_voice(
-                text=voice_script,
-                filename=(
-                    f"amivi_{project_id}"
-                    f"_chunk_{index}.wav"
-                ),
-                language=request.language,
-                project_id=project_id,
-            )
-
-            # ----------------------------------------
-            # Save chunk
-            # ----------------------------------------
-
-            chunk_id = save_amivi_chunk(
-                project_id=project_id,
-                chunk_number=chunk_number,
-                key_point=key_point,
-                text=text,
-                slogan=slogan,
-                description=description,
-                image_id=image_id,
-                audio_id=audio_id,
-                voice_script=voice_script,
-            )
-
-            # ----------------------------------------
-            # Response object
-            # ----------------------------------------
-
-            processed_chunks.append(
-                {
-                    "chunk_id": chunk_id,
-                    "chunk_number": chunk_number,
-                    "key_point": key_point,
-                    "text": text,
-                    "slogan": slogan,
-                    "description": description,
-                    "image_prompt": chunk.get(
+            # Image
+            image_id = (
+                generate_image(
+                    prompt=chunk.get(
                         "image_prompt",
                         "",
                     ),
-                    "voice_script": voice_script,
-                    "image_id": image_id,
-                    "image_url": (
-                        f"/api/media/{image_id}"
+                    filename=(
+                        f"amivi_{project_id}"
+                        f"_chunk_{index}.png"
                     ),
-                    "audio_id": audio_id,
-                    "audio_url": (
-                        f"/api/media/{audio_id}"
+                    project_id=project_id,
+                )
+            )
+
+            # Audio
+            audio_id = (
+                generate_voice(
+                    text=voice_script,
+                    filename=(
+                        f"amivi_{project_id}"
+                        f"_chunk_{index}.wav"
                     ),
+                    language=request.language,
+                    project_id=project_id,
+                )
+            )
+
+            # Save chunk
+            chunk_id = (
+                save_amivi_chunk(
+                    project_id=project_id,
+                    chunk_number=chunk_number,
+                    key_point=key_point,
+                    text=text,
+                    slogan=slogan,
+                    description=description,
+                    image_id=image_id,
+                    audio_id=audio_id,
+                    voice_script=voice_script,
+                )
+            )
+
+            processed_chunks.append(
+                {
+                    "chunk_id":
+                        chunk_id,
+                    "chunk_number":
+                        chunk_number,
+                    "key_point":
+                        key_point,
+                    "text":
+                        text,
+                    "slogan":
+                        slogan,
+                    "description":
+                        description,
+                    "image_prompt":
+                        chunk.get(
+                            "image_prompt",
+                            "",
+                        ),
+                    "voice_script":
+                        voice_script,
+                    "image_id":
+                        image_id,
+                    "image_url":
+                        f"/api/media/{image_id}",
+                    "audio_id":
+                        audio_id,
+                    "audio_url":
+                        f"/api/media/{audio_id}",
                 }
             )
 
-        # ----------------------------------------
+        # -----------------------------------------------------
         # Optional video
-        # ----------------------------------------
+        # -----------------------------------------------------
 
         video_id = None
 
@@ -1839,20 +1724,28 @@ async def amivi_generate(
                 )
             )
 
-        # ----------------------------------------
-        # Final response
-        # ----------------------------------------
-
         return {
-            "status": "success",
-            "project_id": project_id,
-            "video_id": video_id,
-            "video_url": (
-                f"/api/media/{video_id}"
-                if video_id
-                else None
-            ),
-            "chunks": processed_chunks,
+            "status":
+                "success",
+
+            "project_id":
+                project_id,
+
+            "source_url":
+                source_url,
+
+            "video_id":
+                video_id,
+
+            "video_url":
+                (
+                    f"/api/media/{video_id}"
+                    if video_id
+                    else None
+                ),
+
+            "chunks":
+                processed_chunks,
         }
 
     except HTTPException:
@@ -1872,7 +1765,7 @@ async def amivi_generate(
 
 
 # ============================================================
-# AMICO
+# AMICO GENERATE
 # ============================================================
 
 @app.post("/api/amico/generate")
@@ -1884,62 +1777,77 @@ async def amico_generate(
 
         require_services()
 
-        # Terra creates
-        comic = generate_amico_comic(
-            request.homework_prompt,
-            request.language,
+        comic = (
+            generate_amico_comic(
+                request.homework_prompt,
+                request.language,
+            )
         )
 
-        # Sol reviews
-        comic = review_amico_comic(
-            comic,
-            request.language,
+        comic = (
+            review_amico_comic(
+                comic,
+                request.language,
+            )
         )
 
-        project_id = save_project(
-            project_type="amico",
-            title=comic.get(
-                "title",
-                "AMICO Comic",
-            ),
-            input_text=request.homework_prompt,
-            language=request.language,
-            data=comic,
+        project_id = (
+            save_project(
+                project_type="amico",
+                title=comic.get(
+                    "title",
+                    "AMICO Comic",
+                ),
+                input_text=
+                    request.homework_prompt,
+                language=
+                    request.language,
+                data=comic,
+            )
         )
 
         processed_panels = []
 
         for index, panel in enumerate(
-            comic.get("panels", [])
+            comic.get(
+                "panels",
+                [],
+            )
         ):
 
-            image_id = generate_image(
-                prompt=panel.get(
-                    "image_prompt",
-                    "",
-                ),
-                filename=(
-                    f"comic_{project_id}"
-                    f"_panel_{index}.png"
-                ),
-                project_id=project_id,
+            image_id = (
+                generate_image(
+                    prompt=panel.get(
+                        "image_prompt",
+                        "",
+                    ),
+                    filename=(
+                        f"comic_{project_id}"
+                        f"_panel_{index}.png"
+                    ),
+                    project_id=
+                        project_id,
+                )
             )
 
             processed_panels.append(
                 {
-                    "panel_number": index + 1,
-                    "scene": panel.get(
-                        "scene",
-                        "",
-                    ),
-                    "dialogue": panel.get(
-                        "dialogue",
-                        "",
-                    ),
-                    "image_id": image_id,
-                    "image_url": (
-                        f"/api/media/{image_id}"
-                    ),
+                    "panel_number":
+                        index + 1,
+                    "scene":
+                        panel.get(
+                            "scene",
+                            "",
+                        ),
+                    "dialogue":
+                        panel.get(
+                            "dialogue",
+                            "",
+                        ),
+                    "image_id":
+                        image_id,
+                    "image_url":
+                        f"/api/media/{image_id}",
                 }
             )
 
@@ -1957,22 +1865,29 @@ async def amico_generate(
         )
 
         return {
-            "status": "success",
-            "project_id": project_id,
-            "comic_id": comic_id,
-            "title": comic.get(
-                "title",
-                "",
-            ),
-            "learning_objective": comic.get(
-                "learning_objective",
-                "",
-            ),
-            "characters": comic.get(
-                "characters",
-                [],
-            ),
-            "panels": processed_panels,
+            "status":
+                "success",
+            "project_id":
+                project_id,
+            "comic_id":
+                comic_id,
+            "title":
+                comic.get(
+                    "title",
+                    "",
+                ),
+            "learning_objective":
+                comic.get(
+                    "learning_objective",
+                    "",
+                ),
+            "characters":
+                comic.get(
+                    "characters",
+                    [],
+                ),
+            "panels":
+                processed_panels,
         }
 
     except HTTPException:
@@ -2004,9 +1919,11 @@ async def generate_quiz(
 
         require_services()
 
-        result = generate_amivi_quiz(
-            request.text,
-            request.language,
+        result = (
+            generate_amivi_quiz(
+                request.text,
+                request.language,
+            )
         )
 
         quiz = result.get(
@@ -2014,14 +1931,12 @@ async def generate_quiz(
             result,
         )
 
-        metadata = (
+        quiz["metadata"] = (
             generate_quiz_metadata(
                 quiz,
                 request.language,
             )
         )
-
-        quiz["metadata"] = metadata
 
         project_id = save_project(
             project_type="quiz",
@@ -2029,8 +1944,10 @@ async def generate_quiz(
                 "title",
                 "AMIVI Quiz",
             ),
-            input_text=request.text,
-            language=request.language,
+            input_text=
+                request.text,
+            language=
+                request.language,
             data=quiz,
         )
 
@@ -2044,10 +1961,14 @@ async def generate_quiz(
         )
 
         return {
-            "status": "success",
-            "project_id": project_id,
-            "quiz_id": quiz_id,
-            "quiz": quiz,
+            "status":
+                "success",
+            "project_id":
+                project_id,
+            "quiz_id":
+                quiz_id,
+            "quiz":
+                quiz,
         }
 
     except HTTPException:
@@ -2068,8 +1989,6 @@ async def generate_quiz(
 
 # ============================================================
 # MEDIA
-#
-# PostgreSQL -> browser
 # ============================================================
 
 @app.get("/api/media/{media_id}")
@@ -2085,12 +2004,38 @@ def media(
         content=asset.data,
         media_type=asset.mime_type,
         headers={
-            "Content-Disposition": (
-                f'inline; '
-                f'filename="{asset.filename}"'
-            )
+            "Content-Disposition":
+                (
+                    f'inline; '
+                    f'filename="{asset.filename}"'
+                )
         },
     )
+
+
+# ============================================================
+# REQUEST LOGGING
+# ============================================================
+
+@app.middleware("http")
+async def log_requests(
+    request,
+    call_next,
+):
+
+    print(
+        f"REQUEST: "
+        f"{request.method} "
+        f"{request.url.path} "
+        f"FROM: "
+        f"{request.client.host}"
+    )
+
+    response = await call_next(
+        request
+    )
+
+    return response
 
 
 # ============================================================

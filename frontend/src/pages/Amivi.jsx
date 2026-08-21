@@ -71,7 +71,7 @@ export default function Amivi() {
     setFullscreenChunk(null);
   };
 
-  // Allow Escape key to close the visual viewer.
+  // Escape key closes fullscreen viewer
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -82,7 +82,10 @@ export default function Amivi() {
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener(
+        'keydown',
+        handleKeyDown
+      );
     };
   }, []);
 
@@ -91,7 +94,16 @@ export default function Amivi() {
   // ============================================================
 
   const handleGenerate = async () => {
-    if (!textInput.trim()) return;
+    const text = textInput.trim();
+    const url = videoUrl.trim();
+
+    // Require either text or video URL
+    if (!text && !url) {
+      setError(
+        'Please paste learning material or enter a video URL.'
+      );
+      return;
+    }
 
     setIsProcessing(true);
     setError(null);
@@ -99,19 +111,25 @@ export default function Amivi() {
 
     try {
       const data = await generateAmivi(
-        textInput,
+        text,
         language,
-        generateVideo
+        generateVideo,
+        url || null
       );
 
       setResult(data);
+
     } catch (err) {
-      console.error('AMIVI generation error:', err);
+      console.error(
+        'AMIVI generation error:',
+        err
+      );
 
       setError(
         err?.message ||
           'Failed to generate AMIVI content.'
       );
+
     } finally {
       setIsProcessing(false);
     }
@@ -151,6 +169,10 @@ export default function Amivi() {
       const data = await response.json();
 
       setTextInput(data?.text || '');
+
+      // If file is uploaded, clear video URL
+      setVideoUrl('');
+
     } catch (err) {
       console.error(
         'File extraction error:',
@@ -172,10 +194,11 @@ export default function Amivi() {
     setIsGeneratingQuiz(true);
 
     try {
-      const quizData = await generateAmiviQuiz(
-        textInput,
-        language
-      );
+      const quizData =
+        await generateAmiviQuiz(
+          textInput,
+          language
+        );
 
       if (
         quizData &&
@@ -191,6 +214,7 @@ export default function Amivi() {
           'Invalid quiz data returned.'
         );
       }
+
     } catch (err) {
       console.error(
         'Quiz generation failed:',
@@ -200,6 +224,7 @@ export default function Amivi() {
       alert(
         'Failed to generate quiz. Please try again.'
       );
+
     } finally {
       setIsGeneratingQuiz(false);
     }
@@ -248,28 +273,26 @@ export default function Amivi() {
           </div>
 
           <p className="text-blue-100 font-semibold max-w-3xl">
-            Transform large learning material into
-            meaningful visual micro-bits with
-            supporting images, explanations,
-            narration and an optional educational video.
+            Transform large learning material or
+            public video content into meaningful visual
+            micro-bits with supporting images,
+            explanations, narration and an optional
+            educational video.
           </p>
 
         </div>
 
       </div>
 
-
       {/* ======================================================
-          INPUT SECTION
+          INPUT
       ======================================================= */}
 
       {!isProcessing && !result && (
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-          {/* ==================================================
-              TEXT INPUT
-          =================================================== */}
+          {/* TEXT INPUT */}
 
           <div className="bg-white rounded-4xl border-2 border-blue-100 shadow-xl p-8 flex flex-col">
 
@@ -278,10 +301,8 @@ export default function Amivi() {
             </h2>
 
             <p className="text-gray-500 font-bold mb-6">
-              Paste a large educational paragraph.
-              AMIVI will break it into meaningful
-              learning chunks and create supporting
-              visuals for each concept.
+              Paste a large educational paragraph,
+              or use the video input on the right.
             </p>
 
             <textarea
@@ -295,7 +316,7 @@ export default function Amivi() {
               className="w-full flex-1 min-h-[260px] p-5 bg-blue-50 border-2 border-blue-200 rounded-2xl text-gray-700 font-semibold resize-none focus:ring-4 focus:ring-blue-300 focus:border-blue-400 focus:outline-none mb-6 text-lg transition-all"
             />
 
-            {/* Video option */}
+            {/* VIDEO OPTION */}
 
             <div className="flex items-center gap-3 mb-5">
 
@@ -323,7 +344,10 @@ export default function Amivi() {
 
             <button
               onClick={handleGenerate}
-              disabled={!textInput.trim()}
+              disabled={
+                !textInput.trim() &&
+                !videoUrl.trim()
+              }
               className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl transition-all text-xl hover:scale-[1.02] hover:shadow-[0_10px_25px_rgba(59,130,246,0.4)] flex items-center justify-center gap-3 shadow-lg"
             >
 
@@ -342,20 +366,20 @@ export default function Amivi() {
           </div>
 
 
-          {/* ==================================================
-              UPLOAD / VIDEO LINK
-          =================================================== */}
+          {/* UPLOAD / VIDEO LINK */}
 
           <div className="bg-white rounded-4xl border-2 border-purple-100 shadow-xl p-8 flex flex-col">
 
             <h2 className="text-2xl font-black text-gray-800 mb-2">
-              📄 {t('Or Upload a File')}
+              📄 {t('Upload or Learn from Video')}
             </h2>
 
             <p className="text-gray-500 font-bold mb-6">
-              Upload a PDF, Word document or text
-              file and AMIVI will extract the material.
+              Upload a PDF, Word document or TXT file,
+              or paste a public video link.
             </p>
+
+            {/* FILE UPLOAD */}
 
             <div className="flex-1 flex items-center justify-center opacity-80 hover:opacity-100 transition-opacity">
 
@@ -366,7 +390,7 @@ export default function Amivi() {
 
             </div>
 
-            {/* Video link */}
+            {/* VIDEO LINK */}
 
             <div className="mt-8">
 
@@ -382,15 +406,18 @@ export default function Amivi() {
                 type="url"
                 value={videoUrl}
                 onChange={(e) =>
-                  setVideoUrl(e.target.value)
+                  setVideoUrl(
+                    e.target.value
+                  )
                 }
-                placeholder="Paste a video link"
+                placeholder="Paste a YouTube or public video link"
                 className="w-full mt-2 p-4 bg-purple-50 border-2 border-purple-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-purple-200"
               />
 
-              <p className="text-xs text-gray-400 mt-2">
-                Video-link extraction can be connected
-                to the backend next.
+              <p className="text-xs text-gray-500 mt-2">
+                AMIVI will try to use captions first.
+                If captions are unavailable, the video
+                audio can be transcribed automatically.
               </p>
 
             </div>
@@ -432,9 +459,7 @@ export default function Amivi() {
 
         <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
 
-          {/* ==================================================
-              SUCCESS BANNER
-          =================================================== */}
+          {/* SUCCESS */}
 
           <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-4xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl">
 
@@ -462,20 +487,25 @@ export default function Amivi() {
 
             </div>
 
-
             <div className="flex items-center gap-4">
 
               <button
                 onClick={handleGenerateQuiz}
-                disabled={isGeneratingQuiz}
+                disabled={
+                  isGeneratingQuiz ||
+                  !textInput.trim()
+                }
                 className="px-6 py-3 bg-white text-green-700 font-black rounded-2xl hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-lg"
               >
+
                 🧩{' '}
+
                 {isGeneratingQuiz
                   ? 'Generating Quiz...'
                   : t(
                       'Take Quiz on this Topic'
                     )}
+
               </button>
 
               <button
@@ -490,9 +520,7 @@ export default function Amivi() {
           </div>
 
 
-          {/* ==================================================
-              EDUCATIONAL VIDEO
-          =================================================== */}
+          {/* VIDEO */}
 
           {result.video_url && (
 
@@ -537,9 +565,7 @@ export default function Amivi() {
           )}
 
 
-          {/* ==================================================
-              VISUAL MICRO-BITS
-          =================================================== */}
+          {/* VISUAL MICRO BITS */}
 
           <div className="space-y-6">
 
@@ -551,8 +577,7 @@ export default function Amivi() {
 
               <p className="text-gray-500 font-semibold mt-1">
                 Each card represents one important
-                learning idea from the original material.
-                Click ⛶ to view a visual in fullscreen.
+                learning idea. Click ⛶ for fullscreen.
               </p>
 
             </div>
@@ -571,9 +596,7 @@ export default function Amivi() {
                     className="bg-white rounded-3xl border-2 border-orange-100 shadow-lg overflow-hidden hover:shadow-2xl transition-all"
                   >
 
-                    {/* ==================================================
-                        IMAGE
-                    =================================================== */}
+                    {/* IMAGE */}
 
                     <div className="relative bg-gray-100">
 
@@ -600,15 +623,13 @@ export default function Amivi() {
 
                       )}
 
-
-                      {/* Chunk number */}
+                      {/* NUMBER */}
 
                       <div className="absolute top-4 left-4 bg-red-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-black shadow-lg">
                         {index + 1}
                       </div>
 
-
-                      {/* Fullscreen */}
+                      {/* FULLSCREEN */}
 
                       <button
                         type="button"
@@ -621,17 +642,17 @@ export default function Amivi() {
                         title="View fullscreen"
                         aria-label="View visual fullscreen"
                       >
+
                         <Maximize
                           size={18}
                         />
+
                       </button>
 
                     </div>
 
 
-                    {/* ==================================================
-                        CONTENT
-                    =================================================== */}
+                    {/* CONTENT */}
 
                     <div className="p-6">
 
@@ -643,9 +664,6 @@ export default function Amivi() {
                           }`}
                       </p>
 
-
-                      {/* Slogan */}
-
                       {chunk.slogan && (
 
                         <p className="mt-3 text-orange-600 font-black">
@@ -654,9 +672,6 @@ export default function Amivi() {
 
                       )}
 
-
-                      {/* Description */}
-
                       {chunk.description && (
 
                         <p className="mt-4 text-gray-600 font-semibold leading-relaxed">
@@ -664,9 +679,6 @@ export default function Amivi() {
                         </p>
 
                       )}
-
-
-                      {/* Audio */}
 
                       {chunk.audio_url && (
 
@@ -683,9 +695,6 @@ export default function Amivi() {
 
                       )}
 
-
-                      {/* Action buttons */}
-
                       <div className="grid grid-cols-2 gap-3 mt-5">
 
                         <button
@@ -693,10 +702,13 @@ export default function Amivi() {
                           className="py-2.5 rounded-xl bg-orange-50 text-orange-700 font-bold flex justify-center items-center gap-2 opacity-70 cursor-not-allowed"
                           title="Editing will be added next"
                         >
+
                           <Pencil
                             size={16}
                           />
+
                           Edit
+
                         </button>
 
                         <button
@@ -704,10 +716,13 @@ export default function Amivi() {
                           className="py-2.5 rounded-xl bg-blue-50 text-blue-700 font-bold flex justify-center items-center gap-2 opacity-70 cursor-not-allowed"
                           title="Image regeneration will be added next"
                         >
+
                           <RefreshCw
                             size={16}
                           />
+
                           Regenerate
+
                         </button>
 
                       </div>
@@ -722,8 +737,6 @@ export default function Amivi() {
             </div>
 
 
-            {/* No chunks */}
-
             {(!result?.chunks ||
               result.chunks.length === 0) && (
 
@@ -737,31 +750,25 @@ export default function Amivi() {
           </div>
 
 
-          {/* ==================================================
-              BOTTOM ACTIONS
-          =================================================== */}
+          {/* BOTTOM ACTIONS */}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             <button
               type="button"
               className="py-4 bg-gray-900 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-3 opacity-70 cursor-not-allowed"
-              title="Library save will be added next"
             >
               <Save size={20} />
               Save to Library
             </button>
 
-
             <button
               type="button"
               className="py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 opacity-70 cursor-not-allowed"
-              title="AMIVI to AMICO connection will be added next"
             >
               Send to AMICO
               <ArrowRight size={20} />
             </button>
-
 
             <button
               type="button"
@@ -779,7 +786,7 @@ export default function Amivi() {
 
 
       {/* ======================================================
-          FULLSCREEN VISUAL VIEWER
+          FULLSCREEN VIEWER
       ======================================================= */}
 
       {fullscreenChunk && (
@@ -789,8 +796,6 @@ export default function Amivi() {
           onClick={closeFullscreen}
         >
 
-          {/* Viewer container */}
-
           <div
             className="relative w-full h-full max-w-[1500px] max-h-[95vh] flex flex-col lg:flex-row gap-6 items-center justify-center"
             onClick={(event) =>
@@ -798,7 +803,7 @@ export default function Amivi() {
             }
           >
 
-            {/* Close button */}
+            {/* CLOSE */}
 
             <button
               type="button"
@@ -807,13 +812,13 @@ export default function Amivi() {
               title="Close fullscreen"
               aria-label="Close fullscreen"
             >
+
               <X size={26} />
+
             </button>
 
 
-            {/* ==================================================
-                LARGE IMAGE
-            =================================================== */}
+            {/* LARGE IMAGE */}
 
             <div className="flex-1 min-w-0 w-full h-full flex items-center justify-center">
 
@@ -841,13 +846,9 @@ export default function Amivi() {
             </div>
 
 
-            {/* ==================================================
-                INFORMATION PANEL
-            =================================================== */}
+            {/* INFO PANEL */}
 
             <div className="w-full lg:w-[390px] max-h-[82vh] lg:max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-7 shadow-2xl flex-shrink-0">
-
-              {/* Number */}
 
               <div className="flex items-center justify-between mb-4">
 
@@ -867,16 +868,12 @@ export default function Amivi() {
               </div>
 
 
-              {/* Text */}
-
               <h2 className="text-2xl font-black text-gray-800">
                 {fullscreenChunk.text ||
                   fullscreenChunk.key_point ||
                   'AMIVI Visual'}
               </h2>
 
-
-              {/* Slogan */}
 
               {fullscreenChunk.slogan && (
 
@@ -888,8 +885,6 @@ export default function Amivi() {
               )}
 
 
-              {/* Description */}
-
               {fullscreenChunk.description && (
 
                 <p className="mt-5 text-gray-600 font-semibold leading-relaxed">
@@ -898,8 +893,6 @@ export default function Amivi() {
 
               )}
 
-
-              {/* Audio */}
 
               {fullscreenChunk.audio_url && (
 
