@@ -20,14 +20,14 @@ export default function Navbar() {
   const { language, setLanguage, t } = useLanguage();
 
   return (
-    <header className="sticky top-0 z-50 bg-[#1e3a8a] shadow-xl">
+    <header className="sticky top-0 z-50 bg-white shadow-xl">
       <div className="w-full px-6 lg:px-12 h-28 flex items-center justify-between">
 
         <Link to="/" className="flex-shrink-0 flex items-center justify-center group" aria-label="VLQ Home">
           <img
             src="/vlq-logo-clean.png"
             alt="VLQ – Visual Learning Platform"
-            className="h-16 w-auto flex-shrink-0 object-contain group-hover:scale-105 transition-transform"
+            className="h-20 w-auto flex-shrink-0 object-contain group-hover:scale-105 transition-transform"
           />
         </Link>
 
@@ -53,7 +53,7 @@ export default function Navbar() {
           <div className="relative">
             <button 
               onClick={() => setLangOpen(!langOpen)}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/20 font-bold transition-all text-sm"
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-bold transition-all text-sm"
             >
               <Globe className="w-4 h-4" />
               <span>{language === 'es' ? 'Español' : 'English'}</span>
@@ -78,7 +78,7 @@ export default function Navbar() {
               </div>
             )}
           </div>
-          <Link to="/profile" className="flex items-center space-x-2 px-4 py-2.5 bg-white text-blue-900 rounded-2xl font-black text-[15px] hover:bg-blue-50 hover:scale-105 transition-all shadow-md">
+          <Link to="/profile" className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-2xl font-black text-[15px] hover:bg-blue-700 hover:scale-105 transition-all shadow-md">
             <User className="w-4 h-4" />
             <span>{t('Student')}</span>
           </Link>
@@ -87,7 +87,7 @@ export default function Navbar() {
         {/* Mobile toggle */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="md:hidden p-2 text-white hover:bg-white/20 rounded-xl transition-colors"
+          className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
         >
           {isOpen ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
         </button>

@@ -12,4 +12,3 @@ python-multipart==0.0.9
 pillow
 pypdf
 python-docx
-yt-dlp

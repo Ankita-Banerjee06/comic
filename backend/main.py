@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from PIL import Image, ImageDraw, ImageFont
 
 import os
 import json
@@ -14,20 +15,28 @@ import io
 import glob
 import re
 import shutil
+import uuid
+import textwrap
+
 from urllib.parse import urlparse
 
 from openai import OpenAI
+
 from moviepy.editor import (
     ImageClip,
     AudioFileClip,
     concatenate_videoclips,
 )
+
+# pyrefly: ignore [missing-import]
 from pypdf import PdfReader
 from docx import Document
+
 import requests
 import yt_dlp
 
 from database import SessionLocal, engine, create_tables
+
 from models import (
     User,
     Project,
@@ -55,8 +64,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 TERRA_MODEL = "gpt-5.6-terra"
 SOL_MODEL = "gpt-5.6-sol"
 LUNA_MODEL = "gpt-5.6-luna"
+
 IMAGE_MODEL = "gpt-image-2"
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
+
 
 client = (
     OpenAI(api_key=OPENAI_API_KEY)
@@ -72,7 +83,7 @@ client = (
 app = FastAPI(
     title="AMIVI & AMICO API",
     description="Backend for Visual Learning and Comic Generation",
-    version="2.2.0",
+    version="2.3.0",
 )
 
 
@@ -82,7 +93,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+    ],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -118,6 +134,26 @@ class AmiviRequest(BaseModel):
     video_url: str | None = None
 
 
+class AmiviRegenerateImageRequest(BaseModel):
+    project_id: int | None = None
+    chunk_id: int | None = None
+    text: str = ""
+    slogan: str = ""
+    description: str = ""
+    image_prompt: str = ""
+    language: str = "en"
+
+
+class AmiviEditChunkRequest(BaseModel):
+    project_id: int | None = None
+    chunk_id: int | None = None
+    text: str = ""
+    slogan: str = ""
+    description: str = ""
+    voice_script: str = ""
+    language: str = "en"
+
+
 class AmicoRequest(BaseModel):
     homework_prompt: str
     language: str = "en"
@@ -145,6 +181,7 @@ def require_services():
 def get_language_instruction(language: str) -> str:
 
     if language == "es":
+
         return (
             "Generate ALL output in natural, child-friendly Spanish. "
             "Do not mix English and Spanish. "
@@ -358,6 +395,7 @@ def get_media(media_id: int):
         )
 
         if not row:
+
             raise HTTPException(
                 status_code=404,
                 detail="Media not found.",
@@ -645,10 +683,6 @@ def extract_video_text(
 
     try:
 
-        # --------------------------------------------
-        # Read video metadata / captions
-        # --------------------------------------------
-
         info_options = {
             "quiet": True,
             "no_warnings": True,
@@ -681,16 +715,10 @@ def extract_video_text(
             )
             or
             get_caption_url(
-                info.get(
-                    "automatic_captions"
-                ),
+                info.get("automatic_captions"),
                 language,
             )
         )
-
-        # --------------------------------------------
-        # Captions available
-        # --------------------------------------------
 
         if caption_url:
 
@@ -701,10 +729,8 @@ def extract_video_text(
 
             response.raise_for_status()
 
-            caption_text = (
-                parse_vtt_text(
-                    response.text
-                )
+            caption_text = parse_vtt_text(
+                response.text
             )
 
             if len(caption_text) > 100:
@@ -716,10 +742,6 @@ def extract_video_text(
                     "source": "captions",
                     "url": video_url,
                 }
-
-        # --------------------------------------------
-        # Download audio as fallback
-        # --------------------------------------------
 
         output_template = os.path.join(
             temp_dir,
@@ -777,15 +799,11 @@ def extract_video_text(
             )
         )
 
-        transcript_text = (
-            clean_caption_text(
-                transcript_text
-            )
+        transcript_text = clean_caption_text(
+            transcript_text
         )
 
-        if len(
-            transcript_text
-        ) < 50:
+        if len(transcript_text) < 50:
 
             raise Exception(
                 "Could not extract enough spoken content from the video."
@@ -825,7 +843,7 @@ def extract_video_text(
 
 
 # ============================================================
-# AMIVI CONTENT GENERATION
+# AMIVI
 # ============================================================
 
 def generate_amivi_content(
@@ -834,7 +852,6 @@ def generate_amivi_content(
 ):
 
     prompt = (
-
         "You are AMIVI, an educational visual synthesis engine.\n\n"
 
         "The user will provide one large educational passage.\n\n"
@@ -843,30 +860,18 @@ def generate_amivi_content(
         "micro-bits or chunks.\n\n"
 
         "Rules:\n"
-
         "- Create 5 to 10 chunks depending on the length and complexity.\n"
-
         "- Do not split randomly.\n"
-
         "- Each chunk must represent ONE important learning idea.\n"
-
         "- Keep all important educational information.\n"
-
         "- Do not invent facts that are not supported by the source.\n"
-
         "- Rewrite the content in simple learner-friendly language.\n"
-
         "- Each chunk should be understandable on its own.\n"
-
         "- Create a short memorable slogan for each chunk.\n"
-
         "- Create a clear explanation for each chunk.\n"
-
         "- Create a detailed supporting image prompt for each chunk.\n"
-
         "- Prefer educational visuals such as diagrams, labeled illustrations, "
         "process visuals, maps, charts or realistic educational scenes when appropriate.\n"
-
         "- Create a short narration script for each chunk.\n\n"
 
         "Return ONLY valid JSON in this exact structure:\n"
@@ -898,7 +903,7 @@ def generate_amivi_content(
 
 
 # ============================================================
-# AMICO
+# AMICO STORY GENERATION
 # ============================================================
 
 def generate_amico_comic(
@@ -907,16 +912,81 @@ def generate_amico_comic(
 ):
 
     prompt = (
-
         "You are AMICO's storytelling engine.\n\n"
 
-        "Create a connected 4-panel educational comic.\n\n"
+        "Create a connected 8-panel educational comic "
+        "that teaches the learner the given topic through "
+        "storytelling and visual explanation.\n\n"
 
-        "Return ONLY JSON containing title, "
-        "learning_objective, characters and panels.\n"
+        "The comic must follow this structure:\n"
 
-        "Each panel must contain panel_number, "
-        "scene, image_prompt and dialogue.\n\n"
+        "Panel 1: Introduce the topic through a character "
+        "and an engaging question.\n"
+
+        "Panel 2: Explain the basic concept.\n"
+
+        "Panel 3: Explain the main process or mechanism.\n"
+
+        "Panel 4: Explain an important component, property, "
+        "or key fact.\n"
+
+        "Panel 5: Give a simple real-world example.\n"
+
+        "Panel 6: Explain another important concept or "
+        "common misconception.\n"
+
+        "Panel 7: Summarize the key learning points.\n"
+
+        "Panel 8: End with a memorable recap, mnemonic, "
+        "question, or fun takeaway.\n\n"
+
+        "Keep the story connected across all panels.\n"
+        "Characters must remain visually consistent.\n"
+        "The setting should remain consistent unless the story "
+        "requires a meaningful change.\n\n"
+
+        "Each panel must contain:\n"
+        "- panel_number\n"
+        "- title\n"
+        "- scene\n"
+        "- image_prompt\n"
+        "- dialogue\n"
+        "- learning_point\n\n"
+
+        "The image_prompt must describe the complete visual scene "
+        "for that panel and explicitly preserve character appearance, "
+        "clothing, age, hairstyle and other important visual traits.\n"
+        "IMPORTANT: The image_prompt MUST strictly command the image model to NOT include any text, words, or speech bubbles in the image itself, as dialogue is overlaid via HTML.\n"
+        "IMPORTANT: You MUST create at least two characters (e.g. a teacher and a student) and include them together in the image_prompts so they can converse.\n\n"
+
+        "Dialogue must be short, natural, child-friendly, "
+        "and suitable for a speech bubble.\n\n"
+
+        "Return ONLY valid JSON using exactly this structure:\n\n"
+
+        "{\n"
+        '  "title": "...",\n'
+        '  "learning_objective": "...",\n'
+        '  "characters": [\n'
+        "    {\n"
+        '      "name": "...",\n'
+        '      "role": "...",\n'
+        '      "appearance": "..."\n'
+        "    }\n"
+        "  ],\n"
+        '  "panels": [\n'
+        "    {\n"
+        '      "panel_number": 1,\n'
+        '      "title": "...",\n'
+        '      "scene": "...",\n'
+        '      "image_prompt": "...",\n'
+        '      "dialogue": "...",\n'
+        '      "learning_point": "..."\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+
+        "Generate exactly 8 panels.\n\n"
 
         + get_language_instruction(
             language
@@ -930,21 +1000,61 @@ def generate_amico_comic(
     )
 
 
+# ============================================================
+# AMICO REVIEW
+# ============================================================
+
 def review_amico_comic(
     comic,
     language="en",
 ):
 
     prompt = (
-
         "You are AMICO quality control.\n\n"
 
-        "Review and correct educational accuracy, "
-        "story continuity, character consistency, "
-        "panel continuity, dialogue and image-prompt consistency.\n\n"
+        "Review the complete educational comic and correct any problems.\n\n"
 
-        "Return the COMPLETE corrected comic "
-        "using the same JSON structure.\n\n"
+        "Check:\n"
+        "1. Educational accuracy.\n"
+        "2. Learner-friendly explanations.\n"
+        "3. Story continuity across all 8 panels.\n"
+        "4. Character consistency.\n"
+        "5. Visual consistency between image prompts.\n"
+        "6. Dialogue clarity and length.\n"
+        "7. Correct concept ordering.\n"
+        "8. Whether every panel contributes to learning.\n"
+        "9. Whether the final panel provides a useful recap, "
+        "mnemonic or memorable takeaway.\n"
+        "10. Whether there are exactly 8 panels.\n"
+        "11. Ensure there are AT LEAST two characters conversing.\n"
+        "12. Ensure EVERY image_prompt explicitly forbids generating text, words, or speech bubbles in the image.\n\n"
+
+        "If anything is incorrect, incomplete, repetitive, "
+        "or confusing, fix it.\n\n"
+
+        "Maintain the same characters unless a correction "
+        "is necessary.\n\n"
+
+        "Return ONLY the COMPLETE corrected comic "
+        "using exactly the same JSON structure.\n\n"
+
+        "{\n"
+        '  "title": "...",\n'
+        '  "learning_objective": "...",\n'
+        '  "characters": [...],\n'
+        '  "panels": [\n'
+        "    {\n"
+        '      "panel_number": 1,\n'
+        '      "title": "...",\n'
+        '      "scene": "...",\n'
+        '      "image_prompt": "...",\n'
+        '      "dialogue": "...",\n'
+        '      "learning_point": "..."\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+
+        "The final response must contain exactly 8 panels.\n\n"
 
         + get_language_instruction(
             language
@@ -971,7 +1081,6 @@ def generate_amivi_quiz(
 ):
 
     prompt = (
-
         "Create a 5-question multiple-choice quiz strictly "
         "from the supplied educational material.\n\n"
 
@@ -999,9 +1108,7 @@ def generate_quiz_metadata(
 ):
 
     prompt = (
-
         "You are AMIVI's lightweight metadata engine.\n"
-
         "Do not change the quiz questions or answers.\n\n"
 
         "Return ONLY JSON containing category, "
@@ -1173,8 +1280,7 @@ def generate_voice(
 
 
 # ============================================================
-# MOVIEPY
-# No TextClip/ImageMagick required
+# AMIVI VIDEO
 # ============================================================
 
 def create_amivi_video(
@@ -1199,11 +1305,9 @@ def create_amivi_video(
                 chunk["audio_id"]
             )
 
-            image_file = (
-                tempfile.NamedTemporaryFile(
-                    suffix=".png",
-                    delete=False,
-                )
+            image_file = tempfile.NamedTemporaryFile(
+                suffix=".png",
+                delete=False,
             )
 
             image_file.write(
@@ -1212,11 +1316,9 @@ def create_amivi_video(
 
             image_file.close()
 
-            audio_file = (
-                tempfile.NamedTemporaryFile(
-                    suffix=".wav",
-                    delete=False,
-                )
+            audio_file = tempfile.NamedTemporaryFile(
+                suffix=".wav",
+                delete=False,
             )
 
             audio_file.write(
@@ -1236,9 +1338,7 @@ def create_amivi_video(
                 audio_file.name
             )
 
-            duration = (
-                audio_clip.duration
-            )
+            duration = audio_clip.duration
 
             image_clip = (
                 ImageClip(
@@ -1249,7 +1349,6 @@ def create_amivi_video(
                 )
             )
 
-            # No TextClip, so ImageMagick is not required.
             video_clip = (
                 image_clip.set_audio(
                     audio_clip
@@ -1271,15 +1370,11 @@ def create_amivi_video(
             delete=False,
         ) as video_file:
 
-            output_path = (
-                video_file.name
-            )
+            output_path = video_file.name
 
-        final_video = (
-            concatenate_videoclips(
-                clips,
-                method="compose",
-            )
+        final_video = concatenate_videoclips(
+            clips,
+            method="compose",
         )
 
         final_video.write_videofile(
@@ -1315,19 +1410,19 @@ def create_amivi_video(
 
             try:
                 clip.close()
+
             except Exception:
                 pass
 
         for path in temp_paths:
 
             if os.path.exists(path):
+
                 os.remove(path)
 
         if (
             output_path
-            and os.path.exists(
-                output_path
-            )
+            and os.path.exists(output_path)
         ):
 
             os.remove(
@@ -1336,157 +1431,670 @@ def create_amivi_video(
 
 
 # ============================================================
-# BASIC ENDPOINTS
+# AMICO COMIC COMPOSER
+# PostgreSQL -> PIL -> PostgreSQL
 # ============================================================
 
-@app.get("/")
-def root():
-
-    return {
-        "message":
-            "Welcome to the AMIVI & AMICO API",
-        "models": {
-            "amivi": TERRA_MODEL,
-            "amico_generation": TERRA_MODEL,
-            "amico_review": SOL_MODEL,
-            "quiz_generation": TERRA_MODEL,
-            "quiz_metadata": LUNA_MODEL,
-            "image": IMAGE_MODEL,
-        },
-    }
-
-
-@app.get("/health")
-def health():
-
-    return {
-        "status": "ok",
-        "openai_configured":
-            bool(OPENAI_API_KEY),
-        "database_configured":
-            bool(DATABASE_URL),
-    }
-
-
-# ============================================================
-# AMIVI FILE EXTRACTION
-# ============================================================
-
-@app.post("/api/amivi/extract")
-async def amivi_extract(
-    file: UploadFile = File(...),
+def get_font(
+    size: int,
+    bold: bool = False,
 ):
 
-    try:
+    possible_paths = []
 
-        if not file.filename:
+    if platform.system() == "Windows":
 
-            raise HTTPException(
-                status_code=400,
-                detail="Filename is required.",
-            )
-
-        file_bytes = await file.read()
-
-        if not file_bytes:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Uploaded file is empty.",
-            )
-
-        text = (
-            extract_text_from_file(
-                file_bytes,
-                file.filename,
-            )
+        possible_paths.extend(
+            [
+                r"C:\Windows\Fonts\arialbd.ttf"
+                if bold
+                else r"C:\Windows\Fonts\arial.ttf",
+                r"C:\Windows\Fonts\calibrib.ttf"
+                if bold
+                else r"C:\Windows\Fonts\calibri.ttf",
+            ]
         )
 
-        if not text.strip():
+    possible_paths.extend(
+        [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            if bold
+            else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]
+    )
 
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "No readable text could be "
-                    "extracted from this file."
-                ),
-            )
+    for path in possible_paths:
 
-        extension = os.path.splitext(
-            file.filename
-        )[1].lower()
+        try:
 
-        return {
-            "status": "success",
-            "filename": file.filename,
-            "source_type":
-                extension.replace(".", ""),
-            "text": text,
-        }
+            if os.path.exists(path):
 
-    except HTTPException:
+                return ImageFont.truetype(
+                    path,
+                    size,
+                )
 
-        raise
+        except Exception:
+            pass
 
-    except Exception as exc:
-
-        import traceback
-
-        traceback.print_exc()
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(exc),
-        )
+    return ImageFont.load_default()
 
 
-# ============================================================
-# AMIVI VIDEO EXTRACTION
-# ============================================================
-
-@app.post("/api/amivi/extract-video")
-async def amivi_extract_video(
-    request: AmiviRequest,
+def wrap_text(
+    text: str,
+    font,
+    max_width: int,
 ):
 
-    try:
+    if not text:
+        return []
 
-        if not request.video_url:
+    words = text.split()
+    lines = []
+    current = ""
 
-            raise HTTPException(
-                status_code=400,
-                detail="Please provide a video URL.",
+    dummy_image = Image.new(
+        "RGB",
+        (10, 10),
+    )
+
+    draw = ImageDraw.Draw(
+        dummy_image
+    )
+
+    for word in words:
+
+        candidate = (
+            f"{current} {word}".strip()
+        )
+
+        bbox = draw.textbbox(
+            (0, 0),
+            candidate,
+            font=font,
+        )
+
+        width = bbox[2] - bbox[0]
+
+        if width <= max_width:
+
+            current = candidate
+
+        else:
+
+            if current:
+                lines.append(current)
+
+            current = word
+
+    if current:
+        lines.append(current)
+
+    return lines
+
+
+def draw_wrapped_text(
+    draw,
+    text,
+    xy,
+    font,
+    fill,
+    max_width,
+    line_spacing=6,
+):
+
+    lines = wrap_text(
+        text,
+        font,
+        max_width,
+    )
+
+    x, y = xy
+
+    bbox = draw.textbbox(
+        (0, 0),
+        "Ag",
+        font=font,
+    )
+
+    line_height = (
+        bbox[3] - bbox[1]
+        + line_spacing
+    )
+
+    for line in lines:
+
+        draw.text(
+            (x, y),
+            line,
+            font=font,
+            fill=fill,
+        )
+
+        y += line_height
+
+    return y
+
+
+PANEL_ACCENT_COLORS = [
+    "#E53935",  # red
+    "#FB8C00",  # orange
+    "#F4B400",  # amber
+    "#43A047",  # green
+    "#1E88E5",  # blue
+    "#3949AB",  # indigo
+    "#8E24AA",  # purple
+    "#D81B60",  # pink
+]
+
+
+def lighten_color(
+    hex_color,
+    amount=0.85,
+):
+
+    hex_color = hex_color.lstrip("#")
+
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+
+    r = int(r + (255 - r) * amount)
+    g = int(g + (255 - g) * amount)
+    b = int(b + (255 - b) * amount)
+
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def compose_amico_comic(
+    project_id,
+    comic,
+):
+
+    """
+    Creates one final 8-panel AMICO comic sheet
+    entirely from PostgreSQL MediaAsset.data.
+
+    No media/ folder and no file_path are used.
+    """
+
+    panels = comic.get(
+        "panels",
+        [],
+    )
+
+    if len(panels) != 8:
+
+        raise ValueError(
+            "AMICO must contain exactly 8 panels."
+        )
+
+    # --------------------------------------------------------
+    # Load generated panel images from PostgreSQL
+    # --------------------------------------------------------
+
+    panel_images = []
+
+    for panel in panels:
+
+        image_id = panel.get(
+            "image_id"
+        )
+
+        if not image_id:
+            raise ValueError(
+                "A panel is missing image_id."
             )
 
-        result = extract_video_text(
-            request.video_url,
-            request.language,
+        media = get_media(
+            image_id
         )
 
-        return {
-            "status": "success",
-            "title":
-                result["title"],
-            "duration":
-                result["duration"],
-            "source":
-                result["source"],
-            "url":
-                result["url"],
-            "text":
-                result["text"],
-        }
+        if not media.data:
 
-    except HTTPException:
+            raise ValueError(
+                f"Panel image {image_id} has no data."
+            )
 
-        raise
+        try:
 
-    except Exception as exc:
+            image = Image.open(
+                io.BytesIO(
+                    media.data
+                )
+            ).convert("RGB")
 
-        raise HTTPException(
-            status_code=500,
-            detail=str(exc),
+        except Exception as exc:
+
+            raise ValueError(
+                f"Could not open panel image {image_id}: {exc}"
+            )
+
+        panel_images.append(
+            (
+                image,
+                panel,
+            )
         )
+
+    # --------------------------------------------------------
+    # Layout: 4 columns × 2 rows
+    # --------------------------------------------------------
+
+    columns = 4
+    rows = 2
+
+    panel_width = 500
+    panel_height = 540
+
+    outer_padding = 30
+    gap = 20
+
+    header_height = 170
+    footer_height = 80
+
+    canvas_width = (
+        outer_padding * 2
+        + columns * panel_width
+        + (columns - 1) * gap
+    )
+
+    canvas_height = (
+        header_height
+        + rows * panel_height
+        + (rows - 1) * gap
+        + footer_height
+        + outer_padding * 2
+    )
+
+    canvas = Image.new(
+        "RGB",
+        (
+            canvas_width,
+            canvas_height,
+        ),
+        "white",
+    )
+
+    draw = ImageDraw.Draw(
+        canvas
+    )
+
+    # --------------------------------------------------------
+    # Fonts
+    # --------------------------------------------------------
+
+    title_font = get_font(
+        44,
+        bold=True,
+    )
+
+    subtitle_font = get_font(
+        22,
+        bold=False,
+    )
+
+    panel_number_font = get_font(
+        30,
+        bold=True,
+    )
+
+    panel_title_font = get_font(
+        24,
+        bold=True,
+    )
+
+    caption_font = get_font(
+        20,
+        bold=False,
+    )
+
+    footer_font = get_font(
+        20,
+        bold=True,
+    )
+
+    logo_font = get_font(
+        26,
+        bold=True,
+    )
+
+    # --------------------------------------------------------
+    # Header
+    # --------------------------------------------------------
+
+    title = comic.get(
+        "title",
+        "AMICO Educational Comic",
+    )
+
+    objective = comic.get(
+        "learning_objective",
+        "",
+    )
+
+    draw.text(
+        (
+            canvas_width // 2,
+            25,
+        ),
+        title,
+        fill="black",
+        font=title_font,
+        anchor="ma",
+    )
+
+    if objective:
+
+        draw_wrapped_text(
+            draw,
+            objective,
+            (
+                50,
+                85,
+            ),
+            subtitle_font,
+            "#444444",
+            canvas_width - 100,
+            line_spacing=5,
+        )
+
+    # --------------------------------------------------------
+    # Panel rendering
+    # --------------------------------------------------------
+
+    for index, (
+        image,
+        panel,
+    ) in enumerate(
+        panel_images
+    ):
+
+        row = index // columns
+        column = index % columns
+
+        accent_color = PANEL_ACCENT_COLORS[
+            index % len(PANEL_ACCENT_COLORS)
+        ]
+
+        caption_bg_color = lighten_color(
+            accent_color,
+            0.85,
+        )
+
+        x = (
+            outer_padding
+            + column
+            * (
+                panel_width
+                + gap
+            )
+        )
+
+        y = (
+            outer_padding
+            + header_height
+            + row
+            * (
+                panel_height
+                + gap
+            )
+        )
+
+        # ----------------------------------------------------
+        # Panel background and border
+        # ----------------------------------------------------
+
+        draw.rounded_rectangle(
+            (
+                x,
+                y,
+                x + panel_width,
+                y + panel_height,
+            ),
+            radius=18,
+            fill="#FFFFFF",
+            outline="#222222",
+            width=3,
+        )
+
+        # ----------------------------------------------------
+        # Panel title area
+        # ----------------------------------------------------
+
+        title_height = 55
+
+        draw.rectangle(
+            (
+                x + 2,
+                y + 2,
+                x + panel_width - 2,
+                y + title_height,
+            ),
+            fill="#F4F4F4",
+        )
+
+        panel_number = panel.get(
+            "panel_number",
+            index + 1,
+        )
+
+        panel_title = panel.get(
+            "title",
+            f"Panel {index + 1}",
+        )
+
+        # Number circle (color rotates per panel, like the
+        # reference AMICO example sheet)
+
+        circle_radius = 20
+
+        circle_x = x + 32
+        circle_y = y + 28
+
+        draw.ellipse(
+            (
+                circle_x - circle_radius,
+                circle_y - circle_radius,
+                circle_x + circle_radius,
+                circle_y + circle_radius,
+            ),
+            fill=accent_color,
+        )
+
+        draw.text(
+            (
+                circle_x,
+                circle_y,
+            ),
+            str(panel_number),
+            fill="white",
+            font=panel_number_font,
+            anchor="mm",
+        )
+
+        # Title
+
+        draw.text(
+            (
+                x + 65,
+                y + 28,
+            ),
+            panel_title,
+            fill="black",
+            font=panel_title_font,
+            anchor="lm",
+        )
+
+        # ----------------------------------------------------
+        # Image area (enlarged since there is no dialogue
+        # bubble below it anymore)
+        # ----------------------------------------------------
+
+        image_area_x = x + 10
+        image_area_y = y + title_height + 10
+
+        image_area_width = (
+            panel_width - 20
+        )
+
+        image_area_height = 375
+
+        image_copy = image.copy()
+
+        image_copy.thumbnail(
+            (
+                image_area_width,
+                image_area_height,
+            )
+        )
+
+        image_x = (
+            image_area_x
+            + (
+                image_area_width
+                - image_copy.width
+            )
+            // 2
+        )
+
+        image_y = (
+            image_area_y
+            + (
+                image_area_height
+                - image_copy.height
+            )
+            // 2
+        )
+
+        canvas.paste(
+            image_copy,
+            (
+                image_x,
+                image_y,
+            ),
+        )
+
+        # ----------------------------------------------------
+        # Caption strip — replaces the old dialogue bubble +
+        # learning point text with one colored caption band,
+        # matching the reference AMICO example sheet.
+        # ----------------------------------------------------
+
+        caption_text = (
+            panel.get(
+                "learning_point",
+                "",
+            )
+            or panel.get(
+                "dialogue",
+                "",
+            )
+            or ""
+        )
+
+        caption_y = (
+            image_area_y
+            + image_area_height
+            + 10
+        )
+
+        caption_height = (
+            y
+            + panel_height
+            - caption_y
+        )
+
+        draw.rounded_rectangle(
+            (
+                x + 8,
+                caption_y,
+                x + panel_width - 8,
+                caption_y + caption_height,
+            ),
+            radius=14,
+            fill=caption_bg_color,
+        )
+
+        draw_wrapped_text(
+            draw,
+            caption_text,
+            (
+                x + 20,
+                caption_y + 14,
+            ),
+            caption_font,
+            "#222222",
+            panel_width - 40,
+            line_spacing=4,
+        )
+
+    # --------------------------------------------------------
+    # Footer — "Produced by AMIT." + small VLQ wordmark,
+    # matching the reference AMICO example sheet.
+    # --------------------------------------------------------
+
+    footer_y = (
+        canvas_height
+        - outer_padding
+        - 25
+    )
+
+    draw.text(
+        (
+            canvas_width // 2 - 60,
+            footer_y,
+        ),
+        "Produced by AMIT.",
+        fill="#333333",
+        font=footer_font,
+        anchor="rm",
+    )
+
+    draw.text(
+        (
+            canvas_width // 2 - 40,
+            footer_y,
+        ),
+        "VLQ",
+        fill="#1E88E5",
+        font=logo_font,
+        anchor="lm",
+    )
+
+    # --------------------------------------------------------
+    # Convert to PNG bytes
+    # --------------------------------------------------------
+
+    output_buffer = io.BytesIO()
+
+    canvas.save(
+        output_buffer,
+        format="PNG",
+        optimize=True,
+    )
+
+    output_buffer.seek(0)
+
+    final_data = (
+        output_buffer.read()
+    )
+
+    # --------------------------------------------------------
+    # Save directly into PostgreSQL
+    # --------------------------------------------------------
+
+    final_media_id = save_media(
+        data=final_data,
+        filename=(
+            f"amico_comic_{project_id}.png"
+        ),
+        mime_type="image/png",
+        asset_type="image",
+        project_id=project_id,
+    )
+
+    return final_media_id
 
 
 # ============================================================
@@ -1513,16 +2121,14 @@ async def amivi_generate(
         source_url = None
 
         # -----------------------------------------------------
-        # Video URL supplied
+        # Video input
         # -----------------------------------------------------
 
         if request.video_url:
 
-            video_result = (
-                extract_video_text(
-                    request.video_url,
-                    request.language,
-                )
+            video_result = extract_video_text(
+                request.video_url,
+                request.language,
             )
 
             source_text = (
@@ -1549,14 +2155,12 @@ async def amivi_generate(
             )
 
         # -----------------------------------------------------
-        # Generate chunks with Terra
+        # Terra
         # -----------------------------------------------------
 
-        content = (
-            generate_amivi_content(
-                source_text,
-                request.language,
-            )
+        content = generate_amivi_content(
+            source_text,
+            request.language,
         )
 
         chunks = content.get(
@@ -1575,7 +2179,7 @@ async def amivi_generate(
             )
 
         # -----------------------------------------------------
-        # Save project
+        # Project
         # -----------------------------------------------------
 
         project_id = save_project(
@@ -1585,15 +2189,14 @@ async def amivi_generate(
             language=request.language,
             data={
                 **content,
-                "source_url":
-                    source_url,
+                "source_url": source_url,
             },
         )
 
         processed_chunks = []
 
         # -----------------------------------------------------
-        # Generate each chunk's media
+        # Generate chunks
         # -----------------------------------------------------
 
         for index, chunk in enumerate(
@@ -1630,78 +2233,61 @@ async def amivi_generate(
                 "",
             )
 
-            # Image
-            image_id = (
-                generate_image(
-                    prompt=chunk.get(
-                        "image_prompt",
-                        "",
-                    ),
-                    filename=(
-                        f"amivi_{project_id}"
-                        f"_chunk_{index}.png"
-                    ),
-                    project_id=project_id,
-                )
+            image_id = generate_image(
+                prompt=chunk.get(
+                    "image_prompt",
+                    "",
+                ),
+                filename=(
+                    f"amivi_{project_id}"
+                    f"_chunk_{index}.png"
+                ),
+                project_id=project_id,
             )
 
-            # Audio
-            audio_id = (
-                generate_voice(
-                    text=voice_script,
-                    filename=(
-                        f"amivi_{project_id}"
-                        f"_chunk_{index}.wav"
-                    ),
-                    language=request.language,
-                    project_id=project_id,
-                )
+            audio_id = generate_voice(
+                text=voice_script,
+                filename=(
+                    f"amivi_{project_id}"
+                    f"_chunk_{index}.wav"
+                ),
+                language=request.language,
+                project_id=project_id,
             )
 
-            # Save chunk
-            chunk_id = (
-                save_amivi_chunk(
-                    project_id=project_id,
-                    chunk_number=chunk_number,
-                    key_point=key_point,
-                    text=text,
-                    slogan=slogan,
-                    description=description,
-                    image_id=image_id,
-                    audio_id=audio_id,
-                    voice_script=voice_script,
-                )
+            chunk_id = save_amivi_chunk(
+                project_id=project_id,
+                chunk_number=chunk_number,
+                key_point=key_point,
+                text=text,
+                slogan=slogan,
+                description=description,
+                image_id=image_id,
+                audio_id=audio_id,
+                voice_script=voice_script,
             )
 
             processed_chunks.append(
                 {
-                    "chunk_id":
-                        chunk_id,
-                    "chunk_number":
-                        chunk_number,
-                    "key_point":
-                        key_point,
-                    "text":
-                        text,
-                    "slogan":
-                        slogan,
-                    "description":
-                        description,
-                    "image_prompt":
-                        chunk.get(
-                            "image_prompt",
-                            "",
-                        ),
-                    "voice_script":
-                        voice_script,
-                    "image_id":
-                        image_id,
-                    "image_url":
-                        f"/api/media/{image_id}",
-                    "audio_id":
-                        audio_id,
-                    "audio_url":
-                        f"/api/media/{audio_id}",
+                    "chunk_id": chunk_id,
+                    "chunk_number": chunk_number,
+                    "key_point": key_point,
+                    "text": text,
+                    "slogan": slogan,
+                    "description": description,
+                    "image_prompt": chunk.get(
+                        "image_prompt",
+                        "",
+                    ),
+                    "voice_script": voice_script,
+                    "image_id": image_id,
+                    "image_url": (
+                        f"/api/media/{image_id}"
+                    ),
+                    "audio_id": audio_id,
+                    "audio_url": (
+                        f"/api/media/{audio_id}"
+                    ),
                 }
             )
 
@@ -1716,40 +2302,26 @@ async def amivi_generate(
             and processed_chunks
         ):
 
-            video_id = (
-                create_amivi_video(
-                    processed_chunks,
-                    f"amivi_{project_id}.mp4",
-                    project_id,
-                )
+            video_id = create_amivi_video(
+                processed_chunks,
+                f"amivi_{project_id}.mp4",
+                project_id,
             )
 
         return {
-            "status":
-                "success",
-
-            "project_id":
-                project_id,
-
-            "source_url":
-                source_url,
-
-            "video_id":
-                video_id,
-
-            "video_url":
-                (
-                    f"/api/media/{video_id}"
-                    if video_id
-                    else None
-                ),
-
-            "chunks":
-                processed_chunks,
+            "status": "success",
+            "project_id": project_id,
+            "source_url": source_url,
+            "video_id": video_id,
+            "video_url": (
+                f"/api/media/{video_id}"
+                if video_id
+                else None
+            ),
+            "chunks": processed_chunks,
         }
 
     except HTTPException:
-
         raise
 
     except Exception as exc:
@@ -1757,6 +2329,110 @@ async def amivi_generate(
         import traceback
 
         traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMIVI REGENERATE IMAGE
+# ============================================================
+
+@app.post("/api/amivi/regenerate_image")
+async def amivi_regenerate_image(
+    request: AmiviRegenerateImageRequest,
+):
+
+    try:
+
+        require_services()
+
+        project_id = (
+            request.project_id
+            or None
+        )
+
+        prompt = (
+            request.image_prompt
+            or request.description
+            or request.text
+            or "Educational illustration"
+        )
+
+        image_id = generate_image(
+            prompt,
+            (
+                f"amivi_regen_"
+                f"{uuid.uuid4().hex[:8]}.png"
+            ),
+            project_id,
+        )
+
+        return {
+            "status": "success",
+            "image_id": image_id,
+            "image_url": (
+                f"/api/media/{image_id}"
+            ),
+        }
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMIVI EDIT CHUNK
+# ============================================================
+
+@app.post("/api/amivi/edit_chunk")
+async def amivi_edit_chunk(
+    request: AmiviEditChunkRequest,
+):
+
+    try:
+
+        require_services()
+
+        project_id = (
+            request.project_id
+            or None
+        )
+
+        audio_id = None
+
+        if request.voice_script:
+
+            audio_id = generate_voice(
+                request.voice_script,
+                (
+                    f"amivi_edit_"
+                    f"{uuid.uuid4().hex[:8]}.wav"
+                ),
+                request.language,
+                project_id,
+            )
+
+        return {
+            "status": "success",
+            "audio_id": audio_id,
+            "audio_url": (
+                f"/api/media/{audio_id}"
+                if audio_id
+                else None
+            ),
+            "text": request.text,
+            "slogan": request.slogan,
+            "description": request.description,
+            "voice_script": request.voice_script,
+        }
+
+    except Exception as exc:
 
         raise HTTPException(
             status_code=500,
@@ -1777,83 +2453,127 @@ async def amico_generate(
 
         require_services()
 
-        comic = (
-            generate_amico_comic(
-                request.homework_prompt,
-                request.language,
-            )
+        # -----------------------------------------------------
+        # Terra creates the 8-panel structure
+        # -----------------------------------------------------
+
+        comic = generate_amico_comic(
+            request.homework_prompt,
+            request.language,
         )
 
-        comic = (
-            review_amico_comic(
-                comic,
-                request.language,
-            )
+        # -----------------------------------------------------
+        # Sol reviews and corrects it
+        # -----------------------------------------------------
+
+        comic = review_amico_comic(
+            comic,
+            request.language,
         )
 
-        project_id = (
-            save_project(
-                project_type="amico",
-                title=comic.get(
-                    "title",
-                    "AMICO Comic",
+        # -----------------------------------------------------
+        # Validate exactly 8 panels
+        # -----------------------------------------------------
+
+        panels = comic.get(
+            "panels",
+            [],
+        )
+
+        if len(panels) != 8:
+
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "AMICO must generate exactly "
+                    "8 panels."
                 ),
-                input_text=
-                    request.homework_prompt,
-                language=
-                    request.language,
-                data=comic,
             )
+
+        # -----------------------------------------------------
+        # Save project
+        # -----------------------------------------------------
+
+        project_id = save_project(
+            project_type="amico",
+            title=comic.get(
+                "title",
+                "AMICO Comic",
+            ),
+            input_text=request.homework_prompt,
+            language=request.language,
+            data=comic,
         )
 
-        processed_panels = []
+        # -----------------------------------------------------
+        # Generate each panel image (in parallel)
+        # -----------------------------------------------------
 
-        for index, panel in enumerate(
-            comic.get(
-                "panels",
-                [],
-            )
-        ):
+        import concurrent.futures
 
-            image_id = (
-                generate_image(
-                    prompt=panel.get(
-                        "image_prompt",
-                        "",
-                    ),
-                    filename=(
-                        f"comic_{project_id}"
-                        f"_panel_{index}.png"
-                    ),
-                    project_id=
-                        project_id,
+        processed_panels = [None] * len(panels)
+
+        def process_panel(index, panel):
+            panel_number = panel.get("panel_number", index + 1)
+            image_prompt = panel.get("image_prompt", "")
+            
+            if not image_prompt:
+                image_prompt = (
+                    "Educational comic panel "
+                    f"for panel {panel_number}: "
+                    f"{panel.get('scene', '')}"
                 )
+
+            image_id = generate_image(
+                prompt=image_prompt,
+                filename=(
+                    f"amico_{project_id}"
+                    f"_panel_{index + 1}.png"
+                ),
+                project_id=project_id,
             )
 
-            processed_panels.append(
-                {
-                    "panel_number":
-                        index + 1,
-                    "scene":
-                        panel.get(
-                            "scene",
-                            "",
-                        ),
-                    "dialogue":
-                        panel.get(
-                            "dialogue",
-                            "",
-                        ),
-                    "image_id":
-                        image_id,
-                    "image_url":
-                        f"/api/media/{image_id}",
-                }
-            )
+            return {
+                "panel_number": panel_number,
+                "title": panel.get("title", ""),
+                "scene": panel.get("scene", ""),
+                "dialogue": panel.get("dialogue", ""),
+                "learning_point": panel.get("learning_point", ""),
+                "image_prompt": image_prompt,
+                "image_id": image_id,
+                "image_url": f"/api/media/{image_id}",
+            }
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {
+                executor.submit(process_panel, idx, p): idx
+                for idx, p in enumerate(panels)
+            }
+            
+            for future in concurrent.futures.as_completed(futures):
+                idx = futures[future]
+                processed_panels[idx] = future.result()
+
+        # -----------------------------------------------------
+        # Put processed panels back into comic
+        # -----------------------------------------------------
 
         comic["panels"] = (
             processed_panels
         )
+
+        # -----------------------------------------------------
+        # Compose final 4 × 2 comic sheet
+        # -----------------------------------------------------
+
+        comic_image_id = compose_amico_comic(
+            project_id=project_id,
+            comic=comic,
+        )
+
+        # -----------------------------------------------------
+        # Save comic JSON
+        # -----------------------------------------------------
 
         comic_id = save_comic(
             project_id,
@@ -1864,34 +2584,34 @@ async def amico_generate(
             comic,
         )
 
+        # -----------------------------------------------------
+        # Response
+        # -----------------------------------------------------
+
         return {
-            "status":
-                "success",
-            "project_id":
-                project_id,
-            "comic_id":
-                comic_id,
-            "title":
-                comic.get(
-                    "title",
-                    "",
-                ),
-            "learning_objective":
-                comic.get(
-                    "learning_objective",
-                    "",
-                ),
-            "characters":
-                comic.get(
-                    "characters",
-                    [],
-                ),
-            "panels":
-                processed_panels,
+            "status": "success",
+            "project_id": project_id,
+            "comic_id": comic_id,
+            "comic_image_id": comic_image_id,
+            "comic_image_url": (
+                f"/api/media/{comic_image_id}"
+            ),
+            "title": comic.get(
+                "title",
+                "",
+            ),
+            "learning_objective": comic.get(
+                "learning_objective",
+                "",
+            ),
+            "characters": comic.get(
+                "characters",
+                [],
+            ),
+            "panels": processed_panels,
         }
 
     except HTTPException:
-
         raise
 
     except Exception as exc:
@@ -1919,11 +2639,9 @@ async def generate_quiz(
 
         require_services()
 
-        result = (
-            generate_amivi_quiz(
-                request.text,
-                request.language,
-            )
+        result = generate_amivi_quiz(
+            request.text,
+            request.language,
         )
 
         quiz = result.get(
@@ -1944,10 +2662,8 @@ async def generate_quiz(
                 "title",
                 "AMIVI Quiz",
             ),
-            input_text=
-                request.text,
-            language=
-                request.language,
+            input_text=request.text,
+            language=request.language,
             data=quiz,
         )
 
@@ -1961,18 +2677,13 @@ async def generate_quiz(
         )
 
         return {
-            "status":
-                "success",
-            "project_id":
-                project_id,
-            "quiz_id":
-                quiz_id,
-            "quiz":
-                quiz,
+            "status": "success",
+            "project_id": project_id,
+            "quiz_id": quiz_id,
+            "quiz": quiz,
         }
 
     except HTTPException:
-
         raise
 
     except Exception as exc:
@@ -1988,7 +2699,7 @@ async def generate_quiz(
 
 
 # ============================================================
-# MEDIA
+# MEDIA ENDPOINT
 # ============================================================
 
 @app.get("/api/media/{media_id}")
@@ -2004,11 +2715,10 @@ def media(
         content=asset.data,
         media_type=asset.mime_type,
         headers={
-            "Content-Disposition":
-                (
-                    f'inline; '
-                    f'filename="{asset.filename}"'
-                )
+            "Content-Disposition": (
+                f'inline; '
+                f'filename="{asset.filename}"'
+            )
         },
     )
 

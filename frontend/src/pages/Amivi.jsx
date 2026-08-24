@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   generateAmivi,
   generateAmiviQuiz,
+  regenerateAmiviImage,
+  editAmiviChunk,
   API_URL,
 } from '../services/api';
 
@@ -18,6 +20,7 @@ import {
   Video,
   Maximize,
   X,
+  Download,
 } from 'lucide-react';
 
 import { useLanguage } from '../contexts/LanguageContext';
@@ -34,6 +37,8 @@ export default function Amivi() {
   const [videoUrl, setVideoUrl] = useState('');
 
   const [fullscreenChunk, setFullscreenChunk] = useState(null);
+  const [processingChunkId, setProcessingChunkId] = useState(null);
+  const [editingChunk, setEditingChunk] = useState(null);
 
   const navigate = useNavigate();
   const { language, t } = useLanguage();
@@ -53,6 +58,27 @@ export default function Amivi() {
     }
 
     return `${API_URL}${path}`;
+  };
+
+  const handleDownload = async (url, filename) => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(blobUrl);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback to opening in new tab
+      window.open(url, '_blank');
+    }
   };
 
   const resetAmivi = () => {
@@ -132,6 +158,63 @@ export default function Amivi() {
 
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleRegenerate = async (chunk) => {
+    setProcessingChunkId(chunk.chunk_id);
+    try {
+      const data = await regenerateAmiviImage(chunk, language, result?.project_id);
+      
+      // Update result state with new image
+      setResult(prev => ({
+        ...prev,
+        chunks: prev.chunks.map(c => 
+          c.chunk_id === chunk.chunk_id 
+            ? { ...c, image_id: data.image_id, image_url: data.image_url } 
+            : c
+        )
+      }));
+    } catch (err) {
+      console.error('Regenerate image error:', err);
+      alert('Failed to regenerate image.');
+    } finally {
+      setProcessingChunkId(null);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingChunk) return;
+    
+    setProcessingChunkId(editingChunk.chunk_id);
+    const chunkToEdit = editingChunk;
+    setEditingChunk(null); // close modal immediately
+    
+    try {
+      const data = await editAmiviChunk(chunkToEdit, language, result?.project_id);
+      
+      // Update result state with edited text and new audio
+      setResult(prev => ({
+        ...prev,
+        chunks: prev.chunks.map(c => 
+          c.chunk_id === chunkToEdit.chunk_id 
+            ? { 
+                ...c, 
+                text: chunkToEdit.text, 
+                slogan: chunkToEdit.slogan, 
+                description: chunkToEdit.description,
+                audio_id: data.audio_id,
+                audio_url: data.audio_url
+              } 
+            : c
+        )
+      }));
+    } catch (err) {
+      console.error('Edit chunk error:', err);
+      alert('Failed to update chunk.');
+    } finally {
+      setProcessingChunkId(null);
     }
   };
 
@@ -375,8 +458,7 @@ export default function Amivi() {
             </h2>
 
             <p className="text-gray-500 font-bold mb-6">
-              Upload a PDF, Word document or TXT file,
-              or paste a public video link.
+              Upload a PDF, Word document or TXT file.
             </p>
 
             {/* FILE UPLOAD */}
@@ -387,38 +469,6 @@ export default function Amivi() {
                 accept=".pdf,.docx,.txt"
                 onUpload={handleUpload}
               />
-
-            </div>
-
-            {/* VIDEO LINK */}
-
-            <div className="mt-8">
-
-              <label
-                htmlFor="video-link"
-                className="font-black text-gray-800"
-              >
-                🎥 Video Link
-              </label>
-
-              <input
-                id="video-link"
-                type="url"
-                value={videoUrl}
-                onChange={(e) =>
-                  setVideoUrl(
-                    e.target.value
-                  )
-                }
-                placeholder="Paste a YouTube or public video link"
-                className="w-full mt-2 p-4 bg-purple-50 border-2 border-purple-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-purple-200"
-              />
-
-              <p className="text-xs text-gray-500 mt-2">
-                AMIVI will try to use captions first.
-                If captions are unavailable, the video
-                audio can be transcribed automatically.
-              </p>
 
             </div>
 
@@ -526,23 +576,26 @@ export default function Amivi() {
 
             <div className="bg-white rounded-4xl border-2 border-blue-100 shadow-xl p-7">
 
-              <div className="flex items-center gap-3 mb-5">
-
-                <Video className="text-blue-600" />
-
-                <div>
-
-                  <h3 className="text-2xl font-black text-gray-800">
-                    🎬 Educational Video
-                  </h3>
-
-                  <p className="text-sm text-gray-500 font-semibold">
-                    Generated from the same visual
-                    micro-bits shown below.
-                  </p>
-
+              <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
+                <div className="flex items-center gap-3">
+                  <Video className="text-blue-600" />
+                  <div>
+                    <h3 className="text-2xl font-black text-gray-800">
+                      🎬 Educational Video
+                    </h3>
+                    <p className="text-sm text-gray-500 font-semibold">
+                      Generated from the same visual micro-bits shown below.
+                    </p>
+                  </div>
                 </div>
 
+                <button
+                  onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
+                  className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-xl flex items-center gap-2 transition-colors"
+                >
+                  <Download size={18} />
+                  Download
+                </button>
               </div>
 
               <div className="rounded-3xl overflow-hidden border-4 border-blue-200 shadow-2xl bg-black aspect-video">
@@ -629,8 +682,6 @@ export default function Amivi() {
                         {index + 1}
                       </div>
 
-                      {/* FULLSCREEN */}
-
                       <button
                         type="button"
                         onClick={() =>
@@ -642,12 +693,21 @@ export default function Amivi() {
                         title="View fullscreen"
                         aria-label="View visual fullscreen"
                       >
-
-                        <Maximize
-                          size={18}
-                        />
-
+                        <Maximize size={18} />
                       </button>
+
+                      {/* DOWNLOAD IMAGE */}
+                      {chunk.image_url && (
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(getMediaUrl(chunk.image_url), `amivi-chunk-${index + 1}.png`)}
+                          className="absolute top-16 right-4 w-10 h-10 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center shadow-lg transition-all hover:scale-110"
+                          title="Download Image"
+                          aria-label="Download Image"
+                        >
+                          <Download size={18} />
+                        </button>
+                      )}
 
                     </div>
 
@@ -699,30 +759,24 @@ export default function Amivi() {
 
                         <button
                           type="button"
-                          className="py-2.5 rounded-xl bg-orange-50 text-orange-700 font-bold flex justify-center items-center gap-2 opacity-70 cursor-not-allowed"
-                          title="Editing will be added next"
+                          onClick={() => setEditingChunk(chunk)}
+                          disabled={processingChunkId === chunk.chunk_id}
+                          className="py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold flex justify-center items-center gap-2 disabled:opacity-50 transition"
+                          title="Edit text"
                         >
-
-                          <Pencil
-                            size={16}
-                          />
-
+                          <Pencil size={16} />
                           Edit
-
                         </button>
 
                         <button
                           type="button"
-                          className="py-2.5 rounded-xl bg-blue-50 text-blue-700 font-bold flex justify-center items-center gap-2 opacity-70 cursor-not-allowed"
-                          title="Image regeneration will be added next"
+                          onClick={() => handleRegenerate(chunk)}
+                          disabled={processingChunkId === chunk.chunk_id}
+                          className="py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold flex justify-center items-center gap-2 disabled:opacity-50 transition"
+                          title="Regenerate Image"
                         >
-
-                          <RefreshCw
-                            size={16}
-                          />
-
+                          <RefreshCw size={16} className={processingChunkId === chunk.chunk_id ? "animate-spin" : ""} />
                           Regenerate
-
                         </button>
 
                       </div>
@@ -923,6 +977,61 @@ export default function Amivi() {
 
         </div>
 
+      )}
+
+      {/* ======================================================
+          EDIT MODAL
+      ======================================================= */}
+      {editingChunk && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl">
+            <h2 className="text-2xl font-black text-gray-800 mb-4">Edit Micro-Bit</h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Text / Key Point</label>
+                <textarea
+                  value={editingChunk.text || ''}
+                  onChange={(e) => setEditingChunk({...editingChunk, text: e.target.value})}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Slogan (Optional)</label>
+                <input
+                  type="text"
+                  value={editingChunk.slogan || ''}
+                  onChange={(e) => setEditingChunk({...editingChunk, slogan: e.target.value})}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Description (Optional)</label>
+                <textarea
+                  value={editingChunk.description || ''}
+                  onChange={(e) => setEditingChunk({...editingChunk, description: e.target.value})}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl"
+                  rows={3}
+                />
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setEditingChunk(null)}
+                  className="px-5 py-2.5 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
     </div>

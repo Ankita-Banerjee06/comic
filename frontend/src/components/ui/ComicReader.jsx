@@ -8,9 +8,8 @@ export default function ComicReader({ panels = [] }) {
   if (!panels || panels.length === 0) return null;
 
   const currentPanel = panels[currentIndex];
-  // the backend returns a URL like '/static/images/comic_ID_panel_idx.png'
-  // it might have backslashes on windows, so let's parse it safely just like AMIVI
-  const imageUrl = currentPanel.image_url ? `${API_URL}/static/images/${currentPanel.image_url.split('\\').pop().split('/').pop()}` : '';
+  // The backend now returns an API endpoint for media (e.g., '/api/media/123')
+  const imageUrl = currentPanel.image_url ? `${API_URL}${currentPanel.image_url}` : '';
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden flex flex-col h-[700px] shadow-2xl">
@@ -57,12 +56,12 @@ export default function ComicReader({ panels = [] }) {
           
           {/* Dialogue Bubble Overlay */}
           {currentPanel.dialogue && (
-            <div className="absolute top-4 left-4 right-4 bg-white border-2 border-black rounded-2xl p-4 shadow-lg mx-auto max-w-lg transform -rotate-1 opacity-90 group-hover:opacity-100 transition-opacity">
-               <p className="font-comic text-gray-900 font-bold text-center leading-tight">
+            <div className="absolute top-4 left-4 right-4 bg-white/95 border-2 border-black rounded-2xl p-4 shadow-lg mx-auto max-w-[90%] opacity-95 group-hover:opacity-100 transition-opacity z-20">
+               <p className="font-comic text-gray-900 font-bold text-center leading-relaxed text-sm sm:text-base md:text-lg">
                  {currentPanel.dialogue}
                </p>
                {/* Tail of the bubble */}
-               <div className="absolute -bottom-3 left-8 w-4 h-4 bg-white border-b-2 border-l-2 border-black transform -rotate-45"></div>
+               <div className="absolute -bottom-3 left-8 w-5 h-5 bg-white border-b-2 border-l-2 border-black transform -rotate-45"></div>
             </div>
           )}
           

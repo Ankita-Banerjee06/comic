@@ -41,6 +41,64 @@ export async function generateAmivi(
   return response.json();
 }
 
+export async function regenerateAmiviImage(
+  chunk,
+  language = 'en',
+  projectId = null
+) {
+  const response = await fetch(`${API_URL}/api/amivi/regenerate_image`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      project_id: projectId,
+      chunk_id: chunk.chunk_id,
+      text: chunk.text || '',
+      slogan: chunk.slogan || '',
+      description: chunk.description || '',
+      image_prompt: chunk.image_prompt || '',
+      language,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to regenerate image.');
+  }
+
+  return response.json();
+}
+
+export async function editAmiviChunk(
+  chunk,
+  language = 'en',
+  projectId = null
+) {
+  const response = await fetch(`${API_URL}/api/amivi/edit_chunk`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      project_id: projectId,
+      chunk_id: chunk.chunk_id,
+      text: chunk.text || '',
+      slogan: chunk.slogan || '',
+      description: chunk.description || '',
+      voice_script: chunk.voice_script || chunk.text || '',
+      language,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to edit chunk.');
+  }
+
+  return response.json();
+}
+
 
 // ============================================================
 // AMIVI QUIZ
