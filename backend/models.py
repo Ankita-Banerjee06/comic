@@ -250,3 +250,32 @@ class AmiviChunk(Base):
     )
 
     project = relationship("Project")
+
+
+class Avatar(Base):
+    """
+    A saved character avatar: an AI-generated illustration
+    derived from a user-uploaded photo, plus the appearance
+    description used to keep that character consistent across
+    AMICO comic panels.
+    """
+
+    __tablename__ = "avatars"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String(150), nullable=True)
+
+    description = Column(Text, nullable=True)
+
+    image_id = Column(
+        Integer,
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )

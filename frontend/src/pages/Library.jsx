@@ -1,36 +1,78 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Play, Share2, Trash2 } from 'lucide-react';
+import { listProjects, listComics, mediaUrl } from '../services/api';
 
-const mockData = [
-  { id: 1, title: "Biology Cells", type: "Video",    date: "2 hours ago",   emoji: "🔬", color: "from-blue-400 to-blue-600", bgIcon: "🎬" },
-  { id: 2, title: "History Chapter 4", type: "Comic",  date: "Yesterday",     emoji: "👑", color: "from-pink-400 to-rose-500", bgIcon: "📚" },
-  { id: 3, title: "Calculus Basics", type: "Visual",  date: "Oct 12, 2026",  emoji: "📐", color: "from-orange-400 to-red-500", bgIcon: "🎨" },
-  { id: 4, title: "Geography Quiz", type: "Quiz",    date: "Oct 10, 2026",  emoji: "🌍", color: "from-purple-500 to-indigo-600", bgIcon: "🧩" },
-  { id: 5, title: "English Essay Prep", type: "Homework", date: "Oct 8, 2026", emoji: "📝", color: "from-green-400 to-teal-500", bgIcon: "📝" },
-  { id: 6, title: "Photosynthesis", type: "Visual", date: "Oct 5, 2026", emoji: "🍃", color: "from-emerald-400 to-green-600", bgIcon: "🎨" },
-];
+const TYPE_META = {
+  amivi: { type: 'Visual', emoji: '🎨', color: 'from-orange-400 to-red-500', bgIcon: '🎨' },
+  amico: { type: 'Comic', emoji: '📚', color: 'from-pink-400 to-rose-500', bgIcon: '📚' },
+  quiz: { type: 'Quiz', emoji: '🧩', color: 'from-purple-500 to-indigo-600', bgIcon: '🧩' },
+};
+
+const DEFAULT_META = { type: 'Homework', emoji: '📝', color: 'from-green-400 to-teal-500', bgIcon: '📝' };
 
 const tabs = [
   { label: '🌟 All',    key: 'All Files'   },
   { label: '🎨 Visuals',   key: 'My Visuals'  },
-  { label: '🎬 Videos',    key: 'My Videos'   },
   { label: '📚 Comics',    key: 'My Comics'   },
   { label: '🧩 Quizzes',   key: 'My Quizzes'  },
-  { label: '📝 Homework',  key: 'My Homework' },
 ];
 
 export default function Library() {
   const [activeTab, setActiveTab] = useState('All Files');
   const [searchQuery, setSearchQuery] = useState('');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredData = mockData.filter(item => {
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([listProjects(), listComics()])
+      .then(([projectsData, comicsData]) => {
+        if (cancelled) return;
+
+        const thumbnailByProject = {};
+        (comicsData.comics || []).forEach((comic) => {
+          thumbnailByProject[comic.project_id] = comic.thumbnail_url;
+        });
+
+        const combined = (projectsData.projects || []).map((project) => {
+          const meta = TYPE_META[project.project_type] || DEFAULT_META;
+          const thumbnail = thumbnailByProject[project.project_id];
+
+          return {
+            id: project.project_id,
+            title: project.title || `${meta.type} #${project.project_id}`,
+            type: meta.type,
+            emoji: meta.emoji,
+            color: meta.color,
+            bgIcon: meta.bgIcon,
+            thumbnailUrl: thumbnail ? mediaUrl(thumbnail) : null,
+            date: project.created_at
+              ? new Date(project.created_at).toLocaleDateString()
+              : '',
+          };
+        });
+
+        setItems(combined);
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredData = items.filter(item => {
     if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (activeTab === 'All Files') return true;
     if (activeTab === 'My Visuals')  return item.type === 'Visual';
-    if (activeTab === 'My Videos')   return item.type === 'Video';
     if (activeTab === 'My Comics')   return item.type === 'Comic';
     if (activeTab === 'My Quizzes')  return item.type === 'Quiz';
-    if (activeTab === 'My Homework') return item.type === 'Homework';
     return true;
   });
 
@@ -85,7 +127,12 @@ export default function Library() {
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {filteredData.length > 0 ? (
+        {loading ? (
+          <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200">
+            <div className="text-7xl mb-6 opacity-50 animate-pulse">⏳</div>
+            <p className="text-gray-400 font-black text-2xl">Loading your library...</p>
+          </div>
+        ) : filteredData.length > 0 ? (
           filteredData.map(item => (
             <LibraryCard key={item.id} {...item} />
           ))
@@ -101,20 +148,30 @@ export default function Library() {
   );
 }
 
-function LibraryCard({ title, type, date, emoji, color, bgIcon }) {
+function LibraryCard({ title, type, date, emoji, color, bgIcon, thumbnailUrl }) {
   return (
     <div className="bg-white rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.08)] card-hover group border-4 border-white cursor-pointer relative">
       {/* Large Thumbnail */}
       <div className={`h-56 w-full bg-gradient-to-br ${color} flex items-center justify-center relative overflow-hidden`}>
-        {/* Abstract background icon */}
-        <div className="absolute -right-8 -bottom-8 text-[120px] opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform duration-500">
-           {bgIcon}
-        </div>
-        
-        {/* Main visual emoji */}
-        <div className="relative bg-white/20 p-6 rounded-[32px] backdrop-blur-md shadow-lg border border-white/30 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-           <span className="text-7xl drop-shadow-md">{emoji}</span>
-        </div>
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt={title}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          />
+        ) : (
+          <>
+            {/* Abstract background icon */}
+            <div className="absolute -right-8 -bottom-8 text-[120px] opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform duration-500">
+               {bgIcon}
+            </div>
+
+            {/* Main visual emoji */}
+            <div className="relative bg-white/20 p-6 rounded-[32px] backdrop-blur-md shadow-lg border border-white/30 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+               <span className="text-7xl drop-shadow-md">{emoji}</span>
+            </div>
+          </>
+        )}
         
         {/* Badge */}
         <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-gray-800 text-xs font-black uppercase tracking-wider shadow-sm border border-white flex items-center gap-2">

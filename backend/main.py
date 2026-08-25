@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -8,6 +8,8 @@ from PIL import Image, ImageDraw, ImageFont
 import os
 import json
 import base64
+import math
+import colorsys
 import tempfile
 import subprocess
 import platform
@@ -44,6 +46,7 @@ from models import (
     Comic,
     Quiz,
     AmiviChunk,
+    Avatar,
 )
 
 
@@ -155,8 +158,54 @@ class AmiviEditChunkRequest(BaseModel):
 
 
 class AmicoRequest(BaseModel):
-    homework_prompt: str
+    homework_prompt: str = ""
     language: str = "en"
+
+    # Pull the source material from an existing AMIVI project
+    # instead of (or in addition to) free-typed homework_prompt.
+    source_project_id: int | None = None
+
+    # 2-7 panels per page, 1+ pages, matching the AMICO brief.
+    panels_per_page: int = 4
+    pages: int = 1
+
+    # "horizontal" (wide grid, like the current sheet) or
+    # "vertical" (single-column, stacked panels).
+    layout: str = "horizontal"
+
+    # A previously saved Avatar to keep the main character's
+    # appearance consistent across panels.
+    avatar_id: int | None = None
+
+
+class AmicoRegeneratePanelRequest(BaseModel):
+    project_id: int | None = None
+    panel_number: int | None = None
+    title: str = ""
+    scene: str = ""
+    image_prompt: str = ""
+
+
+class AmicoEditPanelRequest(BaseModel):
+    project_id: int
+    panel_number: int
+    title: str | None = None
+    dialogue: str | None = None
+    learning_point: str | None = None
+
+
+class AmicoAddPanelRequest(BaseModel):
+    project_id: int
+    language: str = "en"
+    insert_after: int = 0
+    topic_hint: str = ""
+
+
+class AmicoRecomposeRequest(BaseModel):
+    project_id: int
+    panels: list = []
+    panels_per_page: int = 4
+    layout: str = "horizontal"
 
 
 # ============================================================
@@ -402,6 +451,239 @@ def get_media(media_id: int):
             )
 
         return row
+
+    finally:
+        db.close()
+
+
+def get_project(project_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(Project)
+            .filter(Project.id == project_id)
+            .first()
+        )
+
+        if not row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found.",
+            )
+
+        return row
+
+    finally:
+        db.close()
+
+
+def list_projects(project_type: str | None = None):
+
+    db = SessionLocal()
+
+    try:
+
+        query = db.query(Project)
+
+        if project_type:
+
+            query = query.filter(
+                Project.project_type == project_type
+            )
+
+        return (
+            query.order_by(Project.id.desc())
+            .limit(100)
+            .all()
+        )
+
+    finally:
+        db.close()
+
+
+def get_comic(comic_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(Comic)
+            .filter(Comic.id == comic_id)
+            .first()
+        )
+
+        if not row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Comic not found.",
+            )
+
+        return row
+
+    finally:
+        db.close()
+
+
+def list_comics():
+
+    db = SessionLocal()
+
+    try:
+
+        return (
+            db.query(Comic)
+            .order_by(Comic.id.desc())
+            .limit(100)
+            .all()
+        )
+
+    finally:
+        db.close()
+
+
+def update_comic(comic_id: int, data: dict):
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(Comic)
+            .filter(Comic.id == comic_id)
+            .first()
+        )
+
+        if not row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Comic not found.",
+            )
+
+        row.data = data
+
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+
+        return row
+
+    finally:
+        db.close()
+
+
+def latest_comic_for_project(project_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        return (
+            db.query(Comic)
+            .filter(Comic.project_id == project_id)
+            .order_by(Comic.id.desc())
+            .first()
+        )
+
+    finally:
+        db.close()
+
+
+def save_avatar(
+    name,
+    description,
+    image_id,
+):
+
+    db = SessionLocal()
+
+    try:
+
+        row = Avatar(
+            name=name,
+            description=description,
+            image_id=image_id,
+        )
+
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+
+        return row.id
+
+    finally:
+        db.close()
+
+
+def list_avatars():
+
+    db = SessionLocal()
+
+    try:
+
+        return (
+            db.query(Avatar)
+            .order_by(Avatar.id.desc())
+            .limit(100)
+            .all()
+        )
+
+    finally:
+        db.close()
+
+
+def get_avatar(avatar_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(Avatar)
+            .filter(Avatar.id == avatar_id)
+            .first()
+        )
+
+        if not row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Avatar not found.",
+            )
+
+        return row
+
+    finally:
+        db.close()
+
+
+def delete_avatar(avatar_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(Avatar)
+            .filter(Avatar.id == avatar_id)
+            .first()
+        )
+
+        if not row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Avatar not found.",
+            )
+
+        db.delete(row)
+        db.commit()
 
     finally:
         db.close()
@@ -906,46 +1188,125 @@ def generate_amivi_content(
 # AMICO STORY GENERATION
 # ============================================================
 
+def build_amico_structure_hint(total_panels):
+
+    middle_count = max(
+        0,
+        total_panels - 2,
+    )
+
+    return (
+        f"Panel 1: Introduce the topic through a character "
+        f"and an engaging question. Give a simple, plain-language "
+        f"definition of the topic here — assume the reader has "
+        f"never heard of it before.\n"
+
+        f"Panels 2 to {total_panels - 1} ({middle_count} panels): "
+        f"progressively and COMPLETELY explain the concept, "
+        f"spreading the explanation ONE PIECE AT A TIME across "
+        f"these panels so a total beginner fully understands it "
+        f"by the end — together these panels should cover, in "
+        f"order: what it actually is, WHY or HOW it happens (the "
+        f"real cause or mechanism, not just a description of what "
+        f"it looks like), the key steps or parts in the correct "
+        f"order, and a concrete real-world example a beginner can "
+        f"picture. EACH INDIVIDUAL PANEL should focus on just ONE "
+        f"of these pieces (or one step) — never try to fit several "
+        f"pieces into a single panel. Define any term the first "
+        f"time it is used. Do not skip a piece that's needed to "
+        f"understand the topic — if there are more pieces than "
+        f"panels, prioritize the most essential ones and only "
+        f"combine the smallest, most closely related pieces into "
+        f"one panel when there truly isn't room for a panel each.\n"
+
+        f"Panel {total_panels}: End with a memorable recap, "
+        f"mnemonic, question, or fun takeaway that reinforces the "
+        f"WHY, not just the what.\n\n"
+    )
+
+
 def generate_amico_comic(
     topic,
     language="en",
+    total_panels=8,
+    character_reference="",
+    character_name="",
 ):
+
+    if character_name and character_reference:
+
+        character_line = (
+            "The main character's name MUST be exactly "
+            f"\"{character_name}\" — use that exact name (not a "
+            "different name of your own choosing) for this "
+            "character in every panel's dialogue and in the "
+            "characters list, and their appearance MUST match "
+            f"exactly in every panel: {character_reference}.\n\n"
+        )
+
+    elif character_name:
+
+        character_line = (
+            "The main character's name MUST be exactly "
+            f"\"{character_name}\" — use that exact name (not a "
+            "different name of your own choosing) for this "
+            "character in every panel's dialogue and in the "
+            "characters list.\n\n"
+        )
+
+    elif character_reference:
+
+        character_line = (
+            "The main character MUST match this appearance "
+            f"exactly in every panel: {character_reference}.\n\n"
+        )
+
+    else:
+
+        character_line = ""
 
     prompt = (
         "You are AMICO's storytelling engine.\n\n"
 
-        "Create a connected 8-panel educational comic "
-        "that teaches the learner the given topic through "
+        f"Create a connected {total_panels}-panel educational "
+        "comic that teaches the learner the given topic through "
         "storytelling and visual explanation.\n\n"
+
+        "MOST IMPORTANT RULE: the comic must be genuinely "
+        "DESCRIPTIVE and COMPLETE. Write for someone who has "
+        "never heard of this topic before — by the last panel "
+        "they should fully understand it, with no gaps. Always "
+        "explain WHY or HOW something happens (the real cause or "
+        "mechanism), not just WHAT it looks like or a surface-"
+        "level description. Define every key term in plain "
+        "language the first time it appears. Completeness and "
+        "correctness always come before brevity or decoration — "
+        "if a step is needed to understand the topic, include it.\n\n"
+
+        "ALSO IMPORTANT: use simple, easy everyday words a young "
+        "learner can read at a glance — short, plain sentences "
+        "instead of long or complicated ones. Each panel should "
+        "focus on just ONE small idea, explained in ONE short "
+        "simple line. Do not try to pack a big idea into a single "
+        "panel by piling up extra dialogue lines — if an idea is "
+        "too big for one short line, split it ACROSS PANELS "
+        "(following the structure below), not into extra lines "
+        "inside the same panel.\n\n"
 
         "The comic must follow this structure:\n"
 
-        "Panel 1: Introduce the topic through a character "
-        "and an engaging question.\n"
+        + build_amico_structure_hint(
+            total_panels
+        )
 
-        "Panel 2: Explain the basic concept.\n"
-
-        "Panel 3: Explain the main process or mechanism.\n"
-
-        "Panel 4: Explain an important component, property, "
-        "or key fact.\n"
-
-        "Panel 5: Give a simple real-world example.\n"
-
-        "Panel 6: Explain another important concept or "
-        "common misconception.\n"
-
-        "Panel 7: Summarize the key learning points.\n"
-
-        "Panel 8: End with a memorable recap, mnemonic, "
-        "question, or fun takeaway.\n\n"
-
-        "Keep the story connected across all panels.\n"
+        + "Keep the story connected across all panels.\n"
         "Characters must remain visually consistent.\n"
         "The setting should remain consistent unless the story "
         "requires a meaningful change.\n\n"
 
-        "Each panel must contain:\n"
+        + character_line
+
+        + "Each panel must contain:\n"
         "- panel_number\n"
         "- title\n"
         "- scene\n"
@@ -953,14 +1314,80 @@ def generate_amico_comic(
         "- dialogue\n"
         "- learning_point\n\n"
 
-        "The image_prompt must describe the complete visual scene "
-        "for that panel and explicitly preserve character appearance, "
-        "clothing, age, hairstyle and other important visual traits.\n"
-        "IMPORTANT: The image_prompt MUST strictly command the image model to NOT include any text, words, or speech bubbles in the image itself, as dialogue is overlaid via HTML.\n"
-        "IMPORTANT: You MUST create at least two characters (e.g. a teacher and a student) and include them together in the image_prompts so they can converse.\n\n"
+        "Dialogue should read like a warm, natural GROUP "
+        "conversation, not a strict back-and-forth between only "
+        "two people. Use one consistent 'explainer' character "
+        "(e.g. a grandparent, parent, or teacher) who introduces "
+        "each panel's idea in ONE short, simple line using easy "
+        "everyday words — start with the key term in CAPITAL "
+        "LETTERS followed by one short explanation, e.g. "
+        "\"EVAPORATION - the sun heats the water.\". Then have one "
+        "of the other recurring characters react in a short, "
+        "natural burst — a question, a guess, or a quick "
+        "interjection like \"Really?\", \"Something we can't "
+        "see!\", or \"True!\" — so the group feels like they are "
+        "genuinely listening and reacting together across the "
+        "whole comic. Every line must be prefixed with that "
+        "character's name, e.g. \"Grandpa: EVAPORATION - the sun "
+        "heats the water.\\nMia: Something we can't see!\".\n\n"
 
-        "Dialogue must be short, natural, child-friendly, "
-        "and suitable for a speech bubble.\n\n"
+        "STRICT LIMIT: each panel's dialogue must contain EXACTLY "
+        "ONE line from the explainer character, plus at most two "
+        "short reaction lines from OTHER characters (3 lines "
+        "total, never more). The explainer NEVER speaks twice in "
+        "the same panel, even briefly — do not add a second "
+        "explainer line, and do not have the same character speak "
+        "back-to-back. Keep every line short: reaction lines under "
+        "8 words, the explainer line under 15 words. If this "
+        "panel's idea is too big to explain in that one short "
+        "line, do NOT add a second line from the explainer — "
+        "instead simplify to the single clearest point for this "
+        "panel, and let the rest of the idea unfold naturally "
+        "across the panels that follow.\n\n"
+
+        "For PANEL 1 ONLY, the image_prompt may also describe a "
+        "small caption-style tag in a corner of the scene (a soft "
+        "rounded label with a short setting description, e.g. "
+        "\"A lovely garden in springtime\"), the way a comic book "
+        "grounds its story's setting — this is optional polish, "
+        "not required for every panel.\n\n"
+
+        "The image_prompt must describe the complete visual scene "
+        "for that panel, explicitly preserve character appearance, "
+        "clothing, age, hairstyle and other important visual traits, "
+        "and MUST also instruct the image model to draw the dialogue "
+        "directly in the image as large, clean, easily readable "
+        "comic speech bubbles (oversized white bubble with generous "
+        "padding, thick black outline, big bold black lettering "
+        "sized so it is comfortably readable at a glance, a pointed "
+        "tail toward the speaking character) — one bubble per line "
+        "of dialogue (at most 3 bubbles total), positioned near the "
+        "character who says it, using EXACTLY the same wording as "
+        "this panel's dialogue field, with no other text anywhere "
+        "in the image. Inside each bubble, the speaker's name (the "
+        "word before the colon) must be written in bold colored "
+        "lettering — a distinct color per character, kept "
+        "consistent for that character across every panel — while "
+        "the rest of the line stays in plain black lettering, so "
+        "each speaker is easy to tell apart at a glance.\n"
+        "The image_prompt must explicitly instruct the image model "
+        "to draw ONE single, unified scene for this panel — never "
+        "a grid, filmstrip, sequence of smaller pictures, or "
+        "multiple sub-panels crammed into one image. It should "
+        "look like one continuous illustration with its (at most "
+        "3) speech bubbles placed on it, not a collage or comic "
+        "strip within the panel.\n"
+        "IMPORTANT: Choose a small, consistent cast whose SIZE "
+        "fits this specific topic — usually just 2 characters "
+        "(e.g. one parent explaining to one curious child, or two "
+        "friends figuring something out together) is enough. Only "
+        "use 3-4 characters when the topic genuinely benefits from "
+        "more voices reacting — do not add extra characters just "
+        "to fill a quota, since a crowded panel is harder to draw "
+        "clearly and harder to read than a focused one. Whatever "
+        "size you choose, include the same cast together in every "
+        "panel's image_prompt so they can talk and react to each "
+        "other throughout the whole comic.\n\n"
 
         "Return ONLY valid JSON using exactly this structure:\n\n"
 
@@ -986,7 +1413,7 @@ def generate_amico_comic(
         "  ]\n"
         "}\n\n"
 
-        "Generate exactly 8 panels.\n\n"
+        f"Generate exactly {total_panels} panels.\n\n"
 
         + get_language_instruction(
             language
@@ -1007,6 +1434,7 @@ def generate_amico_comic(
 def review_amico_comic(
     comic,
     language="en",
+    total_panels=8,
 ):
 
     prompt = (
@@ -1017,17 +1445,56 @@ def review_amico_comic(
         "Check:\n"
         "1. Educational accuracy.\n"
         "2. Learner-friendly explanations.\n"
-        "3. Story continuity across all 8 panels.\n"
+        f"3. Story continuity across all {total_panels} panels.\n"
         "4. Character consistency.\n"
         "5. Visual consistency between image prompts.\n"
-        "6. Dialogue clarity and length.\n"
+        "6. Dialogue uses short, simple, easy-to-read sentences "
+        "(reaction lines under 8 words, the explainer line under "
+        "15 words) AND every panel has EXACTLY ONE line from the "
+        "explainer plus at most two reaction lines from OTHER "
+        "characters (3 lines total, never more, and the explainer "
+        "never speaks twice or back-to-back in the same panel). If "
+        "a panel breaks this — too many lines, a line too long, or "
+        "the same character speaking twice — do NOT just add or "
+        "lengthen lines: simplify the panel to its single clearest "
+        "point and move the rest to a later panel, so no panel "
+        "ever ends up crowded with speech bubbles.\n"
         "7. Correct concept ordering.\n"
         "8. Whether every panel contributes to learning.\n"
         "9. Whether the final panel provides a useful recap, "
         "mnemonic or memorable takeaway.\n"
-        "10. Whether there are exactly 8 panels.\n"
-        "11. Ensure there are AT LEAST two characters conversing.\n"
-        "12. Ensure EVERY image_prompt explicitly forbids generating text, words, or speech bubbles in the image.\n\n"
+        f"10. Whether there are exactly {total_panels} panels.\n"
+        "11. Ensure a small, consistent cast appears together "
+        "throughout, with one explainer introducing each idea and "
+        "the other(s) reacting in short, natural bursts. The cast "
+        "size should fit the topic — usually just 2 characters is "
+        "plenty; only 3-4 if the topic genuinely benefits from "
+        "more voices. If characters were added beyond what the "
+        "story needs, trim the cast down rather than leaving it "
+        "crowded.\n"
+        "12. Ensure EVERY image_prompt explicitly instructs the image "
+        "model to render that panel's dialogue as large, easily "
+        "readable comic speech bubbles with big bold lettering "
+        "(exact wording, one bubble per line) drawn directly in "
+        "the image, next to the character who says it, with each "
+        "speaker's name highlighted in a distinct color (consistent "
+        "per character) inside the bubble, AND explicitly instructs "
+        "the image model to draw ONE single unified scene — never "
+        "a grid, filmstrip, or multiple sub-panels within one "
+        "image.\n"
+        "13. Beginner completeness: imagine a reader who has never "
+        "heard of this topic before. Confirm every cause or "
+        "mechanism is genuinely EXPLAINED (the real WHY/HOW), not "
+        "just described on the surface; every key term is defined "
+        "in plain language the first time it appears; and no "
+        "logical step needed to understand the topic was skipped "
+        "just to save space. If any panel would leave a total "
+        "beginner confused or with an unanswered 'why', fix it "
+        "WITHOUT exceeding 3 dialogue lines on any single panel: "
+        "either tighten that panel's explainer line to state the "
+        "missing piece more clearly, or move the missing piece "
+        "into its own panel earlier or later in the comic — never "
+        "by stacking extra lines onto one panel.\n\n"
 
         "If anything is incorrect, incomplete, repetitive, "
         "or confusing, fix it.\n\n"
@@ -1054,7 +1521,7 @@ def review_amico_comic(
         "  ]\n"
         "}\n\n"
 
-        "The final response must contain exactly 8 panels.\n\n"
+        f"The final response must contain exactly {total_panels} panels.\n\n"
 
         + get_language_instruction(
             language
@@ -1066,6 +1533,199 @@ def review_amico_comic(
         prompt,
         json.dumps(
             comic,
+            ensure_ascii=False,
+        ),
+    )
+
+
+# ============================================================
+# AMICO PHOTO STORY (one uploaded photo -> a character-free,
+# diagram-style educational story, e.g. a "Water Cycle Diagram")
+# ============================================================
+
+def build_photostory_structure_hint(total_panels):
+
+    middle_count = max(
+        0,
+        total_panels - 2,
+    )
+
+    return (
+        f"Panel 1: Show the very first stage of the process or "
+        f"cycle, defined in simple plain language — assume the "
+        f"reader has never heard of this topic before.\n"
+
+        f"Panels 2 to {total_panels - 1} ({middle_count} panels): "
+        f"each panel is the NEXT stage of the process, in the "
+        f"correct causal order, genuinely explaining WHY or HOW "
+        f"that stage happens (the real cause or mechanism, not "
+        f"just what it looks like). Define any term the first "
+        f"time it appears.\n"
+
+        f"Panel {total_panels}: the final stage that completes "
+        f"the cycle or process, or a closing panel that ties "
+        f"everything together.\n\n"
+    )
+
+
+def generate_amico_photostory(
+    photo_description,
+    language="en",
+    total_panels=6,
+):
+
+    prompt = (
+        "You are AMICO's Photo Story engine.\n\n"
+
+        "A user uploaded a photo. Below is a short description of "
+        "it. Based on what it shows, pick the single most fitting "
+        "educational NATURAL PROCESS, CYCLE, or HOW-SOMETHING-"
+        "WORKS topic it relates to (for example, a photo of rain "
+        "or a lake suggests 'the water cycle'; a photo of a plant "
+        "suggests 'photosynthesis'; a photo of a bicycle suggests "
+        "'how a bicycle works'), then create a "
+        f"{total_panels}-panel visual diagram story that teaches "
+        "that topic step by step — like a real educational process "
+        "diagram poster (e.g. a 'Water Cycle Diagram'), NOT a "
+        "comic strip with characters.\n\n"
+
+        "MOST IMPORTANT RULES:\n"
+        "- Do NOT include any human or animal characters, "
+        "dialogue, or speech bubbles anywhere. Every panel is a "
+        "clean, labeled illustration of that stage of the process "
+        "— no one talking about it.\n"
+        "- The story must be genuinely DESCRIPTIVE and COMPLETE: "
+        "write for someone who has never heard of this topic "
+        "before — by the last panel they should fully understand "
+        "the whole process, with no gaps. Always explain WHY or "
+        "HOW each stage happens (the real cause or mechanism), not "
+        "just WHAT it looks like. Define every key term in plain "
+        "language the first time it appears.\n"
+        "- Every panel must use the exact same clean, colorful, "
+        "flat illustration art style so the panels feel like one "
+        "consistent diagram set.\n\n"
+
+        "The story must follow this structure:\n"
+
+        + build_photostory_structure_hint(
+            total_panels
+        )
+
+        + "Each panel must contain:\n"
+        "- panel_number\n"
+        "- title (a short 1-3 word stage name, e.g. "
+        "\"Evaporation\")\n"
+        "- caption (1-3 full sentences explaining that stage — "
+        "usually 25-45 words, but completeness comes first: if "
+        "fully and correctly explaining this stage's WHY/HOW "
+        "genuinely needs more room, let it run a little longer "
+        "rather than leaving the explanation vague or "
+        "incomplete)\n"
+        "- image_prompt\n\n"
+
+        "The image_prompt must describe a clean, colorful, "
+        "labeled educational diagram-style illustration of that "
+        "single stage only (use arrows, icons, or simple labels "
+        "inside the artwork where helpful to show direction or "
+        "movement, e.g. an upward arrow for rising water vapor), "
+        "matching the same consistent art style, color palette, "
+        "and setting across every panel. The image_prompt must "
+        "explicitly instruct the image model NOT to draw any "
+        "people, animals, speech bubbles, or paragraphs of text "
+        "inside the image — the title and caption are added "
+        "separately underneath.\n\n"
+
+        "Return ONLY valid JSON using exactly this structure:\n\n"
+
+        "{\n"
+        '  "title": "...",\n'
+        '  "panels": [\n'
+        "    {\n"
+        '      "panel_number": 1,\n'
+        '      "title": "...",\n'
+        '      "caption": "...",\n'
+        '      "image_prompt": "..."\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+
+        f"Generate exactly {total_panels} panels.\n\n"
+
+        + get_language_instruction(
+            language
+        )
+    )
+
+    return call_json_model(
+        TERRA_MODEL,
+        prompt,
+        photo_description,
+    )
+
+
+def review_amico_photostory(
+    story,
+    language="en",
+    total_panels=6,
+):
+
+    prompt = (
+        "You are AMICO quality control for Photo Stories.\n\n"
+
+        "Review the complete diagram-style visual story and "
+        "correct any problems.\n\n"
+
+        "Check:\n"
+        "1. Educational accuracy.\n"
+        "2. Learner-friendly explanations.\n"
+        f"3. Correct step order across all {total_panels} panels.\n"
+        "4. Visual consistency between image prompts (same art "
+        "style, color palette, and setting).\n"
+        "5. Caption clarity and length.\n"
+        "6. Whether every panel contributes to understanding the "
+        "process end to end.\n"
+        f"7. Whether there are exactly {total_panels} panels.\n"
+        "8. Ensure NO panel's caption or image_prompt introduces "
+        "human/animal characters, dialogue, or speech bubbles — "
+        "this is a character-free diagram story.\n"
+        "9. Beginner completeness: imagine a reader who has never "
+        "heard of this topic before. Confirm every cause or "
+        "mechanism is genuinely EXPLAINED (the real WHY/HOW), not "
+        "just described on the surface, and every key term is "
+        "defined in plain language the first time it appears. If "
+        "any panel would leave a total beginner confused, rewrite "
+        "that panel's caption to close the gap.\n\n"
+
+        "If anything is incorrect, incomplete, repetitive, or "
+        "confusing, fix it.\n\n"
+
+        "Return ONLY the COMPLETE corrected story using exactly "
+        "the same JSON structure.\n\n"
+
+        "{\n"
+        '  "title": "...",\n'
+        '  "panels": [\n'
+        "    {\n"
+        '      "panel_number": 1,\n'
+        '      "title": "...",\n'
+        '      "caption": "...",\n'
+        '      "image_prompt": "..."\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+
+        f"The final response must contain exactly {total_panels} panels.\n\n"
+
+        + get_language_instruction(
+            language
+        )
+    )
+
+    return call_json_model(
+        SOL_MODEL,
+        prompt,
+        json.dumps(
+            story,
             ensure_ascii=False,
         ),
     )
@@ -1169,6 +1829,125 @@ def generate_image(
         mime_type="image/png",
         asset_type="image",
         project_id=project_id,
+    )
+
+
+# ============================================================
+# AVATAR (photo -> appearance description -> comic avatar)
+# ============================================================
+
+def describe_photo_for_avatar(photo_bytes, mime_type):
+
+    require_services()
+
+    encoded = base64.b64encode(
+        photo_bytes
+    ).decode("utf-8")
+
+    response = client.responses.create(
+        model=TERRA_MODEL,
+        instructions=(
+            "You describe a person's visible appearance for use "
+            "as a consistent comic-book character design: hair "
+            "style and color, skin tone, approximate age range, "
+            "typical clothing/colors visible in the photo, and "
+            "any distinctive visual features. Keep it to 2-3 "
+            "sentences, purely visual and descriptive, suitable "
+            "for an image generation prompt. Do not identify or "
+            "name the person."
+        ),
+        input=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "Describe this person's appearance "
+                            "for a comic-book avatar."
+                        ),
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": (
+                            f"data:{mime_type};base64,{encoded}"
+                        ),
+                    },
+                ],
+            }
+        ],
+    )
+
+    return response.output_text.strip()
+
+
+def describe_photo_for_story(photo_bytes, mime_type):
+
+    require_services()
+
+    encoded = base64.b64encode(
+        photo_bytes
+    ).decode("utf-8")
+
+    response = client.responses.create(
+        model=TERRA_MODEL,
+        instructions=(
+            "You describe a photo's subject in plain, factual "
+            "language, and identify what real-world natural "
+            "process, cycle, or mechanism it most relates to, so "
+            "an educational diagram-style story can be built about "
+            "it. Keep it to 2-4 sentences: what the photo shows, "
+            "and the single most fitting topic to explain (e.g. "
+            "\"the water cycle\", \"photosynthesis\", \"how "
+            "volcanoes erupt\")."
+        ),
+        input=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "Describe this photo and suggest the "
+                            "best educational process/cycle topic "
+                            "it relates to."
+                        ),
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": (
+                            f"data:{mime_type};base64,{encoded}"
+                        ),
+                    },
+                ],
+            }
+        ],
+    )
+
+    return response.output_text.strip()
+
+
+def generate_avatar_image(
+    description,
+    style,
+    filename,
+):
+
+    style_text = (
+        style
+        or "colorful, friendly educational comic-book style"
+    )
+
+    prompt = (
+        "A comic-book character avatar illustration, "
+        f"{style_text}. Appearance: {description}. "
+        "Clear face, upper-body portrait, plain simple "
+        "background, no text, no watermark, no speech bubbles."
+    )
+
+    return generate_image(
+        prompt=prompt,
+        filename=filename,
     )
 
 
@@ -1576,62 +2355,174 @@ def draw_wrapped_text(
     return y
 
 
-PANEL_ACCENT_COLORS = [
-    "#E53935",  # red
-    "#FB8C00",  # orange
-    "#F4B400",  # amber
-    "#43A047",  # green
-    "#1E88E5",  # blue
-    "#3949AB",  # indigo
-    "#8E24AA",  # purple
-    "#D81B60",  # pink
-]
-
-
-def lighten_color(
-    hex_color,
-    amount=0.85,
-):
-
-    hex_color = hex_color.lstrip("#")
-
-    r = int(hex_color[0:2], 16)
-    g = int(hex_color[2:4], 16)
-    b = int(hex_color[4:6], 16)
-
-    r = int(r + (255 - r) * amount)
-    g = int(g + (255 - g) * amount)
-    b = int(b + (255 - b) * amount)
-
-    return f"#{r:02x}{g:02x}{b:02x}"
-
-
-def compose_amico_comic(
-    project_id,
-    comic,
+def cover_crop(
+    image,
+    target_width,
+    target_height,
 ):
 
     """
-    Creates one final 8-panel AMICO comic sheet
-    entirely from PostgreSQL MediaAsset.data.
+    Resizes an image to fit ENTIRELY inside a target_width x
+    target_height box (CSS object-fit: contain) and centers it
+    on a white background sized exactly to that box — no part of
+    the artwork is ever cropped away.
 
-    No media/ folder and no file_path are used.
+    Panels can be a very different shape from the square source
+    art (e.g. a tall 2-per-row A4 grid cell), and hard-cropping
+    to fill the panel was slicing dialogue speech bubbles off
+    whichever edge the crop trimmed. Padding instead of cropping
+    guarantees every bubble stays fully readable, at the cost of
+    a thin white bar on panels whose shape doesn't match the
+    source image.
     """
 
-    panels = comic.get(
-        "panels",
-        [],
+    src_width, src_height = image.size
+
+    scale = min(
+        target_width / src_width,
+        target_height / src_height,
     )
 
-    if len(panels) != 8:
+    new_width = max(1, round(src_width * scale))
+    new_height = max(1, round(src_height * scale))
 
-        raise ValueError(
-            "AMICO must contain exactly 8 panels."
+    resized = image.resize(
+        (
+            new_width,
+            new_height,
+        ),
+        Image.LANCZOS,
+    )
+
+    padded = Image.new(
+        "RGB",
+        (
+            target_width,
+            target_height,
+        ),
+        "#FFFFFF",
+    )
+
+    paste_x = (target_width - new_width) // 2
+    paste_y = (target_height - new_height) // 2
+
+    padded.paste(
+        resized,
+        (
+            paste_x,
+            paste_y,
+        ),
+    )
+
+    return padded
+
+
+def split_into_rows(panel_count):
+
+    """
+    Splits a page's panels into rows of up to 2 panels each (any
+    leftover panel gets its own final row) — the classic comic
+    book / manga page grid, e.g. 4 panels -> a 2x2 grid, 5 panels
+    -> two rows of 2 plus a final row of 1. Every row's panels
+    are stretched to span the whole page width, so there is never
+    a leftover empty grid cell.
+    """
+
+    rows = []
+
+    remaining = panel_count
+
+    while remaining > 0:
+
+        take = min(2, remaining)
+
+        rows.append(take)
+
+        remaining -= take
+
+    return rows
+
+
+def distribute(total, count):
+
+    """
+    Splits an integer `total` into `count` near-equal integer
+    parts that sum back to exactly `total` (any leftover pixel
+    goes to the first few parts) — used to size rows/panels so
+    they butt up against each other with no rounding gaps.
+    """
+
+    base = total // count
+    extra = total % count
+
+    return [
+        base + (1 if i < extra else 0)
+        for i in range(count)
+    ]
+
+
+def draw_rainbow_frame(
+    draw,
+    width,
+    height,
+    thickness,
+    radius,
+):
+
+    """
+    Draws a soft pastel rainbow ring around the whole canvas — a
+    stack of concentric rounded-rectangle outlines that sweep
+    through the hue wheel from the outer edge inward, giving the
+    page a gentle glowing frame (low saturation, high brightness,
+    so it reads as pastel rather than neon).
+    """
+
+    for i in range(thickness):
+
+        hue = i / thickness
+
+        r, g, b = colorsys.hsv_to_rgb(hue, 0.4, 1.0)
+
+        color = (
+            int(r * 255),
+            int(g * 255),
+            int(b * 255),
         )
 
-    # --------------------------------------------------------
-    # Load generated panel images from PostgreSQL
-    # --------------------------------------------------------
+        draw.rounded_rectangle(
+            (
+                i,
+                i,
+                width - 1 - i,
+                height - 1 - i,
+            ),
+            radius=max(radius - i, 0),
+            outline=color,
+            width=2,
+        )
+
+
+def render_amico_page(
+    panels,
+    page_number,
+    total_pages,
+    comic_title,
+    objective,
+    layout,
+    panels_per_page=None,
+):
+
+    """
+    Renders one AMICO comic page (2-7 panels) to PNG bytes,
+    reading each panel's image straight from PostgreSQL
+    MediaAsset.data. No media/ folder and no file_path used.
+
+    Dialogue is baked directly into each panel's artwork now, so
+    panels are drawn edge-to-edge like a real comic book page —
+    no per-panel number badge, title bar, or caption strip. The
+    whole page sits inside a glowing rainbow border frame, with
+    "Produced by Amit" in the footer.
+    """
 
     panel_images = []
 
@@ -1678,33 +2569,79 @@ def compose_amico_comic(
         )
 
     # --------------------------------------------------------
-    # Layout: 4 columns × 2 rows
+    # Layout: "horizontal" arranges panels into a fixed
+    # A4-portrait page (rows of up to 2 panels — e.g. 4 panels
+    # becomes a 2x2 grid, like a real comic book page), or a
+    # single "vertical" scrolling column. Every row's panels
+    # are stretched to span the whole page width, so there is
+    # never a leftover empty grid cell, and every page of a
+    # comic keeps the exact same page shape regardless of how
+    # many panels it holds.
     # --------------------------------------------------------
 
-    columns = 4
-    rows = 2
+    row_plan = (
+        [1] * len(panels)
+        if layout == "vertical"
+        else split_into_rows(len(panels))
+    )
 
-    panel_width = 500
-    panel_height = 540
+    frame_thickness = 81
+    frame_radius = 103
 
-    outer_padding = 30
-    gap = 20
+    outer_padding = frame_thickness + 32
+    gap = 23
 
-    header_height = 170
-    footer_height = 80
+    header_height = 207 if comic_title else 0
+    footer_height = 185
+
+    if layout == "vertical":
+
+        content_width = 2062
+        row_heights = [1102] * len(row_plan)
+
+    else:
+
+        # Fixed A4 portrait proportions (210 x 297 mm) — every
+        # comic page has this same shape no matter the panel
+        # count; panels simply resize row by row to fit inside.
+        # Sized up well past a real A4 sheet, and wider than
+        # before, so the page (and its dialogue) fills more of
+        # the screen and stays sharp when viewed full screen or
+        # zoomed in.
+
+        page_width = 3200
+        page_height = round(page_width * 297 / 210)
+
+        content_width = page_width - outer_padding * 2
+
+        page_content_height = (
+            page_height
+            - outer_padding * 2
+            - header_height
+            - footer_height
+        )
+
+        row_heights = distribute(
+            page_content_height
+            - (len(row_plan) - 1) * gap,
+            len(row_plan),
+        )
+
+    content_height = (
+        sum(row_heights)
+        + (len(row_heights) - 1) * gap
+    )
 
     canvas_width = (
         outer_padding * 2
-        + columns * panel_width
-        + (columns - 1) * gap
+        + content_width
     )
 
     canvas_height = (
-        header_height
-        + rows * panel_height
-        + (rows - 1) * gap
+        outer_padding * 2
+        + header_height
+        + content_height
         + footer_height
-        + outer_padding * 2
     )
 
     canvas = Image.new(
@@ -1713,11 +2650,24 @@ def compose_amico_comic(
             canvas_width,
             canvas_height,
         ),
-        "white",
+        "#0b0b12",
     )
 
     draw = ImageDraw.Draw(
         canvas
+    )
+
+    # White "page" card, inset from the rainbow frame
+
+    draw.rounded_rectangle(
+        (
+            outer_padding - 17,
+            outer_padding - 17,
+            canvas_width - outer_padding + 17,
+            canvas_height - outer_padding + 17,
+        ),
+        radius=49,
+        fill="#FFFFFF",
     )
 
     # --------------------------------------------------------
@@ -1725,341 +2675,165 @@ def compose_amico_comic(
     # --------------------------------------------------------
 
     title_font = get_font(
-        44,
+        92,
         bold=True,
     )
 
     subtitle_font = get_font(
-        22,
-        bold=False,
-    )
-
-    panel_number_font = get_font(
-        30,
-        bold=True,
-    )
-
-    panel_title_font = get_font(
-        24,
-        bold=True,
-    )
-
-    caption_font = get_font(
-        20,
+        47,
         bold=False,
     )
 
     footer_font = get_font(
-        20,
+        49,
         bold=True,
     )
 
     logo_font = get_font(
-        26,
+        64,
         bold=True,
     )
 
     # --------------------------------------------------------
-    # Header
+    # Header (kept slim — the art is the star now)
     # --------------------------------------------------------
 
-    title = comic.get(
-        "title",
-        "AMICO Educational Comic",
-    )
-
-    objective = comic.get(
-        "learning_objective",
-        "",
-    )
-
-    draw.text(
-        (
-            canvas_width // 2,
-            25,
-        ),
-        title,
-        fill="black",
-        font=title_font,
-        anchor="ma",
-    )
-
-    if objective:
-
-        draw_wrapped_text(
-            draw,
-            objective,
-            (
-                50,
-                85,
-            ),
-            subtitle_font,
-            "#444444",
-            canvas_width - 100,
-            line_spacing=5,
-        )
-
-    # --------------------------------------------------------
-    # Panel rendering
-    # --------------------------------------------------------
-
-    for index, (
-        image,
-        panel,
-    ) in enumerate(
-        panel_images
-    ):
-
-        row = index // columns
-        column = index % columns
-
-        accent_color = PANEL_ACCENT_COLORS[
-            index % len(PANEL_ACCENT_COLORS)
-        ]
-
-        caption_bg_color = lighten_color(
-            accent_color,
-            0.85,
-        )
-
-        x = (
-            outer_padding
-            + column
-            * (
-                panel_width
-                + gap
-            )
-        )
-
-        y = (
-            outer_padding
-            + header_height
-            + row
-            * (
-                panel_height
-                + gap
-            )
-        )
-
-        # ----------------------------------------------------
-        # Panel background and border
-        # ----------------------------------------------------
-
-        draw.rounded_rectangle(
-            (
-                x,
-                y,
-                x + panel_width,
-                y + panel_height,
-            ),
-            radius=18,
-            fill="#FFFFFF",
-            outline="#222222",
-            width=3,
-        )
-
-        # ----------------------------------------------------
-        # Panel title area
-        # ----------------------------------------------------
-
-        title_height = 55
-
-        draw.rectangle(
-            (
-                x + 2,
-                y + 2,
-                x + panel_width - 2,
-                y + title_height,
-            ),
-            fill="#F4F4F4",
-        )
-
-        panel_number = panel.get(
-            "panel_number",
-            index + 1,
-        )
-
-        panel_title = panel.get(
-            "title",
-            f"Panel {index + 1}",
-        )
-
-        # Number circle (color rotates per panel, like the
-        # reference AMICO example sheet)
-
-        circle_radius = 20
-
-        circle_x = x + 32
-        circle_y = y + 28
-
-        draw.ellipse(
-            (
-                circle_x - circle_radius,
-                circle_y - circle_radius,
-                circle_x + circle_radius,
-                circle_y + circle_radius,
-            ),
-            fill=accent_color,
-        )
+    if comic_title:
 
         draw.text(
             (
-                circle_x,
-                circle_y,
+                canvas_width // 2,
+                outer_padding + 17,
             ),
-            str(panel_number),
-            fill="white",
-            font=panel_number_font,
-            anchor="mm",
+            comic_title,
+            fill="#111111",
+            font=title_font,
+            anchor="ma",
         )
 
-        # Title
+        header_subtitle = objective
 
-        draw.text(
-            (
-                x + 65,
-                y + 28,
-            ),
-            panel_title,
-            fill="black",
-            font=panel_title_font,
-            anchor="lm",
-        )
+        if total_pages > 1:
 
-        # ----------------------------------------------------
-        # Image area (enlarged since there is no dialogue
-        # bubble below it anymore)
-        # ----------------------------------------------------
+            page_label = f"Page {page_number} of {total_pages}"
 
-        image_area_x = x + 10
-        image_area_y = y + title_height + 10
-
-        image_area_width = (
-            panel_width - 20
-        )
-
-        image_area_height = 375
-
-        image_copy = image.copy()
-
-        image_copy.thumbnail(
-            (
-                image_area_width,
-                image_area_height,
+            header_subtitle = (
+                f"{objective}  •  {page_label}"
+                if objective
+                else page_label
             )
-        )
 
-        image_x = (
-            image_area_x
-            + (
-                image_area_width
-                - image_copy.width
+        if header_subtitle:
+
+            draw.text(
+                (
+                    canvas_width // 2,
+                    outer_padding + 135,
+                ),
+                header_subtitle,
+                fill="#555555",
+                font=subtitle_font,
+                anchor="ma",
             )
-            // 2
-        )
-
-        image_y = (
-            image_area_y
-            + (
-                image_area_height
-                - image_copy.height
-            )
-            // 2
-        )
-
-        canvas.paste(
-            image_copy,
-            (
-                image_x,
-                image_y,
-            ),
-        )
-
-        # ----------------------------------------------------
-        # Caption strip — replaces the old dialogue bubble +
-        # learning point text with one colored caption band,
-        # matching the reference AMICO example sheet.
-        # ----------------------------------------------------
-
-        caption_text = (
-            panel.get(
-                "learning_point",
-                "",
-            )
-            or panel.get(
-                "dialogue",
-                "",
-            )
-            or ""
-        )
-
-        caption_y = (
-            image_area_y
-            + image_area_height
-            + 10
-        )
-
-        caption_height = (
-            y
-            + panel_height
-            - caption_y
-        )
-
-        draw.rounded_rectangle(
-            (
-                x + 8,
-                caption_y,
-                x + panel_width - 8,
-                caption_y + caption_height,
-            ),
-            radius=14,
-            fill=caption_bg_color,
-        )
-
-        draw_wrapped_text(
-            draw,
-            caption_text,
-            (
-                x + 20,
-                caption_y + 14,
-            ),
-            caption_font,
-            "#222222",
-            panel_width - 40,
-            line_spacing=4,
-        )
 
     # --------------------------------------------------------
-    # Footer — "Produced by AMIT." + small VLQ wordmark,
-    # matching the reference AMICO example sheet.
+    # Panel rendering — every row's panels are widened so they
+    # together span the full content width exactly (no gaps),
+    # and art fills each panel completely (cover-crop, no
+    # letterboxing), butting up against its neighbors with
+    # only a thin dark gutter between them.
+    # --------------------------------------------------------
+
+    panels_top = outer_padding + header_height
+
+    panel_index = 0
+    y = panels_top
+
+    for row_index, row_count in enumerate(row_plan):
+
+        row_height = row_heights[row_index]
+
+        row_span = (
+            content_width
+            - (row_count - 1) * gap
+        )
+
+        row_widths = distribute(
+            row_span,
+            row_count,
+        )
+
+        x = outer_padding
+
+        for column in range(row_count):
+
+            this_width = row_widths[column]
+
+            image, panel = panel_images[panel_index]
+
+            panel_index += 1
+
+            cover_image = cover_crop(
+                image,
+                this_width,
+                row_height,
+            )
+
+            canvas.paste(
+                cover_image,
+                (
+                    x,
+                    y,
+                ),
+            )
+
+            draw.rectangle(
+                (
+                    x,
+                    y,
+                    x + this_width - 1,
+                    y + row_height - 1,
+                ),
+                outline="#111111",
+                width=7,
+            )
+
+            x += this_width + gap
+
+        y += row_height + gap
+
+    # --------------------------------------------------------
+    # Footer — "Produced by Amit", matching the reference
+    # comic-book page.
     # --------------------------------------------------------
 
     footer_y = (
         canvas_height
         - outer_padding
-        - 25
+        - footer_height // 2
     )
 
     draw.text(
         (
-            canvas_width // 2 - 60,
+            canvas_width // 2,
             footer_y,
         ),
-        "Produced by AMIT.",
-        fill="#333333",
+        "Produced by Amit",
+        fill="#222222",
         font=footer_font,
-        anchor="rm",
+        anchor="mm",
     )
 
-    draw.text(
-        (
-            canvas_width // 2 - 40,
-            footer_y,
-        ),
-        "VLQ",
-        fill="#1E88E5",
-        font=logo_font,
-        anchor="lm",
+    # --------------------------------------------------------
+    # Glowing rainbow border frame around the whole page
+    # --------------------------------------------------------
+
+    draw_rainbow_frame(
+        draw,
+        canvas_width,
+        canvas_height,
+        frame_thickness,
+        frame_radius,
     )
 
     # --------------------------------------------------------
@@ -2076,25 +2850,607 @@ def compose_amico_comic(
 
     output_buffer.seek(0)
 
-    final_data = (
-        output_buffer.read()
+    return output_buffer.read()
+
+
+def compose_amico_comic(
+    project_id,
+    comic,
+    panels_per_page=4,
+    layout="horizontal",
+):
+
+    """
+    Creates one AMICO comic sheet PNG per page (2-7 panels each,
+    "horizontal" grid or single "vertical" column) and saves
+    every page straight into PostgreSQL. No media/ folder and
+    no file_path are used.
+
+    Returns a list of {page_number, comic_image_id,
+    comic_image_url} — one entry per page.
+    """
+
+    panels = comic.get(
+        "panels",
+        [],
     )
 
-    # --------------------------------------------------------
-    # Save directly into PostgreSQL
-    # --------------------------------------------------------
+    panels_per_page = max(
+        2,
+        min(7, panels_per_page),
+    )
 
-    final_media_id = save_media(
-        data=final_data,
-        filename=(
-            f"amico_comic_{project_id}.png"
+    if not panels:
+
+        raise ValueError(
+            "AMICO comic has no panels."
+        )
+
+    title = comic.get(
+        "title",
+        "AMICO Educational Comic",
+    )
+
+    objective = comic.get(
+        "learning_objective",
+        "",
+    )
+
+    # The last page may end up with fewer panels than
+    # panels_per_page (e.g. after adding/removing a panel) —
+    # render_amico_page handles any panel count from 1-7 fine.
+
+    total_pages = math.ceil(
+        len(panels) / panels_per_page
+    )
+
+    pages = []
+
+    for page_index in range(total_pages):
+
+        page_panels = panels[
+            page_index * panels_per_page
+            : (page_index + 1) * panels_per_page
+        ]
+
+        page_bytes = render_amico_page(
+            page_panels,
+            page_index + 1,
+            total_pages,
+            title,
+            objective,
+            layout,
+            panels_per_page,
+        )
+
+        media_id = save_media(
+            data=page_bytes,
+            filename=(
+                f"amico_comic_{project_id}"
+                f"_page_{page_index + 1}.png"
+            ),
+            mime_type="image/png",
+            asset_type="image",
+            project_id=project_id,
+        )
+
+        pages.append(
+            {
+                "page_number": page_index + 1,
+                "comic_image_id": media_id,
+                "comic_image_url": f"/api/media/{media_id}",
+            }
+        )
+
+    return pages
+
+
+def render_photostory_page(
+    panels,
+    page_number,
+    total_pages,
+    story_title,
+    layout,
+):
+
+    """
+    Renders one AMICO Photo Story page (2-8 panels) to PNG bytes.
+    Unlike the character comic, a Photo Story panel has NO baked-
+    in dialogue or speech bubbles — each panel is a clean labeled
+    illustration with its stage title and explanation captioned
+    underneath in a light gray box, the way a real educational
+    process/diagram poster looks (e.g. a "Water Cycle Diagram").
+    """
+
+    panel_images = []
+
+    for panel in panels:
+
+        image_id = panel.get(
+            "image_id"
+        )
+
+        if not image_id:
+            raise ValueError(
+                "A panel is missing image_id."
+            )
+
+        media = get_media(
+            image_id
+        )
+
+        if not media.data:
+
+            raise ValueError(
+                f"Panel image {image_id} has no data."
+            )
+
+        try:
+
+            image = Image.open(
+                io.BytesIO(
+                    media.data
+                )
+            ).convert("RGB")
+
+        except Exception as exc:
+
+            raise ValueError(
+                f"Could not open panel image {image_id}: {exc}"
+            )
+
+        panel_images.append(
+            (
+                image,
+                panel,
+            )
+        )
+
+    row_plan = (
+        [1] * len(panels)
+        if layout == "vertical"
+        else split_into_rows(len(panels))
+    )
+
+    # Sized up well past a real A4 sheet (like the character
+    # comic page) so the diagram and its captions fill more of
+    # the screen and stay sharp when viewed full screen or
+    # zoomed in.
+
+    frame_thickness = 86
+    frame_radius = 110
+
+    outer_padding = frame_thickness + 34
+    gap = 29
+
+    header_height = 220 if story_title else 0
+    footer_height = 196
+
+    if layout == "vertical":
+
+        content_width = 2190
+        row_heights = [940] * len(row_plan)
+
+    else:
+
+        page_width = 3400
+        page_height = round(page_width * 297 / 210)
+
+        content_width = page_width - outer_padding * 2
+
+        page_content_height = (
+            page_height
+            - outer_padding * 2
+            - header_height
+            - footer_height
+        )
+
+        row_heights = distribute(
+            page_content_height
+            - (len(row_plan) - 1) * gap,
+            len(row_plan),
+        )
+
+    content_height = (
+        sum(row_heights)
+        + (len(row_heights) - 1) * gap
+    )
+
+    canvas_width = (
+        outer_padding * 2
+        + content_width
+    )
+
+    canvas_height = (
+        outer_padding * 2
+        + header_height
+        + content_height
+        + footer_height
+    )
+
+    canvas = Image.new(
+        "RGB",
+        (
+            canvas_width,
+            canvas_height,
         ),
-        mime_type="image/png",
-        asset_type="image",
-        project_id=project_id,
+        "#0b0b12",
     )
 
-    return final_media_id
+    draw = ImageDraw.Draw(
+        canvas
+    )
+
+    draw.rounded_rectangle(
+        (
+            outer_padding - 18,
+            outer_padding - 18,
+            canvas_width - outer_padding + 18,
+            canvas_height - outer_padding + 18,
+        ),
+        radius=52,
+        fill="#FFFFFF",
+    )
+
+    title_font = get_font(
+        98,
+        bold=True,
+    )
+
+    subtitle_font = get_font(
+        50,
+        bold=False,
+    )
+
+    panel_title_font = get_font(
+        78,
+        bold=True,
+    )
+
+    caption_font = get_font(
+        58,
+        bold=False,
+    )
+
+    footer_font = get_font(
+        52,
+        bold=True,
+    )
+
+    logo_font = get_font(
+        68,
+        bold=True,
+    )
+
+    if story_title:
+
+        draw.text(
+            (
+                canvas_width // 2,
+                outer_padding + 18,
+            ),
+            story_title.upper(),
+            fill="#111111",
+            font=title_font,
+            anchor="ma",
+        )
+
+        if total_pages > 1:
+
+            draw.text(
+                (
+                    canvas_width // 2,
+                    outer_padding + 144,
+                ),
+                f"Page {page_number} of {total_pages}",
+                fill="#555555",
+                font=subtitle_font,
+                anchor="ma",
+            )
+
+    # --------------------------------------------------------
+    # Panel rendering — each cell is the illustration on top and
+    # a captioned label strip underneath (no in-image text), so
+    # every explanation stays crisp and readable regardless of
+    # how well the image model follows instructions.
+    # --------------------------------------------------------
+
+    panels_top = outer_padding + header_height
+
+    palette = [
+        "#E64980", "#1E88E5", "#F5A623",
+        "#43A047", "#8E24AA", "#00897B",
+        "#EF5350", "#5C6BC0",
+    ]
+
+    panel_index = 0
+    y = panels_top
+
+    for row_index, row_count in enumerate(row_plan):
+
+        row_height = row_heights[row_index]
+
+        caption_height = max(
+            225,
+            round(row_height * 0.40),
+        )
+
+        image_height = (
+            row_height
+            - caption_height
+            - 10
+        )
+
+        row_span = (
+            content_width
+            - (row_count - 1) * gap
+        )
+
+        row_widths = distribute(
+            row_span,
+            row_count,
+        )
+
+        x = outer_padding
+
+        for column in range(row_count):
+
+            this_width = row_widths[column]
+
+            image, panel = panel_images[panel_index]
+
+            color = palette[
+                panel_index % len(palette)
+            ]
+
+            panel_index += 1
+
+            fitted_image = cover_crop(
+                image,
+                this_width,
+                image_height,
+            )
+
+            canvas.paste(
+                fitted_image,
+                (
+                    x,
+                    y,
+                ),
+            )
+
+            draw.rectangle(
+                (
+                    x,
+                    y,
+                    x + this_width - 1,
+                    y + image_height - 1,
+                ),
+                outline="#111111",
+                width=8,
+            )
+
+            caption_top = (
+                y
+                + image_height
+                + 10
+            )
+
+            draw.rectangle(
+                (
+                    x,
+                    caption_top,
+                    x + this_width - 1,
+                    caption_top + caption_height - 10,
+                ),
+                fill="#F1F1F4",
+                outline="#111111",
+                width=5,
+            )
+
+            text_x = x + 40
+            text_y = caption_top + 24
+
+            panel_title = panel.get(
+                "title",
+                "",
+            )
+
+            if panel_title:
+
+                draw.text(
+                    (
+                        text_x,
+                        text_y,
+                    ),
+                    panel_title,
+                    fill=color,
+                    font=panel_title_font,
+                )
+
+                text_y += 100
+
+            # Clip the caption to however many lines actually fit
+            # inside the caption box (rather than trusting the
+            # model's word count), so a longer-than-expected
+            # caption can never visually collide with the next
+            # row of panels — it just ends with an ellipsis.
+
+            caption_line_spacing = 14
+
+            line_bbox = draw.textbbox(
+                (0, 0),
+                "Ag",
+                font=caption_font,
+            )
+
+            caption_line_height = (
+                line_bbox[3] - line_bbox[1]
+                + caption_line_spacing
+            )
+
+            available_caption_height = (
+                caption_top
+                + caption_height
+                - 24
+                - text_y
+            )
+
+            max_caption_lines = max(
+                1,
+                available_caption_height // caption_line_height,
+            )
+
+            caption_lines = wrap_text(
+                panel.get(
+                    "caption",
+                    "",
+                ),
+                caption_font,
+                this_width - 80,
+            )
+
+            if len(caption_lines) > max_caption_lines:
+
+                caption_lines = caption_lines[:max_caption_lines]
+                caption_lines[-1] = (
+                    caption_lines[-1].rstrip() + "…"
+                )
+
+            caption_y = text_y
+
+            for line in caption_lines:
+
+                draw.text(
+                    (
+                        text_x,
+                        caption_y,
+                    ),
+                    line,
+                    font=caption_font,
+                    fill="#222222",
+                )
+
+                caption_y += caption_line_height
+
+            x += this_width + gap
+
+        y += row_height + gap
+
+    footer_y = (
+        canvas_height
+        - outer_padding
+        - footer_height // 2
+    )
+
+    draw.text(
+        (
+            canvas_width // 2,
+            footer_y,
+        ),
+        "Produced by Amit",
+        fill="#222222",
+        font=footer_font,
+        anchor="mm",
+    )
+
+    draw_rainbow_frame(
+        draw,
+        canvas_width,
+        canvas_height,
+        frame_thickness,
+        frame_radius,
+    )
+
+    output_buffer = io.BytesIO()
+
+    canvas.save(
+        output_buffer,
+        format="PNG",
+        optimize=True,
+    )
+
+    output_buffer.seek(0)
+
+    return output_buffer.read()
+
+
+def compose_amico_photostory(
+    project_id,
+    story,
+    panels_per_page=6,
+    layout="horizontal",
+):
+
+    """
+    Creates one Photo Story sheet PNG per page (2-8 panels each)
+    and saves every page straight into PostgreSQL, mirroring
+    compose_amico_comic but for the character-free, diagram-style
+    Photo Story format.
+    """
+
+    panels = story.get(
+        "panels",
+        [],
+    )
+
+    panels_per_page = max(
+        2,
+        min(8, panels_per_page),
+    )
+
+    if not panels:
+
+        raise ValueError(
+            "Photo Story has no panels."
+        )
+
+    title = story.get(
+        "title",
+        "Photo Story",
+    )
+
+    total_pages = math.ceil(
+        len(panels) / panels_per_page
+    )
+
+    pages = []
+
+    for page_index in range(total_pages):
+
+        page_panels = panels[
+            page_index * panels_per_page
+            : (page_index + 1) * panels_per_page
+        ]
+
+        page_bytes = render_photostory_page(
+            page_panels,
+            page_index + 1,
+            total_pages,
+            title,
+            layout,
+        )
+
+        media_id = save_media(
+            data=page_bytes,
+            filename=(
+                f"amico_photostory_{project_id}"
+                f"_page_{page_index + 1}.png"
+            ),
+            mime_type="image/png",
+            asset_type="image",
+            project_id=project_id,
+        )
+
+        pages.append(
+            {
+                "page_number": page_index + 1,
+                "comic_image_id": media_id,
+                "comic_image_url": f"/api/media/{media_id}",
+            }
+        )
+
+    return pages
 
 
 # ============================================================
@@ -2454,12 +3810,97 @@ async def amico_generate(
         require_services()
 
         # -----------------------------------------------------
-        # Terra creates the 8-panel structure
+        # Resolve panel/page counts and layout
+        # -----------------------------------------------------
+
+        panels_per_page = max(
+            2,
+            min(7, request.panels_per_page),
+        )
+
+        pages_count = max(
+            1,
+            min(6, request.pages),
+        )
+
+        layout = (
+            "vertical"
+            if request.layout == "vertical"
+            else "horizontal"
+        )
+
+        total_panels = panels_per_page * pages_count
+
+        # -----------------------------------------------------
+        # Resolve the source material: free-typed homework
+        # prompt, an existing AMIVI project, or both
+        # -----------------------------------------------------
+
+        topic = request.homework_prompt.strip()
+
+        if request.source_project_id:
+
+            source_project = get_project(
+                request.source_project_id
+            )
+
+            source_text = (
+                source_project.input_text
+                or source_project.title
+                or ""
+            )
+
+            topic = (
+                f"{topic}\n\nBased on this material:\n{source_text}"
+                if topic
+                else source_text
+            )
+
+        if not topic:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Please provide a homework topic or "
+                    "select an AMIVI project as the source."
+                ),
+            )
+
+        # -----------------------------------------------------
+        # Resolve a saved avatar for character consistency
+        # -----------------------------------------------------
+
+        character_reference = ""
+        character_name = ""
+
+        if request.avatar_id:
+
+            avatar = get_avatar(
+                request.avatar_id
+            )
+
+            character_reference = (
+                avatar.description or ""
+            )
+
+            # "My Avatar" is just the placeholder name used when
+            # the user left the name field blank while uploading —
+            # don't force the story to literally name a character
+            # that.
+            if avatar.name and avatar.name != "My Avatar":
+
+                character_name = avatar.name
+
+        # -----------------------------------------------------
+        # Terra creates the panel structure
         # -----------------------------------------------------
 
         comic = generate_amico_comic(
-            request.homework_prompt,
+            topic,
             request.language,
+            total_panels,
+            character_reference,
+            character_name,
         )
 
         # -----------------------------------------------------
@@ -2469,10 +3910,11 @@ async def amico_generate(
         comic = review_amico_comic(
             comic,
             request.language,
+            total_panels,
         )
 
         # -----------------------------------------------------
-        # Validate exactly 8 panels
+        # Validate the expected panel count
         # -----------------------------------------------------
 
         panels = comic.get(
@@ -2480,15 +3922,24 @@ async def amico_generate(
             [],
         )
 
-        if len(panels) != 8:
+        if len(panels) != total_panels:
 
             raise HTTPException(
                 status_code=500,
                 detail=(
-                    "AMICO must generate exactly "
-                    "8 panels."
+                    f"AMICO must generate exactly "
+                    f"{total_panels} panels."
                 ),
             )
+
+        # -----------------------------------------------------
+        # Remember the layout choices on the comic itself, so
+        # later edits/regenerations/recomposes don't need them
+        # passed in again.
+        # -----------------------------------------------------
+
+        comic["panels_per_page"] = panels_per_page
+        comic["layout"] = layout
 
         # -----------------------------------------------------
         # Save project
@@ -2500,7 +3951,7 @@ async def amico_generate(
                 "title",
                 "AMICO Comic",
             ),
-            input_text=request.homework_prompt,
+            input_text=topic,
             language=request.language,
             data=comic,
         )
@@ -2516,7 +3967,7 @@ async def amico_generate(
         def process_panel(index, panel):
             panel_number = panel.get("panel_number", index + 1)
             image_prompt = panel.get("image_prompt", "")
-            
+
             if not image_prompt:
                 image_prompt = (
                     "Educational comic panel "
@@ -2549,7 +4000,7 @@ async def amico_generate(
                 executor.submit(process_panel, idx, p): idx
                 for idx, p in enumerate(panels)
             }
-            
+
             for future in concurrent.futures.as_completed(futures):
                 idx = futures[future]
                 processed_panels[idx] = future.result()
@@ -2563,13 +4014,17 @@ async def amico_generate(
         )
 
         # -----------------------------------------------------
-        # Compose final 4 × 2 comic sheet
+        # Compose one comic sheet per page
         # -----------------------------------------------------
 
-        comic_image_id = compose_amico_comic(
+        pages = compose_amico_comic(
             project_id=project_id,
             comic=comic,
+            panels_per_page=panels_per_page,
+            layout=layout,
         )
+
+        comic["pages"] = pages
 
         # -----------------------------------------------------
         # Save comic JSON
@@ -2588,13 +4043,26 @@ async def amico_generate(
         # Response
         # -----------------------------------------------------
 
+        first_page = pages[0] if pages else None
+
         return {
             "status": "success",
             "project_id": project_id,
             "comic_id": comic_id,
-            "comic_image_id": comic_image_id,
+            "panels_per_page": panels_per_page,
+            "pages_count": pages_count,
+            "layout": layout,
+            "pages": pages,
+            # Back-compatible single-image fields (first page).
+            "comic_image_id": (
+                first_page["comic_image_id"]
+                if first_page
+                else None
+            ),
             "comic_image_url": (
-                f"/api/media/{comic_image_id}"
+                first_page["comic_image_url"]
+                if first_page
+                else None
             ),
             "title": comic.get(
                 "title",
@@ -2624,6 +4092,800 @@ async def amico_generate(
             status_code=500,
             detail=str(exc),
         )
+
+
+# ============================================================
+# AMICO REGENERATE PANEL
+# ============================================================
+
+@app.post("/api/amico/regenerate_panel")
+async def amico_regenerate_panel(
+    request: AmicoRegeneratePanelRequest,
+):
+
+    try:
+
+        require_services()
+
+        prompt = (
+            request.image_prompt
+            or request.scene
+            or request.title
+            or "Educational comic panel"
+        )
+
+        image_id = generate_image(
+            prompt,
+            (
+                f"amico_regen_"
+                f"{uuid.uuid4().hex[:8]}.png"
+            ),
+            request.project_id,
+        )
+
+        return {
+            "status": "success",
+            "image_id": image_id,
+            "image_url": (
+                f"/api/media/{image_id}"
+            ),
+        }
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMICO EDIT PANEL
+# ============================================================
+
+@app.post("/api/amico/edit_panel")
+async def amico_edit_panel(
+    request: AmicoEditPanelRequest,
+):
+
+    try:
+
+        comic_row = latest_comic_for_project(
+            request.project_id
+        )
+
+        if not comic_row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="No comic found for this project.",
+            )
+
+        data = dict(comic_row.data or {})
+        panels = data.get("panels", [])
+
+        found = False
+        target_panel = None
+        dialogue_changed = False
+
+        for panel in panels:
+
+            if panel.get("panel_number") == request.panel_number:
+
+                dialogue_changed = (
+                    request.dialogue is not None
+                    and request.dialogue != panel.get("dialogue", "")
+                )
+
+                if request.title is not None:
+                    panel["title"] = request.title
+
+                if request.dialogue is not None:
+                    panel["dialogue"] = request.dialogue
+
+                if request.learning_point is not None:
+                    panel["learning_point"] = request.learning_point
+
+                found = True
+                target_panel = panel
+                break
+
+        if not found:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Panel not found.",
+            )
+
+        # The dialogue is drawn directly inside the panel image, so
+        # editing it means the artwork has to be redrawn with the
+        # new wording — the old picture still shows the old text.
+
+        if dialogue_changed:
+
+            require_services()
+
+            base_prompt = (
+                target_panel.get("image_prompt", "")
+                or target_panel.get("scene", "")
+            )
+
+            override_prompt = (
+                base_prompt
+                + "\n\nIMPORTANT OVERRIDE: ignore any earlier "
+                "dialogue wording in this description. Draw ONLY "
+                "this dialogue as large, easily readable comic "
+                "speech bubbles (oversized white bubble with "
+                "generous padding, thick black outline, big bold "
+                "black lettering sized to be comfortably readable "
+                "at a glance, tail toward the speaker), one bubble "
+                "per line, with each speaker's name (the word "
+                "before the colon) highlighted in bold colored "
+                "lettering — a distinct color per character — "
+                "while the rest of the line stays plain black, "
+                f"with no other text:\n{request.dialogue}"
+            )
+
+            new_image_id = generate_image(
+                prompt=override_prompt,
+                filename=(
+                    f"amico_edit_{uuid.uuid4().hex[:8]}.png"
+                ),
+                project_id=request.project_id,
+            )
+
+            target_panel["image_id"] = new_image_id
+            target_panel["image_url"] = f"/api/media/{new_image_id}"
+
+        data["panels"] = panels
+
+        update_comic(comic_row.id, data)
+
+        return {
+            "status": "success",
+            "comic_id": comic_row.id,
+            "panels": panels,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMICO ADD PANEL
+# ============================================================
+
+@app.post("/api/amico/add_panel")
+async def amico_add_panel(
+    request: AmicoAddPanelRequest,
+):
+
+    try:
+
+        require_services()
+
+        comic_row = latest_comic_for_project(
+            request.project_id
+        )
+
+        if not comic_row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="No comic found for this project.",
+            )
+
+        data = dict(comic_row.data or {})
+        panels = data.get("panels", [])
+
+        prompt = (
+            "You are AMICO's storytelling engine.\n\n"
+            "A comic titled "
+            f"\"{data.get('title', '')}\" already exists with "
+            f"{len(panels)} panels. Write ONE new panel to be "
+            f"inserted into the story"
+            + (
+                f" about: {request.topic_hint}.\n\n"
+                if request.topic_hint
+                else ".\n\n"
+            )
+            + "The panel must fit naturally with the existing "
+            "story and characters described below.\n\n"
+            "Existing comic JSON:\n"
+            + json.dumps(data, ensure_ascii=False)
+            + "\n\nReturn ONLY valid JSON for the single new "
+            "panel using exactly this structure:\n\n"
+            "{\n"
+            '  "title": "...",\n'
+            '  "scene": "...",\n'
+            '  "image_prompt": "...",\n'
+            '  "dialogue": "...",\n'
+            '  "learning_point": "..."\n'
+            "}\n\n"
+            "This panel must be genuinely DESCRIPTIVE and focus on "
+            "ONE small idea: write it for a reader who has never "
+            "heard of this topic before, so the dialogue covers "
+            "WHY or HOW this specific idea happens (the real cause "
+            "or mechanism, not just what it looks like) and defines "
+            "any key term the first time it appears. Use simple, "
+            "easy everyday words.\n"
+            "Dialogue must fit the existing cast's natural group "
+            "conversation style: one explainer character "
+            "introduces the idea in ONE short line, and one of the "
+            "other existing characters reacts in a short, natural "
+            "burst (a question, a guess, a quick interjection) "
+            "rather than a strict two-person back-and-forth. Every "
+            "line must be prefixed with that character's name — "
+            "keep every line short and simple: reaction lines under "
+            "8 words, the explainer line under 15 words. STRICT "
+            "LIMIT: EXACTLY one line from the explainer plus at "
+            "most two reaction lines from OTHER characters (3 "
+            "lines total, never more) — the explainer never speaks "
+            "twice in this panel; if the idea is too big for one "
+            "short line, simplify to its single clearest point "
+            "rather than adding a second explainer line.\n"
+            "The image_prompt must instruct the image model to draw "
+            "that exact dialogue directly in the image as large, "
+            "easily readable comic speech bubbles (oversized white "
+            "bubble with generous padding, thick black outline, "
+            "big bold black lettering sized to be comfortably "
+            "readable at a glance, tail toward the speaker) — one "
+            "bubble per line (at most 3 total), with each speaker's "
+            "name highlighted in bold colored lettering (a distinct "
+            "color per character) while the rest of the line stays "
+            "plain black, with no other text anywhere in the image. "
+            "The image_prompt must also instruct the image model to "
+            "draw ONE single unified scene — never a grid, "
+            "filmstrip, or multiple sub-panels within one image.\n\n"
+            + get_language_instruction(
+                request.language
+            )
+        )
+
+        new_panel = call_json_model(
+            TERRA_MODEL,
+            prompt,
+            request.topic_hint or data.get("title", ""),
+        )
+
+        image_id = generate_image(
+            prompt=new_panel.get("image_prompt", ""),
+            filename=(
+                f"amico_add_"
+                f"{uuid.uuid4().hex[:8]}.png"
+            ),
+            project_id=request.project_id,
+        )
+
+        insert_at = max(
+            0,
+            min(len(panels), request.insert_after),
+        )
+
+        panels.insert(
+            insert_at,
+            {
+                "panel_number": insert_at + 1,
+                "title": new_panel.get("title", ""),
+                "scene": new_panel.get("scene", ""),
+                "dialogue": new_panel.get("dialogue", ""),
+                "learning_point": new_panel.get("learning_point", ""),
+                "image_prompt": new_panel.get("image_prompt", ""),
+                "image_id": image_id,
+                "image_url": f"/api/media/{image_id}",
+            },
+        )
+
+        for position, panel in enumerate(panels):
+            panel["panel_number"] = position + 1
+
+        data["panels"] = panels
+
+        update_comic(comic_row.id, data)
+
+        return {
+            "status": "success",
+            "comic_id": comic_row.id,
+            "panels": panels,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMICO RECOMPOSE (re-render pages after edit/regenerate/
+# add/remove panel, without calling the LLM again)
+# ============================================================
+
+@app.post("/api/amico/recompose")
+async def amico_recompose(
+    request: AmicoRecomposeRequest,
+):
+
+    try:
+
+        comic_row = latest_comic_for_project(
+            request.project_id
+        )
+
+        if not comic_row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="No comic found for this project.",
+            )
+
+        data = dict(comic_row.data or {})
+
+        panels = (
+            request.panels
+            or data.get("panels", [])
+        )
+
+        for position, panel in enumerate(panels):
+            panel["panel_number"] = position + 1
+
+        panels_per_page = max(
+            2,
+            min(7, request.panels_per_page),
+        )
+
+        layout = (
+            "vertical"
+            if request.layout == "vertical"
+            else "horizontal"
+        )
+
+        data["panels"] = panels
+        data["panels_per_page"] = panels_per_page
+        data["layout"] = layout
+
+        pages = compose_amico_comic(
+            project_id=request.project_id,
+            comic=data,
+            panels_per_page=panels_per_page,
+            layout=layout,
+        )
+
+        data["pages"] = pages
+
+        update_comic(comic_row.id, data)
+
+        return {
+            "status": "success",
+            "comic_id": comic_row.id,
+            "pages": pages,
+            "panels": panels,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMICO PHOTO STORY GENERATE
+# ============================================================
+
+@app.post("/api/amico/photostory/generate")
+async def amico_photostory_generate(
+    file: UploadFile = File(...),
+    language: str = Form("en"),
+    panel_count: int = Form(6),
+):
+
+    try:
+
+        require_services()
+
+        total_panels = max(
+            4,
+            min(8, panel_count),
+        )
+
+        # -----------------------------------------------------
+        # Look at the uploaded photo and pick the topic
+        # -----------------------------------------------------
+
+        photo_bytes = await file.read()
+
+        photo_description = describe_photo_for_story(
+            photo_bytes,
+            file.content_type or "image/jpeg",
+        )
+
+        # -----------------------------------------------------
+        # Terra writes the diagram-style panel structure
+        # -----------------------------------------------------
+
+        story = generate_amico_photostory(
+            photo_description,
+            language,
+            total_panels,
+        )
+
+        # -----------------------------------------------------
+        # Sol reviews and corrects it
+        # -----------------------------------------------------
+
+        story = review_amico_photostory(
+            story,
+            language,
+            total_panels,
+        )
+
+        panels = story.get(
+            "panels",
+            [],
+        )
+
+        if len(panels) != total_panels:
+
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    f"AMICO Photo Story must generate exactly "
+                    f"{total_panels} panels."
+                ),
+            )
+
+        story["panels_per_page"] = total_panels
+        story["layout"] = "horizontal"
+
+        # -----------------------------------------------------
+        # Save project
+        # -----------------------------------------------------
+
+        project_id = save_project(
+            project_type="amico_photostory",
+            title=story.get(
+                "title",
+                "Photo Story",
+            ),
+            input_text=photo_description,
+            language=language,
+            data=story,
+        )
+
+        # -----------------------------------------------------
+        # Generate each panel image (in parallel)
+        # -----------------------------------------------------
+
+        import concurrent.futures
+
+        processed_panels = [None] * len(panels)
+
+        def process_panel(index, panel):
+            panel_number = panel.get("panel_number", index + 1)
+            image_prompt = panel.get("image_prompt", "")
+
+            if not image_prompt:
+                image_prompt = (
+                    "Clean educational diagram illustration "
+                    f"for stage {panel_number}: "
+                    f"{panel.get('title', '')}"
+                )
+
+            image_id = generate_image(
+                prompt=image_prompt,
+                filename=(
+                    f"amico_photostory_{project_id}"
+                    f"_panel_{index + 1}.png"
+                ),
+                project_id=project_id,
+            )
+
+            return {
+                "panel_number": panel_number,
+                "title": panel.get("title", ""),
+                "caption": panel.get("caption", ""),
+                "image_prompt": image_prompt,
+                "image_id": image_id,
+                "image_url": f"/api/media/{image_id}",
+            }
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {
+                executor.submit(process_panel, idx, p): idx
+                for idx, p in enumerate(panels)
+            }
+
+            for future in concurrent.futures.as_completed(futures):
+                idx = futures[future]
+                processed_panels[idx] = future.result()
+
+        story["panels"] = (
+            processed_panels
+        )
+
+        # -----------------------------------------------------
+        # Compose the diagram sheet
+        # -----------------------------------------------------
+
+        pages = compose_amico_photostory(
+            project_id=project_id,
+            story=story,
+            panels_per_page=total_panels,
+            layout="horizontal",
+        )
+
+        story["pages"] = pages
+
+        # -----------------------------------------------------
+        # Save story JSON (reuses the same Comic table as AMICO
+        # comics — it's just a generic project_id + title + data
+        # record)
+        # -----------------------------------------------------
+
+        comic_id = save_comic(
+            project_id,
+            story.get(
+                "title",
+                "Photo Story",
+            ),
+            story,
+        )
+
+        first_page = pages[0] if pages else None
+
+        return {
+            "status": "success",
+            "project_id": project_id,
+            "comic_id": comic_id,
+            "pages": pages,
+            "comic_image_id": (
+                first_page["comic_image_id"]
+                if first_page
+                else None
+            ),
+            "comic_image_url": (
+                first_page["comic_image_url"]
+                if first_page
+                else None
+            ),
+            "title": story.get(
+                "title",
+                "",
+            ),
+            "panels": processed_panels,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AVATARS
+# ============================================================
+
+@app.post("/api/avatar/generate")
+async def avatar_generate(
+    file: UploadFile = File(...),
+    name: str = Form(""),
+    style: str = Form(""),
+):
+
+    try:
+
+        require_services()
+
+        photo_bytes = await file.read()
+
+        description = describe_photo_for_avatar(
+            photo_bytes,
+            file.content_type or "image/jpeg",
+        )
+
+        image_id = generate_avatar_image(
+            description,
+            style,
+            filename=(
+                f"avatar_{uuid.uuid4().hex[:8]}.png"
+            ),
+        )
+
+        avatar_id = save_avatar(
+            name=name or "My Avatar",
+            description=description,
+            image_id=image_id,
+        )
+
+        return {
+            "status": "success",
+            "avatar_id": avatar_id,
+            "name": name or "My Avatar",
+            "description": description,
+            "image_id": image_id,
+            "image_url": f"/api/media/{image_id}",
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+@app.get("/api/avatars")
+def avatars_list():
+
+    avatars = list_avatars()
+
+    return {
+        "avatars": [
+            {
+                "avatar_id": row.id,
+                "name": row.name,
+                "description": row.description,
+                "image_id": row.image_id,
+                "image_url": (
+                    f"/api/media/{row.image_id}"
+                    if row.image_id
+                    else None
+                ),
+                "created_at": (
+                    row.created_at.isoformat()
+                    if row.created_at
+                    else None
+                ),
+            }
+            for row in avatars
+        ]
+    }
+
+
+@app.delete("/api/avatar/{avatar_id}")
+def avatar_delete(avatar_id: int):
+
+    try:
+
+        delete_avatar(avatar_id)
+
+        return {
+            "status": "success",
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# PROJECTS + COMICS (for the Library and "import from AMIVI")
+# ============================================================
+
+@app.get("/api/projects")
+def projects_list(project_type: str | None = None):
+
+    projects = list_projects(project_type)
+
+    return {
+        "projects": [
+            {
+                "project_id": row.id,
+                "project_type": row.project_type,
+                "title": row.title,
+                "language": row.language,
+                "created_at": (
+                    row.created_at.isoformat()
+                    if row.created_at
+                    else None
+                ),
+            }
+            for row in projects
+        ]
+    }
+
+
+@app.get("/api/comics")
+def comics_list():
+
+    comics = list_comics()
+
+    results = []
+
+    for row in comics:
+
+        data = row.data or {}
+
+        pages = data.get("pages", [])
+
+        results.append(
+            {
+                "comic_id": row.id,
+                "project_id": row.project_id,
+                "title": row.title,
+                "pages": pages,
+                "thumbnail_url": (
+                    pages[0]["comic_image_url"]
+                    if pages
+                    else None
+                ),
+                "created_at": (
+                    row.created_at.isoformat()
+                    if row.created_at
+                    else None
+                ),
+            }
+        )
+
+    return {"comics": results}
+
+
+@app.get("/api/comics/{comic_id}")
+def comic_detail(comic_id: int):
+
+    row = get_comic(comic_id)
+
+    return {
+        "comic_id": row.id,
+        "project_id": row.project_id,
+        "title": row.title,
+        "data": row.data,
+        "created_at": (
+            row.created_at.isoformat()
+            if row.created_at
+            else None
+        ),
+    }
 
 
 # ============================================================
@@ -2705,10 +4967,17 @@ async def generate_quiz(
 @app.get("/api/media/{media_id}")
 def media(
     media_id: int,
+    download: bool = False,
 ):
 
     asset = get_media(
         media_id
+    )
+
+    disposition = (
+        "attachment"
+        if download
+        else "inline"
     )
 
     return Response(
@@ -2716,7 +4985,7 @@ def media(
         media_type=asset.mime_type,
         headers={
             "Content-Disposition": (
-                f'inline; '
+                f'{disposition}; '
                 f'filename="{asset.filename}"'
             )
         },

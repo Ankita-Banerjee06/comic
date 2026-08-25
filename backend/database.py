@@ -43,6 +43,7 @@ def create_tables():
         Comic,
         Quiz,
         AmiviChunk,
+        Avatar,
     )
 
     Base.metadata.create_all(bind=engine)
