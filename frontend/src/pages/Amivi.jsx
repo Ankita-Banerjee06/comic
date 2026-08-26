@@ -20,6 +20,8 @@ import {
   Maximize,
   X,
   Download,
+  FileText,
+  UploadCloud,
 } from 'lucide-react';
 
 import { useLanguage } from '../contexts/LanguageContext';
@@ -278,10 +280,10 @@ export default function Amivi() {
           HEADER
       ======================================================= */}
 
-      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200" style={{ minHeight: 240, background: '#eff6ff' }}>
+      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{ minHeight: 220, background: '#eff6ff' }}>
 
         <img
-          src="/vlq-gen-amivi.png"
+          src="/vlq-amivi-card.jpg"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"
@@ -290,7 +292,7 @@ export default function Amivi() {
 
         <div
           className="absolute inset-0"
-          style={{ background: 'linear-gradient(100deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.55) 50%, rgba(15,23,42,0.15) 100%)' }}
+          style={{ background: 'rgba(15,23,42,0.6)' }}
         />
 
         <div className="relative z-10 p-8 sm:p-10 max-w-2xl">
@@ -326,13 +328,18 @@ export default function Amivi() {
 
           {/* TEXT INPUT */}
 
-          <div className="bg-white rounded-4xl border-2 border-blue-100 shadow-xl p-8 flex flex-col">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 flex flex-col">
 
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              📝 {t('Your Learning Material')}
-            </h2>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800">
+                {t('Your Learning Material')}
+              </h2>
+            </div>
 
-            <p className="text-gray-500 font-bold mb-6">
+            <p className="text-slate-500 font-medium mb-6">
               Paste a large educational paragraph,
               or use the video input on the right.
             </p>
@@ -345,7 +352,7 @@ export default function Amivi() {
               placeholder={t(
                 'Paste your educational text here... e.g. Photosynthesis is the process by which plants convert sunlight into food...'
               )}
-              className="w-full flex-1 min-h-[260px] p-5 bg-blue-50 border-2 border-blue-200 rounded-2xl text-gray-700 font-semibold resize-none focus:ring-4 focus:ring-blue-300 focus:border-blue-400 focus:outline-none mb-6 text-lg transition-all"
+              className="w-full flex-1 min-h-[260px] p-5 bg-blue-50/60 border border-blue-200 rounded-2xl text-slate-700 font-medium resize-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none mb-6 text-lg transition-all"
             />
 
             {/* VIDEO OPTION */}
@@ -366,9 +373,9 @@ export default function Amivi() {
 
               <label
                 htmlFor="generate-video"
-                className="font-bold text-gray-700 flex items-center gap-2 cursor-pointer"
+                className="font-bold text-slate-700 flex items-center gap-2 cursor-pointer"
               >
-                <Video className="w-5 h-5" />
+                <Video className="w-5 h-5 text-slate-400" />
                 Generate educational video
               </label>
 
@@ -380,12 +387,12 @@ export default function Amivi() {
                 !textInput.trim() &&
                 !videoUrl.trim()
               }
-              className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-xl hover:scale-[1.02] hover:shadow-[0_10px_25px_rgba(59,130,246,0.4)] flex items-center justify-center gap-3 shadow-lg"
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-lg hover:-translate-y-0.5 flex items-center justify-center gap-3 shadow-sm"
             >
 
-              <Sparkles className="w-6 h-6" />
+              <Sparkles className="w-5 h-5" />
 
-              {t('Generate AMIVI')} ✨
+              {t('Generate AMIVI')}
 
             </button>
 
@@ -400,19 +407,24 @@ export default function Amivi() {
 
           {/* UPLOAD / VIDEO LINK */}
 
-          <div className="bg-white rounded-4xl border-2 border-purple-100 shadow-xl p-8 flex flex-col">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 flex flex-col">
 
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              📄 {t('Upload or Learn from Video')}
-            </h2>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <UploadCloud className="w-5 h-5 text-blue-600" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800">
+                {t('Upload or Learn from Video')}
+              </h2>
+            </div>
 
-            <p className="text-gray-500 font-bold mb-6">
+            <p className="text-slate-500 font-medium mb-6">
               Upload a PDF, Word document or TXT file.
             </p>
 
             {/* FILE UPLOAD */}
 
-            <div className="flex-1 flex items-center justify-center opacity-80 hover:opacity-100 transition-opacity">
+            <div className="flex-1 flex items-center justify-center">
 
               <FileUpload
                 accept=".pdf,.docx,.txt"
@@ -420,6 +432,10 @@ export default function Amivi() {
               />
 
             </div>
+
+            <p className="text-xs text-slate-400 font-semibold text-center mt-4">
+              Supported formats: PDF · DOCX · TXT
+            </p>
 
           </div>
 
@@ -434,7 +450,7 @@ export default function Amivi() {
 
       {isProcessing && (
 
-        <div className="bg-white rounded-4xl border-2 border-blue-100 shadow-xl p-12">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12">
 
           <ProcessingAnimation
             title={`✨ ${t(
@@ -460,7 +476,7 @@ export default function Amivi() {
 
           {/* SUCCESS */}
 
-          <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-4xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl">
+          <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm">
 
             <div className="flex items-center gap-4">
 
@@ -511,7 +527,7 @@ export default function Amivi() {
 
           {result.video_url && (
 
-            <div className="bg-white rounded-4xl border-2 border-blue-100 shadow-xl p-7">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7">
 
               <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
                 <div className="flex items-center gap-3">
@@ -583,7 +599,7 @@ export default function Amivi() {
                       chunk.chunk_id ||
                       index
                     }
-                    className="bg-white rounded-3xl border-2 border-orange-100 shadow-lg overflow-hidden hover:shadow-lg transition-all"
+                    className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all"
                   >
 
                     {/* IMAGE */}
@@ -731,7 +747,7 @@ export default function Amivi() {
             {(!result?.chunks ||
               result.chunks.length === 0) && (
 
-              <div className="bg-white rounded-3xl border-2 border-red-100 p-8 text-center text-red-500 font-bold">
+              <div className="bg-white rounded-2xl border border-red-100 p-8 text-center text-red-500 font-bold">
                 No visual chunks were returned
                 by the backend.
               </div>

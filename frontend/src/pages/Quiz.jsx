@@ -330,9 +330,9 @@ export default function Quiz() {
   if (!quiz) {
     return (
       <div className="max-w-3xl mx-auto py-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200" style={{ minHeight: 240, background: '#f5f3ff' }}>
+        <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{ minHeight: 220, background: '#f5f3ff' }}>
           <img
-            src="/vlq-gen-quiz.png"
+            src="/vlq-quiz-tool.png"
             alt=""
             aria-hidden="true"
             className="absolute inset-0 w-full h-full object-cover"
@@ -340,7 +340,7 @@ export default function Quiz() {
           />
           <div
             className="absolute inset-0"
-            style={{ background: 'linear-gradient(100deg, rgba(49,27,110,0.85) 0%, rgba(49,27,110,0.55) 50%, rgba(49,27,110,0.15) 100%)' }}
+            style={{ background: 'rgba(49,27,110,0.6)' }}
           />
           <div className="relative z-10 p-8 sm:p-10 max-w-2xl">
             <div
@@ -396,7 +396,7 @@ export default function Quiz() {
         </div>
 
         {view === 'bank' ? (
-          <div className="bg-white rounded-4xl border-2 border-orange-100 shadow-xl p-8">
+          <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
               📕 {t('Wrong Answers')}
             </h2>
@@ -470,7 +470,7 @@ export default function Quiz() {
             )}
           </div>
         ) : (
-        <div className="bg-white rounded-4xl border-2 border-purple-100 shadow-xl p-8">
+        <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-8">
           {/* TABS */}
           <div className="flex gap-3 mb-6">
             <button
@@ -628,7 +628,7 @@ export default function Quiz() {
         <h1 className="text-5xl font-bold text-purple-700 mb-4">
           {percentage >= 80 ? 'Amazing! 🎉' : percentage >= 60 ? 'Well Done! ⭐' : 'Keep Going! 💪'}
         </h1>
-        <div className="bg-white rounded-4xl border-2 border-purple-200 shadow-lg p-8 mb-8 max-w-sm w-full">
+        <div className="bg-white rounded-2xl border border-purple-200 shadow-sm p-8 mb-8 max-w-sm w-full">
           <div className={`text-6xl font-bold mb-2 ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-orange-600'}`}>
             {score}/{quiz.questions.length}
           </div>
@@ -643,7 +643,7 @@ export default function Quiz() {
 
         {/* MISSED QUESTIONS REVIEW */}
         {wrongQuestions.length > 0 && (
-          <div className="bg-white rounded-4xl border-2 border-red-100 shadow-xl p-6 mb-8 max-w-xl w-full text-left">
+          <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-6 mb-8 max-w-xl w-full text-left">
             <h3 className="text-lg font-bold text-red-600 mb-4 flex items-center gap-2">
               <XCircle size={20} />
               {t('Questions to Review')} ({wrongQuestions.length})
@@ -722,7 +722,7 @@ export default function Quiz() {
       </div>
 
       {/* Question card */}
-      <div className="bg-white rounded-4xl border-2 border-purple-100 shadow-lg p-8 mb-6">
+      <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-8 mb-6">
         <h3 className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight mb-5">
           {q.q}
         </h3>

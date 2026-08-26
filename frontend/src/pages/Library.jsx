@@ -81,7 +81,7 @@ export default function Library() {
       {/* Header */}
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8" style={{ minHeight: 180, background: '#eff6ff' }}>
         <img
-          src="/vlq-gen-dashboard.png"
+          src="/vlq-hero-main.jpg"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"

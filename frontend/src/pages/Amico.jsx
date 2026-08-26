@@ -410,9 +410,9 @@ export default function Amico() {
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
-      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200" style={{ minHeight: 240, background: '#fdf2f8' }}>
+      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{ minHeight: 220, background: '#fdf2f8' }}>
         <img
-          src="/vlq-gen-amico.png"
+          src="/vlq-understand-tool.png"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"
@@ -420,7 +420,7 @@ export default function Amico() {
         />
         <div
           className="absolute inset-0"
-          style={{ background: 'linear-gradient(100deg, rgba(76,29,89,0.85) 0%, rgba(76,29,89,0.55) 50%, rgba(76,29,89,0.15) 100%)' }}
+          style={{ background: 'rgba(76,29,89,0.6)' }}
         />
         <div className="relative z-10 p-8 sm:p-10 max-w-2xl">
           <div
@@ -460,7 +460,7 @@ export default function Amico() {
 
       {mode === 'comic' && !isProcessing && !result && (
         <div className="max-w-3xl mx-auto space-y-6">
-          <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-8 flex flex-col">
+          <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-8 flex flex-col">
             {/* Source tabs */}
             <div className="flex gap-2 mb-6">
               <button
@@ -675,14 +675,14 @@ export default function Amico() {
       )}
 
       {mode === 'comic' && isProcessing && (
-        <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-12">
+        <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-12">
           <ProcessingAnimation title={`📚 ${t('Drawing Your Comic')}...`} subtitle={t('Writing the script, drawing the panels, and laying out your pages!')} />
         </div>
       )}
 
       {mode === 'comic' && result && (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-          <div className="bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-4xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl">
+          <div className="bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm">
             <div className="flex items-center gap-4">
               <span className="text-4xl">🎉</span>
               <div>
@@ -704,7 +704,7 @@ export default function Amico() {
 
           {/* Complete comic page preview */}
           {pages.length > 0 && (
-            <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-6">
+            <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-gray-800">
                   📖 {t('Page')} {currentPage?.page_number} {t('of')} {pages.length}
@@ -771,7 +771,7 @@ export default function Amico() {
               shows the full comic; this strip is just for editing
               dialogue, regenerating art, or adding/removing a panel. */}
           {result.panels?.length > 0 && (
-            <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-6">
+            <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6">
               <h3 className="text-xl font-bold text-gray-800 mb-4">🧩 {t('Manage Panels')}</h3>
               <div className="flex items-start gap-3 overflow-x-auto pb-2">
                 {result.panels.map((panel) => {
@@ -836,7 +836,7 @@ export default function Amico() {
 
       {mode === 'photostory' && !psProcessing && !psResult && (
         <div className="max-w-3xl mx-auto space-y-6">
-          <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-8 flex flex-col">
+          <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-8 flex flex-col">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">📷 {t('Upload a Photo')}</h2>
             <p className="text-gray-500 font-bold mb-6">
               {t('Upload one photo and AMICO will turn it into a labeled diagram story — no characters, just clear step-by-step visuals, like a real science poster.')}
@@ -893,14 +893,14 @@ export default function Amico() {
       )}
 
       {mode === 'photostory' && psProcessing && (
-        <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-12">
+        <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-12">
           <ProcessingAnimation title={`📷 ${t('Building Your Photo Story')}...`} subtitle={t('Studying your photo, writing the stages, and drawing the diagram!')} />
         </div>
       )}
 
       {mode === 'photostory' && psResult && (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-          <div className="bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-4xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl">
+          <div className="bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm">
             <div className="flex items-center gap-4">
               <span className="text-4xl">🎉</span>
               <div>
@@ -914,7 +914,7 @@ export default function Amico() {
           </div>
 
           {psPages.length > 0 && (
-            <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-6">
+            <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-gray-800">
                   📖 {t('Page')} {psCurrentPage?.page_number} {t('of')} {psPages.length}

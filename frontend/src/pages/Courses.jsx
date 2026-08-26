@@ -66,7 +66,7 @@ export default function Courses() {
       {/* Header */}
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8" style={{ minHeight: 200, background: '#ecfdf5' }}>
         <img
-          src="/vlq-gen-dashboard.png"
+          src="/vlq-classroom-hero.jpg"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"

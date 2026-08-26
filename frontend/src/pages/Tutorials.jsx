@@ -70,7 +70,7 @@ export default function Tutorials() {
       {/* Header */}
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8" style={{ minHeight: 190, background: '#eef2ff' }}>
         <img
-          src="/vlq-gen-dashboard.png"
+          src="/vlq-see-tool.png"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"

@@ -30,7 +30,7 @@ export default function CollaborativeLearning() {
       {/* Header */}
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8 text-white" style={{ minHeight: 200, background: '#eef2ff' }}>
         <img
-          src="/vlq-gen-collab.png"
+          src="/vlq-collab-hero.jpg"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"

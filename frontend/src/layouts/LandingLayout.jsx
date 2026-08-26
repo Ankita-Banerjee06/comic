@@ -10,7 +10,8 @@ export default function LandingLayout() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-100 pt-14 pb-8">
+      <footer className="relative pt-14 pb-8 overflow-hidden" style={{ background: 'linear-gradient(180deg, #eff6ff 0%, #faf5ff 100%)' }}>
+        <div aria-hidden className="absolute top-0 inset-x-0 h-1.5" style={{ background: 'linear-gradient(90deg, #2563eb 0%, #7c3aed 33%, #db2777 66%, #16a34a 100%)' }} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
             <div>
@@ -27,26 +28,26 @@ export default function LandingLayout() {
             </div>
 
             <div>
-              <h3 className="font-bold text-slate-400 uppercase tracking-wider text-xs mb-4">Platform</h3>
+              <h3 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: '#7c3aed' }}>Platform</h3>
               <ul className="space-y-2.5">
-                <li><Link to="/amivi" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">AMIVI</Link></li>
-                <li><Link to="/amico" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">AMICO</Link></li>
-                <li><Link to="/quiz" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Quiz</Link></li>
-                <li><Link to="/library" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Library</Link></li>
+                <li><Link to="/amivi" className="text-slate-600 hover:text-blue-600 font-medium text-sm transition-colors">AMIVI</Link></li>
+                <li><Link to="/amico" className="text-slate-600 hover:text-pink-600 font-medium text-sm transition-colors">AMICO</Link></li>
+                <li><Link to="/quiz" className="text-slate-600 hover:text-purple-600 font-medium text-sm transition-colors">Quiz</Link></li>
+                <li><Link to="/library" className="text-slate-600 hover:text-green-600 font-medium text-sm transition-colors">Library</Link></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-bold text-slate-400 uppercase tracking-wider text-xs mb-4">Company</h3>
+              <h3 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: '#db2777' }}>Company</h3>
               <ul className="space-y-2.5">
-                <li><Link to="/" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">About</Link></li>
-                <li><Link to="/" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Help</Link></li>
-                <li><Link to="/" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Privacy policy</Link></li>
-                <li><Link to="/" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Terms of service</Link></li>
+                <li><Link to="/" className="text-slate-600 hover:text-blue-600 font-medium text-sm transition-colors">About</Link></li>
+                <li><Link to="/" className="text-slate-600 hover:text-blue-600 font-medium text-sm transition-colors">Help</Link></li>
+                <li><Link to="/" className="text-slate-600 hover:text-blue-600 font-medium text-sm transition-colors">Privacy policy</Link></li>
+                <li><Link to="/" className="text-slate-600 hover:text-blue-600 font-medium text-sm transition-colors">Terms of service</Link></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-100 pt-6 text-slate-400 text-xs font-medium">
+          <div className="border-t pt-6 text-slate-400 text-xs font-medium" style={{ borderColor: 'rgba(124,58,237,0.15)' }}>
             <p>© {new Date().getFullYear()} VLQ — The Visual Learning Platform. All rights reserved.</p>
           </div>
         </div>
