@@ -47,6 +47,7 @@ from models import (
     Quiz,
     AmiviChunk,
     Avatar,
+    WrongAnswer,
 )
 
 
@@ -208,6 +209,17 @@ class AmicoRecomposeRequest(BaseModel):
     layout: str = "horizontal"
 
 
+class WrongAnswerRequest(BaseModel):
+    quiz_id: int | None = None
+    quiz_title: str = ""
+    q: str = ""
+    options: list = []
+    correct: int = 0
+    explanation: str = ""
+    image_id: int | None = None
+    video_id: int | None = None
+
+
 # ============================================================
 # BASIC HELPERS
 # ============================================================
@@ -225,6 +237,181 @@ def require_services():
             status_code=500,
             detail="DATABASE_URL is not set.",
         )
+
+
+# ============================================================
+# GUARDRAILS
+# (AMIVI, AMICO and Quiz are used by students and teachers —
+# every piece of free text and every uploaded photo passes
+# through here before it reaches a model, and every generated
+# image is forced into a kid-safe style.)
+# ============================================================
+
+MODERATION_MODEL = "omni-moderation-latest"
+
+KID_SAFE_IMAGE_SUFFIX = (
+    " The image must be clearly safe and appropriate for "
+    "children: bright, friendly, educational art style. "
+    "No violence, weapons, blood, gore, or scary/disturbing "
+    "imagery. No nudity, no suggestive poses, no adult or "
+    "revealing clothing of any kind. Any people shown must be "
+    "fully and modestly dressed in ordinary, everyday, "
+    "age-appropriate clothing suitable for a children's "
+    "classroom."
+)
+
+
+def moderate_text(text, context="This"):
+    """
+    Blocks clearly unsafe text (sexual, sexual/minors, violent,
+    hateful, self-harm, etc.) using OpenAI's moderation endpoint.
+    Fails OPEN (allows the request through) if the moderation
+    call itself errors, so a transient API hiccup never blocks
+    normal classroom use.
+    """
+
+    if not text or not text.strip() or not client:
+        return
+
+    try:
+
+        result = client.moderations.create(
+            model=MODERATION_MODEL,
+            input=text[:8000],
+        )
+
+        flagged = result.results[0].flagged
+
+    except Exception as exc:
+
+        print(
+            f"Text moderation check failed "
+            f"(allowing through): {exc}"
+        )
+        return
+
+    if flagged:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{context} isn't appropriate for this "
+                "learning tool. Please use age-appropriate, "
+                "educational content only."
+            ),
+        )
+
+
+def moderate_image_bytes(image_bytes, mime_type, context="This photo"):
+    """
+    Same idea as moderate_text but for an uploaded photo (avatar
+    photo, photo-story photo). Fails open on any error.
+    """
+
+    if not image_bytes or not client:
+        return
+
+    try:
+
+        encoded = base64.b64encode(
+            image_bytes
+        ).decode("utf-8")
+
+        result = client.moderations.create(
+            model=MODERATION_MODEL,
+            input=[
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": (
+                            f"data:{mime_type};base64,{encoded}"
+                        )
+                    },
+                }
+            ],
+        )
+
+        flagged = result.results[0].flagged
+
+    except Exception as exc:
+
+        print(
+            f"Image moderation check failed "
+            f"(allowing through): {exc}"
+        )
+        return
+
+    if flagged:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{context} isn't appropriate for this "
+                "learning tool. Please upload a different photo."
+            ),
+        )
+
+
+def verify_educational_content(text, min_length=12):
+    """
+    Scope-lock: rejects text that plainly isn't educational /
+    learning material (off-topic chit-chat, personal messages,
+    etc.). Skips very short strings and fails open on errors.
+    """
+
+    text = (text or "").strip()
+
+    if len(text) < min_length or not client:
+        return
+
+    try:
+
+        result = call_json_model(
+            LUNA_MODEL,
+            (
+                "You are a strict content-scope classifier for a "
+                "K-12 educational app used by students and "
+                "teachers. Decide whether the supplied text is "
+                "educational / learning material suitable for a "
+                "classroom: a topic, subject matter, textbook "
+                "excerpt, article, or homework prompt all count. "
+                "Off-topic chit-chat, personal messages, adult "
+                "content, or anything unrelated to learning "
+                "should be rejected.\n\n"
+                'Return ONLY JSON: {"is_educational": true or false}'
+            ),
+            text[:4000],
+        )
+
+    except Exception as exc:
+
+        print(
+            f"Educational-scope check failed "
+            f"(allowing through): {exc}"
+        )
+        return
+
+    if result.get("is_educational") is False:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Please use educational / learning material "
+                "only — this doesn't look like study content."
+            ),
+        )
+
+
+def guard_learning_input(text, context="This"):
+    """
+    Combined guardrail for a primary content field a student or
+    teacher submits directly (a topic, pasted material, extracted
+    file text, a homework prompt): must pass moderation AND look
+    like real educational content.
+    """
+
+    moderate_text(text, context)
+    verify_educational_content(text)
 
 
 def get_language_instruction(language: str) -> str:
@@ -424,6 +611,84 @@ def save_quiz(
         db.refresh(row)
 
         return row.id
+
+    finally:
+        db.close()
+
+
+def save_wrong_answer(
+    quiz_id,
+    quiz_title,
+    question_text,
+    options,
+    correct,
+    explanation,
+    image_id,
+    video_id,
+):
+
+    db = SessionLocal()
+
+    try:
+
+        row = WrongAnswer(
+            quiz_id=quiz_id,
+            quiz_title=quiz_title,
+            question_text=question_text,
+            options=options,
+            correct=correct,
+            explanation=explanation,
+            image_id=image_id,
+            video_id=video_id,
+        )
+
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+
+        return row.id
+
+    finally:
+        db.close()
+
+
+def list_wrong_answers():
+
+    db = SessionLocal()
+
+    try:
+
+        return (
+            db.query(WrongAnswer)
+            .order_by(WrongAnswer.created_at.desc())
+            .all()
+        )
+
+    finally:
+        db.close()
+
+
+def delete_wrong_answer(wrong_answer_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(WrongAnswer)
+            .filter(WrongAnswer.id == wrong_answer_id)
+            .first()
+        )
+
+        if not row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Wrong answer not found.",
+            )
+
+        db.delete(row)
+        db.commit()
 
     finally:
         db.close()
@@ -1735,17 +2000,66 @@ def review_amico_photostory(
 # QUIZ
 # ============================================================
 
-def generate_amivi_quiz(
-    text_input,
+def generate_quiz_from_source(
+    source_text,
+    topic,
     language="en",
+    num_questions=5,
 ):
+    """
+    Standalone Quiz generator.
+
+    If `source_text` is supplied, the quiz is built strictly
+    from that material (uploaded / pasted). Otherwise the quiz
+    is built from the model's own knowledge of `topic`.
+
+    Each question includes an `image_prompt` describing a simple
+    supporting illustration (e.g. a labeled map or diagram) for
+    the correct answer.
+    """
+
+    num_questions = max(
+        1,
+        min(
+            int(num_questions or 5),
+            15,
+        ),
+    )
+
+    if source_text:
+
+        grounding = (
+            "Create a "
+            f"{num_questions}-question multiple-choice quiz "
+            "strictly from the supplied educational material. "
+            "Do not invent facts outside the material.\n\n"
+        )
+
+        user_input = source_text
+
+    else:
+
+        grounding = (
+            "Create a "
+            f"{num_questions}-question multiple-choice quiz "
+            "about the following topic, using your own accurate "
+            "knowledge. Keep every question factually correct.\n\n"
+        )
+
+        user_input = topic or "General knowledge"
 
     prompt = (
-        "Create a 5-question multiple-choice quiz strictly "
-        "from the supplied educational material.\n\n"
+        grounding
 
-        "Each question must contain q, exactly 4 options, "
-        "correct as integer 0-3, and explanation.\n\n"
+        + "Each question must contain: "
+        "q (the question), "
+        "options (3 or 4 short answer choices), "
+        "correct (integer index of the right option), "
+        "explanation (1-2 short, simple sentences explaining "
+        "why the correct answer is right), and "
+        "image_prompt (a short description of a simple, clear "
+        "illustration or labeled map/diagram that supports the "
+        "correct answer).\n\n"
 
         'Return ONLY JSON in this structure: '
         '{"quiz":{"title":"...","questions":[...]}}\n\n'
@@ -1758,34 +2072,7 @@ def generate_amivi_quiz(
     return call_json_model(
         TERRA_MODEL,
         prompt,
-        text_input,
-    )
-
-
-def generate_quiz_metadata(
-    quiz,
-    language="en",
-):
-
-    prompt = (
-        "You are AMIVI's lightweight metadata engine.\n"
-        "Do not change the quiz questions or answers.\n\n"
-
-        "Return ONLY JSON containing category, "
-        "difficulty (easy, medium or hard), tags and language.\n\n"
-
-        + get_language_instruction(
-            language
-        )
-    )
-
-    return call_json_model(
-        LUNA_MODEL,
-        prompt,
-        json.dumps(
-            quiz,
-            ensure_ascii=False,
-        ),
+        user_input,
     )
 
 
@@ -1801,12 +2088,14 @@ def generate_image(
 
     require_services()
 
+    safe_prompt = (
+        (prompt or "Educational illustration")
+        + KID_SAFE_IMAGE_SUFFIX
+    )
+
     result = client.images.generate(
         model=IMAGE_MODEL,
-        prompt=(
-            prompt
-            or "Educational illustration"
-        ),
+        prompt=safe_prompt,
         size="1024x1024",
     )
 
@@ -1848,13 +2137,20 @@ def describe_photo_for_avatar(photo_bytes, mime_type):
         model=TERRA_MODEL,
         instructions=(
             "You describe a person's visible appearance for use "
-            "as a consistent comic-book character design: hair "
-            "style and color, skin tone, approximate age range, "
-            "typical clothing/colors visible in the photo, and "
-            "any distinctive visual features. Keep it to 2-3 "
+            "as a consistent comic-book character design in a "
+            "children's educational app: hair style and color, "
+            "skin tone, approximate age range, and any "
+            "distinctive visual features. Keep it to 2-3 "
             "sentences, purely visual and descriptive, suitable "
             "for an image generation prompt. Do not identify or "
-            "name the person."
+            "name the person.\n\n"
+            "CLOTHING SAFETY RULE: always describe the character "
+            "wearing simple, modest, fully-covering everyday "
+            "clothing appropriate for a children's classroom "
+            "(e.g. a t-shirt and pants, a plain dress, a sweater) "
+            "— regardless of what the person is actually wearing "
+            "in the photo. Never describe swimwear, underwear, "
+            "or any revealing or adult clothing."
         ),
         input=[
             {
@@ -2207,6 +2503,44 @@ def create_amivi_video(
             os.remove(
                 output_path
             )
+
+
+# ============================================================
+# QUIZ EXPLANATION VIDEO
+# (narrated audio over the question's supporting image)
+# ============================================================
+
+def generate_quiz_explanation_video(
+    explanation_text,
+    image_id,
+    filename,
+    language="en",
+    project_id=None,
+):
+
+    if not explanation_text:
+        return None
+
+    audio_id = generate_voice(
+        text=explanation_text,
+        filename=filename.replace(
+            ".mp4",
+            ".wav",
+        ),
+        language=language,
+        project_id=project_id,
+    )
+
+    return create_amivi_video(
+        [
+            {
+                "image_id": image_id,
+                "audio_id": audio_id,
+            }
+        ],
+        filename,
+        project_id,
+    )
 
 
 # ============================================================
@@ -3510,6 +3844,11 @@ async def amivi_generate(
                 ),
             )
 
+        guard_learning_input(
+            source_text,
+            "Your learning material",
+        )
+
         # -----------------------------------------------------
         # Terra
         # -----------------------------------------------------
@@ -3717,6 +4056,8 @@ async def amivi_regenerate_image(
             or "Educational illustration"
         )
 
+        moderate_text(prompt, "This image request")
+
         image_id = generate_image(
             prompt,
             (
@@ -3733,6 +4074,9 @@ async def amivi_regenerate_image(
                 f"/api/media/{image_id}"
             ),
         }
+
+    except HTTPException:
+        raise
 
     except Exception as exc:
 
@@ -3865,6 +4209,11 @@ async def amico_generate(
                     "select an AMIVI project as the source."
                 ),
             )
+
+        guard_learning_input(
+            topic,
+            "Your homework topic",
+        )
 
         # -----------------------------------------------------
         # Resolve a saved avatar for character consistency
@@ -4114,6 +4463,8 @@ async def amico_regenerate_panel(
             or "Educational comic panel"
         )
 
+        moderate_text(prompt, "This panel request")
+
         image_id = generate_image(
             prompt,
             (
@@ -4130,6 +4481,9 @@ async def amico_regenerate_panel(
                 f"/api/media/{image_id}"
             ),
         }
+
+    except HTTPException:
+        raise
 
     except Exception as exc:
 
@@ -4284,6 +4638,9 @@ async def amico_add_panel(
 
         data = dict(comic_row.data or {})
         panels = data.get("panels", [])
+
+        if request.topic_hint:
+            moderate_text(request.topic_hint, "Your panel topic")
 
         prompt = (
             "You are AMICO's storytelling engine.\n\n"
@@ -4518,10 +4875,18 @@ async def amico_photostory_generate(
 
         photo_bytes = await file.read()
 
+        moderate_image_bytes(
+            photo_bytes,
+            file.content_type or "image/jpeg",
+            "This photo",
+        )
+
         photo_description = describe_photo_for_story(
             photo_bytes,
             file.content_type or "image/jpeg",
         )
+
+        moderate_text(photo_description, "This photo")
 
         # -----------------------------------------------------
         # Terra writes the diagram-style panel structure
@@ -4711,10 +5076,21 @@ async def avatar_generate(
 
         photo_bytes = await file.read()
 
+        moderate_image_bytes(
+            photo_bytes,
+            file.content_type or "image/jpeg",
+            "This photo",
+        )
+
+        moderate_text(name, "This avatar name")
+        moderate_text(style, "This avatar style")
+
         description = describe_photo_for_avatar(
             photo_bytes,
             file.content_type or "image/jpeg",
         )
+
+        moderate_text(description, "This avatar photo")
 
         image_id = generate_avatar_image(
             description,
@@ -4892,18 +5268,76 @@ def comic_detail(comic_id: int):
 # QUIZ
 # ============================================================
 
-@app.post("/api/amivi/generate_quiz")
-async def generate_quiz(
-    request: AmiviRequest,
+@app.post("/api/quiz/generate")
+async def quiz_generate(
+    mode: str = Form("topic"),
+    topic: str = Form(""),
+    material_text: str = Form(""),
+    language: str = Form("en"),
+    num_questions: int = Form(5),
+    generate_images: bool = Form(True),
+    generate_videos: bool = Form(True),
+    file: UploadFile | None = File(None),
 ):
 
     try:
 
         require_services()
 
-        result = generate_amivi_quiz(
-            request.text,
-            request.language,
+        source_text = material_text.strip()
+        topic_clean = topic.strip()
+
+        if file is not None:
+
+            file_bytes = await file.read()
+
+            if file_bytes:
+
+                extracted = extract_text_from_file(
+                    file_bytes,
+                    file.filename or "upload.txt",
+                )
+
+                source_text = (
+                    f"{source_text}\n{extracted}"
+                    if source_text
+                    else extracted
+                )
+
+        use_material = (
+            mode == "material"
+            and bool(source_text)
+        )
+
+        if mode == "material" and not source_text:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Please paste or upload learning "
+                    "material for the quiz."
+                ),
+            )
+
+        if mode != "material" and not topic_clean:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Please enter a topic for the quiz.",
+            )
+
+        guard_learning_input(
+            source_text if use_material else topic_clean,
+            "This quiz material"
+            if use_material
+            else "This quiz topic",
+        )
+
+        result = generate_quiz_from_source(
+            source_text if use_material else "",
+            topic_clean,
+            language,
+            num_questions,
         )
 
         quiz = result.get(
@@ -4911,38 +5345,237 @@ async def generate_quiz(
             result,
         )
 
-        quiz["metadata"] = (
-            generate_quiz_metadata(
-                quiz,
-                request.language,
-            )
+        quiz_title = quiz.get(
+            "title",
+            topic_clean or "Quiz",
         )
 
         project_id = save_project(
             project_type="quiz",
-            title=quiz.get(
-                "title",
-                "AMIVI Quiz",
-            ),
-            input_text=request.text,
-            language=request.language,
+            title=quiz_title,
+            input_text=source_text or topic_clean,
+            language=language,
             data=quiz,
         )
 
+        processed_questions = []
+
+        for index, question in enumerate(
+            quiz.get(
+                "questions",
+                [],
+            )
+        ):
+
+            image_id = None
+            video_id = None
+
+            if generate_images:
+
+                try:
+
+                    image_id = generate_image(
+                        prompt=question.get(
+                            "image_prompt",
+                            question.get("q", ""),
+                        ),
+                        filename=(
+                            f"quiz_{project_id}"
+                            f"_q{index}.png"
+                        ),
+                        project_id=project_id,
+                    )
+
+                except Exception as image_exc:
+
+                    print(
+                        "Quiz image generation "
+                        f"failed for question {index}: "
+                        f"{image_exc}"
+                    )
+
+            if generate_videos and image_id:
+
+                try:
+
+                    video_id = generate_quiz_explanation_video(
+                        explanation_text=question.get(
+                            "explanation",
+                            "",
+                        ),
+                        image_id=image_id,
+                        filename=(
+                            f"quiz_{project_id}"
+                            f"_q{index}.mp4"
+                        ),
+                        language=language,
+                        project_id=project_id,
+                    )
+
+                except Exception as video_exc:
+
+                    print(
+                        "Quiz video generation "
+                        f"failed for question {index}: "
+                        f"{video_exc}"
+                    )
+
+            processed_questions.append(
+                {
+                    "question_id": index,
+                    "q": question.get("q", ""),
+                    "options": question.get(
+                        "options",
+                        [],
+                    ),
+                    "correct": question.get(
+                        "correct",
+                        0,
+                    ),
+                    "explanation": question.get(
+                        "explanation",
+                        "",
+                    ),
+                    "image_id": image_id,
+                    "image_url": (
+                        f"/api/media/{image_id}"
+                        if image_id
+                        else None
+                    ),
+                    "video_id": video_id,
+                    "video_url": (
+                        f"/api/media/{video_id}"
+                        if video_id
+                        else None
+                    ),
+                }
+            )
+
+        final_quiz = {
+            "title": quiz_title,
+            "questions": processed_questions,
+        }
+
         quiz_id = save_quiz(
             project_id,
-            quiz.get(
-                "title",
-                "AMIVI Quiz",
-            ),
-            quiz,
+            quiz_title,
+            final_quiz,
         )
 
         return {
             "status": "success",
             "project_id": project_id,
             "quiz_id": quiz_id,
-            "quiz": quiz,
+            "quiz": final_quiz,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# QUIZ WRONG ANSWERS BANK
+# (durable — persists in PostgreSQL until answered correctly
+# during a bank retake, so teachers can come back after a
+# month or a year and still find it here)
+# ============================================================
+
+@app.post("/api/quiz/wrong_answers")
+def quiz_wrong_answer_save(
+    request: WrongAnswerRequest,
+):
+
+    try:
+
+        wrong_answer_id = save_wrong_answer(
+            quiz_id=request.quiz_id,
+            quiz_title=request.quiz_title,
+            question_text=request.q,
+            options=request.options,
+            correct=request.correct,
+            explanation=request.explanation,
+            image_id=request.image_id,
+            video_id=request.video_id,
+        )
+
+        return {
+            "status": "success",
+            "id": wrong_answer_id,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+@app.get("/api/quiz/wrong_answers")
+def quiz_wrong_answers_list():
+
+    rows = list_wrong_answers()
+
+    return {
+        "items": [
+            {
+                "id": row.id,
+                "quiz_id": row.quiz_id,
+                "quiz_title": row.quiz_title,
+                "q": row.question_text,
+                "options": row.options or [],
+                "correct": row.correct,
+                "explanation": row.explanation,
+                "image_id": row.image_id,
+                "image_url": (
+                    f"/api/media/{row.image_id}"
+                    if row.image_id
+                    else None
+                ),
+                "video_id": row.video_id,
+                "video_url": (
+                    f"/api/media/{row.video_id}"
+                    if row.video_id
+                    else None
+                ),
+                "created_at": (
+                    row.created_at.isoformat()
+                    if row.created_at
+                    else None
+                ),
+            }
+            for row in rows
+        ]
+    }
+
+
+@app.delete("/api/quiz/wrong_answers/{wrong_answer_id}")
+def quiz_wrong_answer_delete(wrong_answer_id: int):
+
+    try:
+
+        delete_wrong_answer(wrong_answer_id)
+
+        return {
+            "status": "success",
         }
 
     except HTTPException:

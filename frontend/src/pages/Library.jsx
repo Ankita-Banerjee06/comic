@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Play, Share2, Trash2 } from 'lucide-react';
+import { Search, Play, Palette, BookOpen, Puzzle, FileText } from 'lucide-react';
 import { listProjects, listComics, mediaUrl } from '../services/api';
 
 const TYPE_META = {
-  amivi: { type: 'Visual', emoji: '🎨', color: 'from-orange-400 to-red-500', bgIcon: '🎨' },
-  amico: { type: 'Comic', emoji: '📚', color: 'from-pink-400 to-rose-500', bgIcon: '📚' },
-  quiz: { type: 'Quiz', emoji: '🧩', color: 'from-purple-500 to-indigo-600', bgIcon: '🧩' },
+  amivi: { type: 'Visual', icon: Palette, tint: 'bg-orange-50', iconColor: 'text-orange-500' },
+  amico: { type: 'Comic', icon: BookOpen, tint: 'bg-pink-50', iconColor: 'text-pink-500' },
+  quiz: { type: 'Quiz', icon: Puzzle, tint: 'bg-purple-50', iconColor: 'text-purple-500' },
 };
 
-const DEFAULT_META = { type: 'Homework', emoji: '📝', color: 'from-green-400 to-teal-500', bgIcon: '📝' };
+const DEFAULT_META = { type: 'Homework', icon: FileText, tint: 'bg-green-50', iconColor: 'text-green-500' };
 
 const tabs = [
-  { label: '🌟 All',    key: 'All Files'   },
-  { label: '🎨 Visuals',   key: 'My Visuals'  },
-  { label: '📚 Comics',    key: 'My Comics'   },
-  { label: '🧩 Quizzes',   key: 'My Quizzes'  },
+  { label: 'All', key: 'All Files' },
+  { label: 'Visuals', key: 'My Visuals' },
+  { label: 'Comics', key: 'My Comics' },
+  { label: 'Quizzes', key: 'My Quizzes' },
 ];
 
 export default function Library() {
@@ -43,9 +43,9 @@ export default function Library() {
             id: project.project_id,
             title: project.title || `${meta.type} #${project.project_id}`,
             type: meta.type,
-            emoji: meta.emoji,
-            color: meta.color,
-            bgIcon: meta.bgIcon,
+            icon: meta.icon,
+            tint: meta.tint,
+            iconColor: meta.iconColor,
             thumbnailUrl: thumbnail ? mediaUrl(thumbnail) : null,
             date: project.created_at
               ? new Date(project.created_at).toLocaleDateString()
@@ -79,45 +79,48 @@ export default function Library() {
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
-      <div className="bg-gradient-to-br from-[#1e40af] to-[#3b82f6] text-white rounded-[40px] p-10 shadow-2xl relative overflow-hidden">
-        <div className="absolute -top-10 -right-10 text-[180px] opacity-10 leading-none select-none pointer-events-none transform rotate-12">🖼️</div>
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-          <div className="flex items-center gap-6">
-            <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md border border-white/30">
-               <span className="text-5xl drop-shadow-md">🖼️</span>
-            </div>
-            <div>
-              <h1 className="text-5xl font-black mb-2 tracking-tight">Visual Library</h1>
-              <p className="text-blue-100 font-bold text-xl">Browse all your beautiful learning creations.</p>
-            </div>
+      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8" style={{ minHeight: 180, background: '#eff6ff' }}>
+        <img
+          src="/vlq-gen-dashboard.png"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: 'rgba(15,23,42,0.6)' }}
+        />
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1.5">Your library</h1>
+            <p className="text-white/90 font-medium">Browse everything you've created, in one place.</p>
           </div>
 
-          {/* Search + Filter */}
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:w-80">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-white/70" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search gallery..."
-                className="w-full pl-14 pr-4 py-4 bg-white/10 border-2 border-white/20 rounded-3xl text-white placeholder-white/60 font-bold text-lg focus:outline-none focus:bg-white/20 focus:border-white/40 transition-all backdrop-blur-sm shadow-inner"
-              />
-            </div>
+          {/* Search */}
+          <div className="relative w-full md:w-72">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/70" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search your library..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white/15 border border-white/25 rounded-xl text-white placeholder-white/60 font-medium text-sm focus:outline-none focus:bg-white/25 focus:border-white/40 transition-all"
+            />
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+      <div className="flex flex-wrap gap-2">
         {tabs.map(({ label, key }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`px-6 py-3 rounded-full font-black text-base transition-all ${
+            className={`px-4 py-2 rounded-full font-semibold text-sm transition-colors ${
               activeTab === key
-                ? 'bg-[#1e40af] text-white shadow-lg scale-105 border-b-4 border-blue-900'
-                : 'bg-white border-2 border-gray-100 text-gray-500 hover:border-blue-300 hover:text-blue-600 hover:-translate-y-1 shadow-sm'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white border border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600'
             }`}
           >
             {label}
@@ -126,21 +129,19 @@ export default function Library() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200">
-            <div className="text-7xl mb-6 opacity-50 animate-pulse">⏳</div>
-            <p className="text-gray-400 font-black text-2xl">Loading your library...</p>
+          <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+            <p className="text-slate-400 font-semibold">Loading your library…</p>
           </div>
         ) : filteredData.length > 0 ? (
           filteredData.map(item => (
             <LibraryCard key={item.id} {...item} />
           ))
         ) : (
-          <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200">
-            <div className="text-7xl mb-6 opacity-50 animate-float">🎨</div>
-            <p className="text-gray-400 font-black text-3xl mb-2">No visuals found!</p>
-            <p className="text-gray-400 font-bold text-lg">Try a different search or create something new.</p>
+          <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+            <p className="text-slate-500 font-bold text-lg mb-1">Nothing here yet</p>
+            <p className="text-slate-400 font-medium text-sm">Try a different search, or create something new.</p>
           </div>
         )}
       </div>
@@ -148,45 +149,35 @@ export default function Library() {
   );
 }
 
-function LibraryCard({ title, type, date, emoji, color, bgIcon, thumbnailUrl }) {
+function LibraryCard({ title, type, date, icon: Icon, tint, iconColor, thumbnailUrl }) {
   return (
-    <div className="bg-white rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.08)] card-hover group border-4 border-white cursor-pointer relative">
-      {/* Large Thumbnail */}
-      <div className={`h-56 w-full bg-gradient-to-br ${color} flex items-center justify-center relative overflow-hidden`}>
+    <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow group cursor-pointer">
+      {/* Thumbnail */}
+      <div className={`h-44 w-full ${tint} flex items-center justify-center relative overflow-hidden`}>
         {thumbnailUrl ? (
           <img
             src={thumbnailUrl}
             alt={title}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <>
-            {/* Abstract background icon */}
-            <div className="absolute -right-8 -bottom-8 text-[120px] opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform duration-500">
-               {bgIcon}
-            </div>
-
-            {/* Main visual emoji */}
-            <div className="relative bg-white/20 p-6 rounded-[32px] backdrop-blur-md shadow-lg border border-white/30 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-               <span className="text-7xl drop-shadow-md">{emoji}</span>
-            </div>
-          </>
+          <Icon className={`w-12 h-12 ${iconColor}`} />
         )}
-        
+
         {/* Badge */}
-        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-gray-800 text-xs font-black uppercase tracking-wider shadow-sm border border-white flex items-center gap-2">
-          {bgIcon} {type}
+        <div className="absolute top-3 left-3 bg-white/90 px-3 py-1 rounded-full text-slate-700 text-xs font-bold flex items-center gap-1.5">
+          <Icon className={`w-3.5 h-3.5 ${iconColor}`} /> {type}
         </div>
       </div>
 
-      {/* Minimal Content */}
-      <div className="p-6 bg-white">
-        <h3 className="text-xl font-black text-gray-800 group-hover:text-[#1e40af] transition-colors mb-2 line-clamp-1 truncate">{title}</h3>
+      {/* Content */}
+      <div className="p-4">
+        <h3 className="font-bold text-slate-800 group-hover:text-blue-700 transition-colors mb-1 truncate">{title}</h3>
         <div className="flex justify-between items-center">
-           <p className="text-sm text-gray-400 font-bold">{date}</p>
-           <button className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-             <Play className="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="currentColor"/>
-           </button>
+          <p className="text-xs text-slate-400 font-semibold">{date}</p>
+          <button className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+            <Play className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500" fill="currentColor" />
+          </button>
         </div>
       </div>
     </div>

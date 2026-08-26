@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 
 import {
   generateAmivi,
-  generateAmiviQuiz,
   regenerateAmiviImage,
   editAmiviChunk,
   API_URL,
@@ -27,7 +26,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Amivi() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
   const [result, setResult] = useState(null);
   const [textInput, setTextInput] = useState('');
@@ -270,50 +268,6 @@ export default function Amivi() {
   };
 
   // ============================================================
-  // QUIZ
-  // ============================================================
-
-  const handleGenerateQuiz = async () => {
-    setIsGeneratingQuiz(true);
-
-    try {
-      const quizData =
-        await generateAmiviQuiz(
-          textInput,
-          language
-        );
-
-      if (
-        quizData &&
-        quizData.quiz
-      ) {
-        navigate('/quiz', {
-          state: {
-            quiz: quizData.quiz,
-          },
-        });
-      } else {
-        throw new Error(
-          'Invalid quiz data returned.'
-        );
-      }
-
-    } catch (err) {
-      console.error(
-        'Quiz generation failed:',
-        err
-      );
-
-      alert(
-        'Failed to generate quiz. Please try again.'
-      );
-
-    } finally {
-      setIsGeneratingQuiz(false);
-    }
-  };
-
-  // ============================================================
   // RENDER
   // ============================================================
 
@@ -324,43 +278,38 @@ export default function Amivi() {
           HEADER
       ======================================================= */}
 
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-4xl p-8 shadow-2xl relative overflow-hidden">
+      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200" style={{ minHeight: 240, background: '#eff6ff' }}>
 
-        <div className="absolute top-0 right-0 text-[100px] opacity-10 leading-none select-none pointer-events-none">
-          🎨
-        </div>
+        <img
+          src="/vlq-gen-amivi.png"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
 
-        <div className="relative z-10">
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(100deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.55) 50%, rgba(15,23,42,0.15) 100%)' }}
+        />
 
-          <div className="flex items-center gap-3 mb-3">
+        <div className="relative z-10 p-8 sm:p-10 max-w-2xl">
 
-            <span className="text-5xl">
-              🎨
-            </span>
-
-            <div>
-
-              <h1 className="text-4xl font-black">
-                {t('AMIVI')} Studio
-              </h1>
-
-              <p className="text-blue-100 font-bold text-lg">
-                {t(
-                  'SEE IT. Transform text into amazing visuals!'
-                )}{' '}
-                ✨
-              </p>
-
-            </div>
-
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-white"
+            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)' }}
+          >
+            AMIVI
           </div>
 
-          <p className="text-blue-100 font-semibold max-w-3xl">
-            Transform large learning material or
-            public video content into meaningful visual
-            micro-bits with supporting images,
-            explanations, narration and an optional
-            educational video.
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-3">
+            {t('AMIVI')} Studio
+          </h1>
+
+          <p className="text-white/90 font-medium max-w-xl">
+            {t(
+              'Transform large learning material or public video content into clear visual micro-bits with supporting images, explanations, narration and an optional educational video.'
+            )}
           </p>
 
         </div>
@@ -379,7 +328,7 @@ export default function Amivi() {
 
           <div className="bg-white rounded-4xl border-2 border-blue-100 shadow-xl p-8 flex flex-col">
 
-            <h2 className="text-2xl font-black text-gray-800 mb-2">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
               📝 {t('Your Learning Material')}
             </h2>
 
@@ -431,7 +380,7 @@ export default function Amivi() {
                 !textInput.trim() &&
                 !videoUrl.trim()
               }
-              className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl transition-all text-xl hover:scale-[1.02] hover:shadow-[0_10px_25px_rgba(59,130,246,0.4)] flex items-center justify-center gap-3 shadow-lg"
+              className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-xl hover:scale-[1.02] hover:shadow-[0_10px_25px_rgba(59,130,246,0.4)] flex items-center justify-center gap-3 shadow-lg"
             >
 
               <Sparkles className="w-6 h-6" />
@@ -453,7 +402,7 @@ export default function Amivi() {
 
           <div className="bg-white rounded-4xl border-2 border-purple-100 shadow-xl p-8 flex flex-col">
 
-            <h2 className="text-2xl font-black text-gray-800 mb-2">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
               📄 {t('Upload or Learn from Video')}
             </h2>
 
@@ -521,7 +470,7 @@ export default function Amivi() {
 
               <div>
 
-                <p className="font-black text-xl">
+                <p className="font-bold text-xl">
                   {t('Generation Complete!')}
                 </p>
 
@@ -540,22 +489,10 @@ export default function Amivi() {
             <div className="flex items-center gap-4">
 
               <button
-                onClick={handleGenerateQuiz}
-                disabled={
-                  isGeneratingQuiz ||
-                  !textInput.trim()
-                }
-                className="px-6 py-3 bg-white text-green-700 font-black rounded-2xl hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-lg"
+                onClick={() => navigate('/quiz')}
+                className="px-6 py-3 bg-white text-green-700 font-bold rounded-2xl hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-lg"
               >
-
-                🧩{' '}
-
-                {isGeneratingQuiz
-                  ? 'Generating Quiz...'
-                  : t(
-                      'Take Quiz on this Topic'
-                    )}
-
+                🧩 {t('Go to Quiz')}
               </button>
 
               <button
@@ -580,7 +517,7 @@ export default function Amivi() {
                 <div className="flex items-center gap-3">
                   <Video className="text-blue-600" />
                   <div>
-                    <h3 className="text-2xl font-black text-gray-800">
+                    <h3 className="text-2xl font-bold text-gray-800">
                       🎬 Educational Video
                     </h3>
                     <p className="text-sm text-gray-500 font-semibold">
@@ -598,7 +535,7 @@ export default function Amivi() {
                 </button>
               </div>
 
-              <div className="rounded-3xl overflow-hidden border-4 border-blue-200 shadow-2xl bg-black aspect-video">
+              <div className="rounded-3xl overflow-hidden border-4 border-blue-200 shadow-lg bg-black aspect-video">
 
                 <video
                   controls
@@ -624,7 +561,7 @@ export default function Amivi() {
 
             <div>
 
-              <h3 className="text-3xl font-black text-gray-800 flex items-center gap-2">
+              <h3 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
                 🧠 Visual Micro-Bits
               </h3>
 
@@ -646,7 +583,7 @@ export default function Amivi() {
                       chunk.chunk_id ||
                       index
                     }
-                    className="bg-white rounded-3xl border-2 border-orange-100 shadow-lg overflow-hidden hover:shadow-2xl transition-all"
+                    className="bg-white rounded-3xl border-2 border-orange-100 shadow-lg overflow-hidden hover:shadow-lg transition-all"
                   >
 
                     {/* IMAGE */}
@@ -678,7 +615,7 @@ export default function Amivi() {
 
                       {/* NUMBER */}
 
-                      <div className="absolute top-4 left-4 bg-red-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-black shadow-lg">
+                      <div className="absolute top-4 left-4 bg-red-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg">
                         {index + 1}
                       </div>
 
@@ -716,7 +653,7 @@ export default function Amivi() {
 
                     <div className="p-6">
 
-                      <p className="text-xl font-black text-gray-800">
+                      <p className="text-xl font-bold text-gray-800">
                         {chunk.text ||
                           chunk.key_point ||
                           `Chunk ${
@@ -726,7 +663,7 @@ export default function Amivi() {
 
                       {chunk.slogan && (
 
-                        <p className="mt-3 text-orange-600 font-black">
+                        <p className="mt-3 text-orange-600 font-bold">
                           ✨ {chunk.slogan}
                         </p>
 
@@ -810,7 +747,7 @@ export default function Amivi() {
 
             <button
               type="button"
-              className="py-4 bg-gray-900 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-3 opacity-70 cursor-not-allowed"
+              className="py-4 bg-gray-900 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 opacity-70 cursor-not-allowed"
             >
               <Save size={20} />
               Save to Library
@@ -818,7 +755,7 @@ export default function Amivi() {
 
             <button
               type="button"
-              className="py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 opacity-70 cursor-not-allowed"
+              className="py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 opacity-70 cursor-not-allowed"
             >
               Send to AMICO
               <ArrowRight size={20} />
@@ -827,7 +764,7 @@ export default function Amivi() {
             <button
               type="button"
               onClick={resetAmivi}
-              className="py-4 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl font-black text-lg hover:bg-blue-50 transition"
+              className="py-4 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl font-bold text-lg hover:bg-blue-50 transition"
             >
               Start New AMIVI
             </button>
@@ -886,7 +823,7 @@ export default function Amivi() {
                     fullscreenChunk.text ||
                     'AMIVI visual'
                   }
-                  className="max-w-full max-h-[82vh] lg:max-h-[92vh] object-contain rounded-2xl shadow-2xl"
+                  className="max-w-full max-h-[82vh] lg:max-h-[92vh] object-contain rounded-2xl shadow-lg"
                 />
 
               ) : (
@@ -902,11 +839,11 @@ export default function Amivi() {
 
             {/* INFO PANEL */}
 
-            <div className="w-full lg:w-[390px] max-h-[82vh] lg:max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-7 shadow-2xl flex-shrink-0">
+            <div className="w-full lg:w-[390px] max-h-[82vh] lg:max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-7 shadow-lg flex-shrink-0">
 
               <div className="flex items-center justify-between mb-4">
 
-                <span className="px-4 py-2 rounded-full bg-red-500 text-white font-black">
+                <span className="px-4 py-2 rounded-full bg-red-500 text-white font-bold">
                   Chunk{' '}
                   {fullscreenChunk.chunk_number || ''}
                 </span>
@@ -922,7 +859,7 @@ export default function Amivi() {
               </div>
 
 
-              <h2 className="text-2xl font-black text-gray-800">
+              <h2 className="text-2xl font-bold text-gray-800">
                 {fullscreenChunk.text ||
                   fullscreenChunk.key_point ||
                   'AMIVI Visual'}
@@ -931,7 +868,7 @@ export default function Amivi() {
 
               {fullscreenChunk.slogan && (
 
-                <p className="mt-4 text-orange-600 font-black text-lg">
+                <p className="mt-4 text-orange-600 font-bold text-lg">
                   ✨{' '}
                   {fullscreenChunk.slogan}
                 </p>
@@ -952,7 +889,7 @@ export default function Amivi() {
 
                 <div className="mt-6">
 
-                  <p className="text-sm font-black text-gray-700 mb-2">
+                  <p className="text-sm font-bold text-gray-700 mb-2">
                     🔊 Narration
                   </p>
 
@@ -984,8 +921,8 @@ export default function Amivi() {
       ======================================================= */}
       {editingChunk && (
         <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl">
-            <h2 className="text-2xl font-black text-gray-800 mb-4">Edit Micro-Bit</h2>
+          <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-lg">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Edit Micro-Bit</h2>
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Text / Key Point</label>

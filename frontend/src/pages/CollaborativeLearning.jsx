@@ -1,105 +1,113 @@
-import { Link } from 'react-router-dom';
-import { Users, MessageCircle, BookOpen, Star, ArrowRight, Zap, Globe, Heart, Share2, Award, ChevronRight } from 'lucide-react';
+import { Users, MessageCircle, Globe, Award, Share2, ChevronRight, Leaf, Orbit, Ruler, Landmark, Dna, Zap, Trophy } from 'lucide-react';
 
 const channels = [
-  { emoji: '🌿', title: 'Photosynthesis Study Group', members: 24, active: 3, color: 'from-green-400 to-teal-500', topic: 'Biology' },
-  { emoji: '🪐', title: 'Solar System Explorers', members: 18, active: 6, color: 'from-blue-400 to-indigo-500', topic: 'Science' },
-  { emoji: '📐', title: 'Calculus Crew', members: 31, active: 1, color: 'from-purple-400 to-pink-500', topic: 'Math' },
-  { emoji: '🏛️', title: 'World History Circle', members: 45, active: 8, color: 'from-orange-400 to-red-400', topic: 'History' },
-  { emoji: '🧬', title: 'DNA & Genetics Lab', members: 12, active: 2, color: 'from-pink-400 to-rose-500', topic: 'Biology' },
-  { emoji: '⚡', title: 'Physics Challenge Room', members: 29, active: 5, color: 'from-yellow-400 to-orange-500', topic: 'Physics' },
+  { icon: Leaf, title: 'Photosynthesis Study Group', members: 24, active: 3, tint: 'bg-green-50', iconColor: 'text-green-600', topic: 'Biology' },
+  { icon: Orbit, title: 'Solar System Explorers', members: 18, active: 6, tint: 'bg-blue-50', iconColor: 'text-blue-600', topic: 'Science' },
+  { icon: Ruler, title: 'Calculus Crew', members: 31, active: 1, tint: 'bg-purple-50', iconColor: 'text-purple-600', topic: 'Math' },
+  { icon: Landmark, title: 'World History Circle', members: 45, active: 8, tint: 'bg-orange-50', iconColor: 'text-orange-600', topic: 'History' },
+  { icon: Dna, title: 'DNA & Genetics Lab', members: 12, active: 2, tint: 'bg-pink-50', iconColor: 'text-pink-600', topic: 'Biology' },
+  { icon: Zap, title: 'Physics Challenge Room', members: 29, active: 5, tint: 'bg-yellow-50', iconColor: 'text-yellow-600', topic: 'Physics' },
 ];
 
 const liveActivity = [
-  { user: 'Zara K.', action: 'shared a visual on Gravity', time: '2 min ago', avatar: '👩🏽', color: 'bg-blue-100 text-blue-700' },
-  { user: 'Roh A.', action: 'solved the Photosynthesis quiz', time: '5 min ago', avatar: '🧑🏻', color: 'bg-green-100 text-green-700' },
-  { user: 'Lucas M.', action: 'created an AMICO comic', time: '9 min ago', avatar: '👨🏾', color: 'bg-purple-100 text-purple-700' },
-  { user: 'Mia T.', action: 'started a group challenge', time: '14 min ago', avatar: '👩🏻', color: 'bg-pink-100 text-pink-700' },
+  { user: 'Zara K.', action: 'shared a visual on Gravity', time: '2 min ago' },
+  { user: 'Roh A.', action: 'solved the Photosynthesis quiz', time: '5 min ago' },
+  { user: 'Lucas M.', action: 'created an AMICO comic', time: '9 min ago' },
+  { user: 'Mia T.', action: 'started a group challenge', time: '14 min ago' },
 ];
 
 const features = [
-  { icon: <MessageCircle className="w-7 h-7" />, title: 'Group Discussions', desc: 'Share visuals, comics and ideas with your study group.', color: 'bg-blue-500' },
-  { icon: <Globe className="w-7 h-7" />, title: 'Global Learners', desc: 'Connect with learners from around the world.', color: 'bg-teal-500' },
-  { icon: <Award className="w-7 h-7" />, title: 'Team Challenges', desc: 'Compete as a group and win badges together.', color: 'bg-purple-500' },
-  { icon: <Share2 className="w-7 h-7" />, title: 'Share Creations', desc: 'Share your AMIVI visuals and AMICO comics instantly.', color: 'bg-pink-500' },
+  { icon: MessageCircle, title: 'Group discussions', desc: 'Share visuals, comics and ideas with your study group.', tint: 'bg-blue-50', iconColor: 'text-blue-600' },
+  { icon: Globe, title: 'Global learners', desc: 'Connect with learners from around the world.', tint: 'bg-teal-50', iconColor: 'text-teal-600' },
+  { icon: Award, title: 'Team challenges', desc: 'Compete as a group and win badges together.', tint: 'bg-purple-50', iconColor: 'text-purple-600' },
+  { icon: Share2, title: 'Share creations', desc: 'Share your AMIVI visuals and AMICO comics instantly.', tint: 'bg-pink-50', iconColor: 'text-pink-600' },
 ];
 
 export default function CollaborativeLearning() {
   return (
-    <div className="space-y-10 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Header */}
-      <div className="relative bg-gradient-to-br from-[#1e40af] via-[#2563eb] to-[#7c3aed] text-white rounded-[40px] p-10 shadow-2xl overflow-hidden">
-        <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none"/>
-        <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-purple-400/20 blur-2xl pointer-events-none"/>
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8 text-white" style={{ minHeight: 200, background: '#eef2ff' }}>
+        <img
+          src="/vlq-gen-collab.png"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: 'rgba(30,27,75,0.62)' }}
+        />
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 bg-white/15 border border-white/30 rounded-full px-5 py-2 text-sm font-bold mb-5 backdrop-blur-sm">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-              147 Learners Active Now
+            <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5 text-xs font-bold mb-4">
+              <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+              147 learners active now
             </div>
-            <h1 className="text-4xl md:text-5xl font-black mb-3 leading-tight tracking-tight">
-              Collaborative<br/>Learning 🤝
+            <h1 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">
+              Collaborative learning
             </h1>
-            <p className="text-blue-100 font-semibold text-lg max-w-lg leading-relaxed">
-              Join study groups, share visual creations and learn together. Learning is more fun when you're not alone!
+            <p className="text-white/90 font-medium max-w-lg">
+              Join study groups, share visual creations and learn together.
             </p>
           </div>
-          <div className="flex flex-col gap-3 min-w-max">
-            <button className="flex items-center gap-3 px-7 py-3.5 bg-white text-[#1d4ed8] rounded-2xl font-black text-base hover:-translate-y-1 hover:shadow-lg transition-all shadow-md">
-              <Users className="w-5 h-5" /> Create a Group
+          <div className="flex flex-col gap-2 min-w-max">
+            <button className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 rounded-xl font-bold text-sm hover:-translate-y-0.5 transition-all">
+              <Users className="w-4 h-4" /> Create a group
             </button>
-            <button className="flex items-center gap-3 px-7 py-3.5 bg-white/15 border-2 border-white/40 text-white rounded-2xl font-black text-base hover:bg-white/25 transition-colors backdrop-blur-sm">
-              <Globe className="w-5 h-5" /> Browse Groups
+            <button className="flex items-center gap-2 px-5 py-2.5 bg-white/10 border border-white/25 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-colors">
+              <Globe className="w-4 h-4" /> Browse groups
             </button>
           </div>
         </div>
       </div>
 
       {/* Feature tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {features.map(f => (
-          <div key={f.title} className="bg-white rounded-3xl p-6 shadow-lg border-2 border-gray-100 card-hover flex flex-col gap-4">
-            <div className={`${f.color} text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-md`}>
-              {f.icon}
+          <div key={f.title} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col gap-3">
+            <div className={`${f.tint} w-11 h-11 rounded-xl flex items-center justify-center`}>
+              <f.icon className={`w-5 h-5 ${f.iconColor}`} />
             </div>
             <div>
-              <div className="font-black text-gray-800 text-base mb-1">{f.title}</div>
-              <div className="text-sm text-gray-500 font-semibold leading-snug">{f.desc}</div>
+              <div className="font-bold text-slate-800 text-sm mb-1">{f.title}</div>
+              <div className="text-xs text-slate-500 font-medium leading-snug">{f.desc}</div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Study Channels */}
         <div className="lg:col-span-2">
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="text-2xl font-black text-gray-800">📚 Study Channels</h2>
-            <button className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">View all →</button>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-slate-900">Study channels</h2>
+            <button className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">View all →</button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {channels.map(ch => (
-              <div key={ch.title} className="bg-white border-2 border-gray-100 rounded-[28px] overflow-hidden shadow-lg card-hover group cursor-pointer">
-                <div className={`bg-gradient-to-br ${ch.color} h-28 flex items-center justify-center text-6xl relative`}>
-                  {ch.emoji}
-                  <div className="absolute top-3 right-3 bg-white/25 backdrop-blur-sm text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
+              <div key={ch.title} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group cursor-pointer">
+                <div className={`${ch.tint} h-24 flex items-center justify-center relative`}>
+                  <ch.icon className={`w-9 h-9 ${ch.iconColor}`} />
+                  <div className="absolute top-2.5 right-2.5 bg-white/80 text-slate-600 text-xs font-bold px-2.5 py-0.5 rounded-full">
                     {ch.topic}
                   </div>
                 </div>
-                <div className="p-5">
-                  <h3 className="font-black text-gray-800 text-base mb-2 group-hover:text-blue-600 transition-colors leading-snug">{ch.title}</h3>
+                <div className="p-4">
+                  <h3 className="font-bold text-slate-800 text-sm mb-2 group-hover:text-blue-600 transition-colors leading-snug">{ch.title}</h3>
                   <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2 text-sm text-gray-500 font-semibold">
-                      <Users className="w-4 h-4" /> {ch.members} members
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                      <Users className="w-3.5 h-3.5" /> {ch.members} members
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm font-bold text-green-600">
-                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600">
+                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
                       {ch.active} online
                     </div>
                   </div>
-                  <button className="mt-4 w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-black rounded-xl text-sm hover:scale-105 transition-transform shadow-sm">
-                    Join Group
+                  <button className="mt-3 w-full py-2 bg-blue-50 text-blue-700 font-bold rounded-lg text-sm hover:bg-blue-100 transition-colors">
+                    Join group
                   </button>
                 </div>
               </div>
@@ -109,32 +117,34 @@ export default function CollaborativeLearning() {
 
         {/* Live Activity Feed */}
         <div>
-          <h2 className="text-2xl font-black text-gray-800 mb-5">⚡ Live Activity</h2>
-          <div className="bg-white border-2 border-gray-100 rounded-[28px] p-6 shadow-lg space-y-5">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Live activity</h2>
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
             {liveActivity.map(a => (
-              <div key={a.user} className="flex items-start gap-4">
-                <div className="text-3xl flex-shrink-0">{a.avatar}</div>
+              <div key={a.user} className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-slate-500">{a.user.charAt(0)}</span>
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-800 leading-snug">
-                    <span className="font-black">{a.user}</span> {a.action}
+                  <p className="text-sm font-medium text-slate-700 leading-snug">
+                    <span className="font-bold text-slate-900">{a.user}</span> {a.action}
                   </p>
-                  <div className={`inline-block mt-1 text-xs font-bold px-3 py-0.5 rounded-full ${a.color}`}>{a.time}</div>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">{a.time}</p>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Challenge card */}
-          <div className="mt-5 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-[28px] p-6 shadow-xl text-white">
-            <div className="text-4xl mb-3">🏆</div>
-            <h3 className="font-black text-xl mb-2">Weekly Challenge</h3>
-            <p className="text-yellow-100 font-semibold text-sm mb-4 leading-snug">
-              Create a Visual on "The Water Cycle" and get the most group likes this week!
+          <div className="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-5">
+            <Trophy className="w-7 h-7 text-amber-500 mb-3" />
+            <h3 className="font-bold text-slate-800 mb-1.5">Weekly challenge</h3>
+            <p className="text-slate-600 font-medium text-sm mb-4 leading-snug">
+              Create a visual on "The Water Cycle" and get the most group likes this week.
             </p>
             <div className="flex justify-between items-center">
-              <div className="text-sm font-bold text-yellow-100">Ends in <span className="text-white font-black">3 days</span></div>
-              <button className="bg-white text-orange-600 font-black text-sm px-4 py-2 rounded-xl hover:scale-105 transition-transform shadow-sm">
-                Join <ChevronRight className="w-4 h-4 inline" />
+              <div className="text-xs font-semibold text-slate-500">Ends in <span className="text-slate-800 font-bold">3 days</span></div>
+              <button className="bg-amber-500 text-white font-bold text-sm px-3.5 py-1.5 rounded-lg hover:bg-amber-600 transition-colors flex items-center gap-1">
+                Join <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

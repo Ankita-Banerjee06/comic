@@ -4,14 +4,14 @@ import { Link, NavLink } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 const navLinks = [
-  { name: 'Home',          path: '/',             icon: Home,          pill: 'bg-amber-400 text-amber-950 hover:bg-amber-300' },
-  { name: 'AMIVI',        path: '/amivi',        icon: ImageIcon,     pill: 'bg-emerald-400 text-emerald-950 hover:bg-emerald-300' },
-  { name: 'AMICO',        path: '/amico',        icon: BookOpen,      pill: 'bg-pink-400 text-pink-950 hover:bg-pink-300' },
-  { name: 'Quiz',         path: '/quiz',         icon: HelpCircle,    pill: 'bg-purple-400 text-white hover:bg-purple-300' },
-  { name: 'Library',      path: '/library',      icon: Library,       pill: 'bg-orange-400 text-orange-950 hover:bg-orange-300' },
-  { name: 'Courses',      path: '/courses',      icon: GraduationCap, pill: 'bg-teal-400 text-teal-950 hover:bg-teal-300' },
-  { name: 'Tutorials',    path: '/tutorials',    icon: Video,         pill: 'bg-indigo-400 text-white hover:bg-indigo-300' },
-  { name: 'Collaborate',  path: '/collaborative',icon: Users,         pill: 'bg-sky-400 text-sky-950 hover:bg-sky-300' },
+  { name: 'Home',          path: '/',              icon: Home },
+  { name: 'AMIVI',         path: '/amivi',         icon: ImageIcon },
+  { name: 'AMICO',         path: '/amico',         icon: BookOpen },
+  { name: 'Quiz',          path: '/quiz',          icon: HelpCircle },
+  { name: 'Library',       path: '/library',       icon: Library },
+  { name: 'Courses',       path: '/courses',       icon: GraduationCap },
+  { name: 'Tutorials',     path: '/tutorials',     icon: Video },
+  { name: 'Collaborate',   path: '/collaborative', icon: Users },
 ];
 
 export default function Navbar() {
@@ -20,26 +20,33 @@ export default function Navbar() {
   const { language, setLanguage, t } = useLanguage();
 
   return (
-    <header className="sticky top-0 z-50 bg-white shadow-xl">
-      <div className="w-full px-6 lg:px-12 h-28 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-white border-b border-slate-200">
+      <div className="w-full px-6 lg:px-12 h-18 flex items-center justify-between" style={{ height: 76 }}>
 
         <Link to="/" className="flex-shrink-0 flex items-center justify-center group" aria-label="VLQ Home">
           <img
             src="/vlq-logo-clean.png"
             alt="VLQ – Visual Learning Platform"
-            className="h-20 w-auto flex-shrink-0 object-contain group-hover:scale-105 transition-transform"
+            className="h-11 w-auto flex-shrink-0 object-contain"
           />
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center space-x-2">
+        <nav className="hidden md:flex items-center gap-0.5 lg:gap-1">
           {navLinks.map((link) => {
             const Icon = link.icon;
             return (
               <NavLink
                 key={link.name}
                 to={link.path}
-                className={`flex items-center space-x-1.5 px-2.5 py-2 lg:px-4 lg:py-2.5 rounded-2xl font-black text-xs lg:text-base transition-all hover:scale-105 shadow-md flex-shrink-0 ${link.pill}`}
+                end={link.path === '/'}
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 px-2.5 lg:px-3.5 py-2 rounded-lg font-bold text-xs lg:text-sm transition-colors flex-shrink-0 ${
+                    isActive
+                      ? 'text-indigo-700 bg-indigo-50'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`
+                }
               >
                 <Icon className="w-4 h-4" />
                 <span>{t(link.name)}</span>
@@ -49,28 +56,28 @@ export default function Navbar() {
         </nav>
 
         {/* Right actions */}
-        <div className="hidden md:flex items-center space-x-3">
+        <div className="hidden md:flex items-center gap-3">
           <div className="relative">
-            <button 
+            <button
               onClick={() => setLangOpen(!langOpen)}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-bold transition-all text-sm"
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-semibold transition-all text-sm"
             >
               <Globe className="w-4 h-4" />
               <span>{language === 'es' ? 'Español' : 'English'}</span>
               <ChevronDown className="w-4 h-4" />
             </button>
             {langOpen && (
-              <div className="absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-xl overflow-hidden z-50">
-                <button 
+              <div className="absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden z-50">
+                <button
                   onClick={() => { setLanguage('en'); setLangOpen(false); }}
-                  className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center space-x-2 hover:bg-gray-100 ${language === 'en' ? 'text-blue-600 bg-blue-50' : 'text-gray-700'}`}
+                  className={`w-full text-left px-4 py-3 text-sm font-semibold flex items-center space-x-2 hover:bg-slate-50 ${language === 'en' ? 'text-indigo-700 bg-indigo-50' : 'text-slate-700'}`}
                 >
                   <span>🇬🇧</span>
                   <span>English</span>
                 </button>
-                <button 
+                <button
                   onClick={() => { setLanguage('es'); setLangOpen(false); }}
-                  className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center space-x-2 hover:bg-gray-100 ${language === 'es' ? 'text-blue-600 bg-blue-50' : 'text-gray-700'}`}
+                  className={`w-full text-left px-4 py-3 text-sm font-semibold flex items-center space-x-2 hover:bg-slate-50 ${language === 'es' ? 'text-indigo-700 bg-indigo-50' : 'text-slate-700'}`}
                 >
                   <span>🇪🇸</span>
                   <span>Español</span>
@@ -78,7 +85,7 @@ export default function Navbar() {
               </div>
             )}
           </div>
-          <Link to="/profile" className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-2xl font-black text-[15px] hover:bg-blue-700 hover:scale-105 transition-all shadow-md">
+          <Link to="/profile" className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg font-bold text-sm hover:bg-slate-800 transition-colors">
             <User className="w-4 h-4" />
             <span>{t('Student')}</span>
           </Link>
@@ -87,47 +94,52 @@ export default function Navbar() {
         {/* Mobile toggle */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+          className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
         >
-          {isOpen ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
+          {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </div>
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden absolute top-24 left-0 w-full bg-gradient-to-br from-sky-500 to-indigo-600 border-t border-white/20 shadow-2xl px-4 py-6 space-y-2 z-50">
+        <div className="md:hidden absolute top-full left-0 w-full bg-white border-t border-slate-200 shadow-lg px-4 py-4 space-y-1 z-50">
           {navLinks.map((link) => {
             const Icon = link.icon;
             return (
-              <Link
+              <NavLink
                 key={link.name}
                 to={link.path}
+                end={link.path === '/'}
                 onClick={() => setIsOpen(false)}
-                className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl font-black text-base transition-all ${link.pill}`}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 w-full px-4 py-3 rounded-lg font-bold text-base transition-colors ${
+                    isActive ? 'text-indigo-700 bg-indigo-50' : 'text-slate-600 hover:bg-slate-50'
+                  }`
+                }
               >
                 <Icon className="w-5 h-5" />
                 <span>{t(link.name)}</span>
-              </Link>
+              </NavLink>
             );
           })}
-          <div className="pt-4 border-t border-white/20 flex flex-col space-y-3">
-            <div className="flex space-x-2">
-              <button 
+          <div className="pt-3 mt-2 border-t border-slate-200 flex flex-col gap-3">
+            <div className="flex gap-2">
+              <button
                 onClick={() => { setLanguage('en'); setIsOpen(false); }}
-                className={`flex-1 py-2 rounded-xl font-bold flex items-center justify-center space-x-2 ${language === 'en' ? 'bg-white text-blue-600' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                className={`flex-1 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 ${language === 'en' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
               >
                 <span>🇬🇧</span>
                 <span>English</span>
               </button>
-              <button 
+              <button
                 onClick={() => { setLanguage('es'); setIsOpen(false); }}
-                className={`flex-1 py-2 rounded-xl font-bold flex items-center justify-center space-x-2 ${language === 'es' ? 'bg-white text-blue-600' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                className={`flex-1 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 ${language === 'es' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
               >
                 <span>🇪🇸</span>
                 <span>Español</span>
               </button>
             </div>
-            <Link to="/profile" onClick={() => setIsOpen(false)} className="flex items-center space-x-2 px-4 py-2.5 bg-white text-blue-600 rounded-xl font-black shadow-md w-full justify-center">
+            <Link to="/profile" onClick={() => setIsOpen(false)} className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg font-bold w-full justify-center">
               <User className="w-4 h-4" />
               <span>{t('Student')}</span>
             </Link>

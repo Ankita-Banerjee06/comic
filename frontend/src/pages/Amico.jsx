@@ -410,14 +410,27 @@ export default function Amico() {
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
-      <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white rounded-4xl p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 text-[100px] opacity-10 leading-none select-none pointer-events-none">📚</div>
-        <div className="relative z-10 flex items-center gap-4">
-          <span className="text-5xl animate-float">📚</span>
-          <div>
-            <h1 className="text-4xl font-black">{t('AMICO')} {t('Creator')}</h1>
-            <p className="text-pink-100 font-bold text-lg">{t('IMAGINE IT. Turn your homework into fun comic stories!')} 🦸‍♀️</p>
+      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200" style={{ minHeight: 240, background: '#fdf2f8' }}>
+        <img
+          src="/vlq-gen-amico.png"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(100deg, rgba(76,29,89,0.85) 0%, rgba(76,29,89,0.55) 50%, rgba(76,29,89,0.15) 100%)' }}
+        />
+        <div className="relative z-10 p-8 sm:p-10 max-w-2xl">
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-white"
+            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)' }}
+          >
+            AMICO
           </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-3">{t('AMICO')} {t('Creator')}</h1>
+          <p className="text-white/90 font-medium max-w-xl">{t('Turn any topic into a multi-panel visual story — characters, dialogue and a scene for every idea, so it sticks.')}</p>
         </div>
       </div>
 
@@ -425,7 +438,7 @@ export default function Amico() {
       <div className="max-w-3xl mx-auto flex gap-2">
         <button
           onClick={() => setMode('comic')}
-          className={`flex-1 py-3 rounded-2xl font-black transition-all ${
+          className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
             mode === 'comic'
               ? 'bg-purple-500 text-white shadow-lg'
               : 'bg-purple-50 text-purple-500 border-2 border-purple-200'
@@ -435,7 +448,7 @@ export default function Amico() {
         </button>
         <button
           onClick={() => setMode('photostory')}
-          className={`flex-1 py-3 rounded-2xl font-black transition-all ${
+          className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
             mode === 'photostory'
               ? 'bg-purple-500 text-white shadow-lg'
               : 'bg-purple-50 text-purple-500 border-2 border-purple-200'
@@ -452,7 +465,7 @@ export default function Amico() {
             <div className="flex gap-2 mb-6">
               <button
                 onClick={() => setSource('text')}
-                className={`flex-1 py-3 rounded-2xl font-black transition-all ${
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
                   source === 'text'
                     ? 'bg-pink-500 text-white shadow-lg'
                     : 'bg-pink-50 text-pink-500 border-2 border-pink-200'
@@ -462,7 +475,7 @@ export default function Amico() {
               </button>
               <button
                 onClick={() => setSource('amivi')}
-                className={`flex-1 py-3 rounded-2xl font-black transition-all ${
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
                   source === 'amivi'
                     ? 'bg-pink-500 text-white shadow-lg'
                     : 'bg-pink-50 text-pink-500 border-2 border-pink-200'
@@ -474,7 +487,7 @@ export default function Amico() {
 
             {source === 'text' ? (
               <>
-                <h2 className="text-2xl font-black text-gray-800 mb-2">💭 {t('Your Homework Topic')}</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">💭 {t('Your Homework Topic')}</h2>
                 <p className="text-gray-500 font-bold mb-6">{t("What did you learn today? We'll turn it into a comic adventure!")}</p>
                 <textarea
                   value={textInput}
@@ -485,7 +498,7 @@ export default function Amico() {
               </>
             ) : (
               <>
-                <h2 className="text-2xl font-black text-gray-800 mb-2">🎨 {t('Pick an AMIVI Lesson')}</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">🎨 {t('Pick an AMIVI Lesson')}</h2>
                 <p className="text-gray-500 font-bold mb-4">{t('Turn a lesson you already made in AMIVI into a comic.')}</p>
                 {amiviProjects.length === 0 ? (
                   <p className="text-gray-400 font-semibold bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-4">
@@ -517,7 +530,7 @@ export default function Amico() {
             {/* Comic layout settings */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6 mb-6">
               <div>
-                <label className="text-sm font-black text-gray-600 block mb-1">{t('Panels per page')}</label>
+                <label className="text-sm font-bold text-gray-600 block mb-1">{t('Panels per page')}</label>
                 <select
                   value={panelsPerPage}
                   onChange={(e) => setPanelsPerPage(Number(e.target.value))}
@@ -529,7 +542,7 @@ export default function Amico() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-black text-gray-600 block mb-1">{t('Pages')}</label>
+                <label className="text-sm font-bold text-gray-600 block mb-1">{t('Pages')}</label>
                 <select
                   value={pagesCount}
                   onChange={(e) => setPagesCount(Number(e.target.value))}
@@ -541,7 +554,7 @@ export default function Amico() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-black text-gray-600 block mb-1">{t('Layout')}</label>
+                <label className="text-sm font-bold text-gray-600 block mb-1">{t('Layout')}</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setLayout('horizontal')}
@@ -571,7 +584,7 @@ export default function Amico() {
 
             {/* Avatars */}
             <div className="mb-6">
-              <label className="text-sm font-black text-gray-600 block mb-2">{t('Character Avatar (optional)')}</label>
+              <label className="text-sm font-bold text-gray-600 block mb-2">{t('Character Avatar (optional)')}</label>
               <div className="flex items-center gap-3 overflow-x-auto pb-2">
                 <button
                   onClick={() => setSelectedAvatarId(null)}
@@ -620,7 +633,7 @@ export default function Amico() {
               {showAvatarUpload && (
                 <div className="mt-4 bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="font-black text-gray-700">{t('Create an avatar from a photo')}</p>
+                    <p className="font-bold text-gray-700">{t('Create an avatar from a photo')}</p>
                     <button onClick={() => setShowAvatarUpload(false)} className="text-gray-400 hover:text-gray-600">
                       <X className="w-5 h-5" />
                     </button>
@@ -651,7 +664,7 @@ export default function Amico() {
             <button
               onClick={handleGenerate}
               disabled={!canGenerate}
-              className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl transition-all text-xl hover:scale-105 hover:shadow-[0_10px_25px_rgba(236,72,153,0.4)] flex items-center justify-center gap-3 shadow-lg"
+              className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-xl hover:scale-105 hover:shadow-[0_10px_25px_rgba(236,72,153,0.4)] flex items-center justify-center gap-3 shadow-lg"
             >
               <Sparkles className="w-6 h-6" />
               {t('Generate Comic')} 🦸‍♂️
@@ -673,7 +686,7 @@ export default function Amico() {
             <div className="flex items-center gap-4">
               <span className="text-4xl">🎉</span>
               <div>
-                <p className="font-black text-xl">{t('Comic Generated!')}</p>
+                <p className="font-bold text-xl">{t('Comic Generated!')}</p>
                 <p className="text-pink-100 font-bold flex items-center gap-2">
                   {t('Your comic strip is ready to read!')}
                   {savedNotice && (
@@ -693,7 +706,7 @@ export default function Amico() {
           {pages.length > 0 && (
             <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-black text-gray-800">
+                <h3 className="text-xl font-bold text-gray-800">
                   📖 {t('Page')} {currentPage?.page_number} {t('of')} {pages.length}
                 </h3>
                 <div className="flex items-center gap-2">
@@ -759,7 +772,7 @@ export default function Amico() {
               dialogue, regenerating art, or adding/removing a panel. */}
           {result.panels?.length > 0 && (
             <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-6">
-              <h3 className="text-xl font-black text-gray-800 mb-4">🧩 {t('Manage Panels')}</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-4">🧩 {t('Manage Panels')}</h3>
               <div className="flex items-start gap-3 overflow-x-auto pb-2">
                 {result.panels.map((panel) => {
                   const isBusy = busyPanelNumber === panel.panel_number;
@@ -824,7 +837,7 @@ export default function Amico() {
       {mode === 'photostory' && !psProcessing && !psResult && (
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-8 flex flex-col">
-            <h2 className="text-2xl font-black text-gray-800 mb-2">📷 {t('Upload a Photo')}</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">📷 {t('Upload a Photo')}</h2>
             <p className="text-gray-500 font-bold mb-6">
               {t('Upload one photo and AMICO will turn it into a labeled diagram story — no characters, just clear step-by-step visuals, like a real science poster.')}
             </p>
@@ -854,7 +867,7 @@ export default function Amico() {
             )}
 
             <div className="mb-6">
-              <label className="text-sm font-black text-gray-600 block mb-1">{t('Number of stages')}</label>
+              <label className="text-sm font-bold text-gray-600 block mb-1">{t('Number of stages')}</label>
               <select
                 value={psPanelCount}
                 onChange={(e) => setPsPanelCount(Number(e.target.value))}
@@ -869,7 +882,7 @@ export default function Amico() {
             <button
               onClick={handleGeneratePhotoStory}
               disabled={!psFile}
-              className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl transition-all text-xl hover:scale-105 hover:shadow-[0_10px_25px_rgba(236,72,153,0.4)] flex items-center justify-center gap-3 shadow-lg"
+              className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-xl hover:scale-105 hover:shadow-[0_10px_25px_rgba(236,72,153,0.4)] flex items-center justify-center gap-3 shadow-lg"
             >
               <Camera className="w-6 h-6" />
               {t('Generate Photo Story')} 📷
@@ -891,7 +904,7 @@ export default function Amico() {
             <div className="flex items-center gap-4">
               <span className="text-4xl">🎉</span>
               <div>
-                <p className="font-black text-xl">{t('Photo Story Generated!')}</p>
+                <p className="font-bold text-xl">{t('Photo Story Generated!')}</p>
                 <p className="text-pink-100 font-bold">{t('Your diagram story is ready to read!')}</p>
               </div>
             </div>
@@ -903,7 +916,7 @@ export default function Amico() {
           {psPages.length > 0 && (
             <div className="bg-white rounded-4xl border-2 border-pink-100 shadow-xl p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-black text-gray-800">
+                <h3 className="text-xl font-bold text-gray-800">
                   📖 {t('Page')} {psCurrentPage?.page_number} {t('of')} {psPages.length}
                 </h3>
                 <div className="flex items-center gap-2">
@@ -1061,9 +1074,9 @@ export default function Amico() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <form
             onSubmit={handleEditSubmit}
-            className="bg-white rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl"
+            className="bg-white rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-lg"
           >
-            <h3 className="text-xl font-black text-gray-800">
+            <h3 className="text-xl font-bold text-gray-800">
               {t('Edit Panel')} {editingPanel.panel_number}
             </h3>
             <div>
@@ -1095,13 +1108,13 @@ export default function Amico() {
               <button
                 type="button"
                 onClick={() => setEditingPanel(null)}
-                className="flex-1 py-3 rounded-xl font-black bg-gray-100 text-gray-600 hover:bg-gray-200"
+                className="flex-1 py-3 rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200"
               >
                 {t('Cancel')}
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3 rounded-xl font-black bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600"
+                className="flex-1 py-3 rounded-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600"
               >
                 {t('Save')}
               </button>

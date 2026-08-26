@@ -10,42 +10,43 @@ export default function LandingLayout() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-br from-blue-900 to-purple-900 text-white pt-16 pb-10 mt-20">
+      <footer className="bg-white border-t border-slate-100 pt-14 pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
             <div>
-              <div className="flex items-center space-x-3 mb-5">
-                <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-2xl flex items-center justify-center font-black text-white text-xl shadow-lg">
-                  V
-                </div>
+              <div className="flex items-center gap-2.5 mb-4">
+                <img src="/vlq-logo-clean.png" alt="VLQ" className="h-8 w-auto object-contain" />
                 <div>
-                  <div className="text-2xl font-black">VLQ</div>
-                  <div className="text-xs text-blue-200">Visual Learning Platform</div>
+                  <div className="text-lg font-extrabold text-slate-900 leading-none">VLQ</div>
+                  <div className="text-xs text-slate-400 font-medium mt-0.5">Visual Learning Platform</div>
                 </div>
               </div>
-              <p className="text-blue-200 font-bold italic text-lg">✨ Learn at the Speed of Sight.</p>
-              <p className="text-blue-300 mt-2 text-sm">Making learning fun, visual, and exciting for every child!</p>
+              <p className="text-slate-500 text-sm font-medium max-w-xs leading-relaxed">
+                Turning any material into clear visuals, comics and quizzes that help ideas stick.
+              </p>
             </div>
 
             <div>
-              <h3 className="font-black text-yellow-300 uppercase tracking-wider text-sm mb-5">🚀 Platform</h3>
-              <ul className="space-y-3">
-                <li><Link to="/amivi" className="text-blue-200 hover:text-yellow-300 font-bold transition-colors flex items-center gap-2">🎨 AMIVI</Link></li>
-                <li><Link to="/amico" className="text-blue-200 hover:text-yellow-300 font-bold transition-colors flex items-center gap-2">📚 AMICO</Link></li>
-                <li><Link to="/quiz" className="text-blue-200 hover:text-yellow-300 font-bold transition-colors flex items-center gap-2">🧩 Quiz</Link></li>
-                <li><Link to="/library" className="text-blue-200 hover:text-yellow-300 font-bold transition-colors flex items-center gap-2">📖 Library</Link></li>
+              <h3 className="font-bold text-slate-400 uppercase tracking-wider text-xs mb-4">Platform</h3>
+              <ul className="space-y-2.5">
+                <li><Link to="/amivi" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">AMIVI</Link></li>
+                <li><Link to="/amico" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">AMICO</Link></li>
+                <li><Link to="/quiz" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Quiz</Link></li>
+                <li><Link to="/library" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Library</Link></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-black text-yellow-300 uppercase tracking-wider text-sm mb-5">🏫 Company</h3>
-              <ul className="space-y-3">
-                <li><Link to="/" className="text-blue-200 hover:text-yellow-300 font-bold transition-colors">About</Link></li>
-                <li><Link to="/" className="text-blue-200 hover:text-yellow-300 font-bold transition-colors">Help</Link></li>
+              <h3 className="font-bold text-slate-400 uppercase tracking-wider text-xs mb-4">Company</h3>
+              <ul className="space-y-2.5">
+                <li><Link to="/" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">About</Link></li>
+                <li><Link to="/" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Help</Link></li>
+                <li><Link to="/" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Privacy policy</Link></li>
+                <li><Link to="/" className="text-slate-600 hover:text-blue-700 font-medium text-sm transition-colors">Terms of service</Link></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-blue-700/50 pt-8 text-center text-blue-300 text-sm font-semibold">
+          <div className="border-t border-slate-100 pt-6 text-slate-400 text-xs font-medium">
             <p>© {new Date().getFullYear()} VLQ — The Visual Learning Platform. All rights reserved.</p>
           </div>
         </div>

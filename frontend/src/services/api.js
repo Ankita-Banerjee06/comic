@@ -101,24 +101,35 @@ export async function editAmiviChunk(
 
 
 // ============================================================
-// AMIVI QUIZ
+// QUIZ (standalone — generates from a Topic, or from
+// uploaded/pasted material, independent of AMIVI)
 // ============================================================
 
-export async function generateAmiviQuiz(
-  text,
-  language = 'en'
-) {
+export async function generateQuiz({
+  mode = 'topic',
+  topic = '',
+  materialText = '',
+  file = null,
+  language = 'en',
+  numQuestions = 5,
+  generateImages = true,
+  generateVideos = true,
+} = {}) {
+  const formData = new FormData();
+  formData.append('mode', mode);
+  formData.append('topic', topic || '');
+  formData.append('material_text', materialText || '');
+  formData.append('language', language);
+  formData.append('num_questions', numQuestions);
+  formData.append('generate_images', generateImages);
+  formData.append('generate_videos', generateVideos);
+  if (file) formData.append('file', file);
+
   const response = await fetch(
-    `${API_URL}/api/amivi/generate_quiz`,
+    `${API_URL}/api/quiz/generate`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        text: text || '',
-        language,
-      }),
+      body: formData,
     }
   );
 
@@ -129,10 +140,70 @@ export async function generateAmiviQuiz(
 
     throw new Error(
       err.detail ||
-        'Failed to generate AMIVI quiz.'
+        'Failed to generate quiz.'
     );
   }
 
+  return response.json();
+}
+
+
+// ============================================================
+// QUIZ WRONG ANSWERS BANK
+// (durable — persists on the server so teachers can retake
+// missed questions after a month, a year, whenever)
+// ============================================================
+
+export async function saveWrongAnswer({
+  quizId = null,
+  quizTitle = '',
+  q = '',
+  options = [],
+  correct = 0,
+  explanation = '',
+  imageId = null,
+  videoId = null,
+} = {}) {
+  const response = await fetch(
+    `${API_URL}/api/quiz/wrong_answers`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        quiz_id: quizId,
+        quiz_title: quizTitle,
+        q,
+        options,
+        correct,
+        explanation,
+        image_id: imageId,
+        video_id: videoId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to save wrong answer.');
+  }
+
+  return response.json();
+}
+
+export async function listWrongAnswers() {
+  const response = await fetch(`${API_URL}/api/quiz/wrong_answers`);
+  if (!response.ok) throw new Error('Failed to load wrong answers.');
+  return response.json();
+}
+
+export async function deleteWrongAnswer(id) {
+  const response = await fetch(
+    `${API_URL}/api/quiz/wrong_answers/${id}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) throw new Error('Failed to remove wrong answer.');
   return response.json();
 }
 

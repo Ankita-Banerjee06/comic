@@ -137,6 +137,10 @@ body {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+@keyframes spinReverseSlow {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
 
 /* ─── Utility classes ───────────────────────────────────────────────── */
 .animate-float         { animation: float 4s ease-in-out infinite; }
@@ -158,6 +162,7 @@ body {
 .animate-pulse-glow-purple { animation: pulseGlowPurple 2.5s ease-in-out infinite; }
 .animate-shimmer-bg    { animation: shimmerBg 6s ease infinite; background-size: 200% 200%; }
 .animate-spin-slow     { animation: spinSlow 20s linear infinite; }
+.animate-spin-reverse-slow { animation: spinReverseSlow 26s linear infinite; }
 
 /* Card hover lift */
 .card-hover {

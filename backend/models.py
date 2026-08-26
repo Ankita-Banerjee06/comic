@@ -200,6 +200,55 @@ class Quiz(Base):
     )
 
 
+class WrongAnswer(Base):
+    """
+    A durable record of a question a teacher/student answered
+    incorrectly in the standalone Quiz section. Stays here
+    indefinitely (months or years) until it's answered correctly
+    during a "Wrong Answers" bank retake, at which point it's
+    removed.
+    """
+
+    __tablename__ = "wrong_answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    quiz_id = Column(
+        Integer,
+        ForeignKey("quizzes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    quiz_title = Column(String(255), nullable=True)
+
+    question_text = Column(Text, nullable=True)
+
+    options = Column(JSON, nullable=True)
+
+    correct = Column(Integer, nullable=False, default=0)
+
+    explanation = Column(Text, nullable=True)
+
+    image_id = Column(
+        Integer,
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    video_id = Column(
+        Integer,
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+
+
 class AmiviChunk(Base):
     __tablename__ = "amivi_chunks"
 

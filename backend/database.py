@@ -44,6 +44,7 @@ def create_tables():
         Quiz,
         AmiviChunk,
         Avatar,
+        WrongAnswer,
     )
 
     Base.metadata.create_all(bind=engine)
