@@ -5,9 +5,11 @@ export default function AuthLayout() {
     <div className="min-h-screen bg-gray-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-white">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center mb-6">
-          <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-fuchsia-500 rounded-xl flex items-center justify-center font-bold text-white shadow-lg text-xl">
-            V
-          </div>
+          <img
+            src="/vlq-logo-clean.png"
+            alt="VLQ"
+            className="h-14 w-auto object-contain"
+          />
         </div>
         <h2 className="text-center text-3xl font-extrabold text-white">
           Welcome to VLQ
