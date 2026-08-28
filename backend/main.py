@@ -1,9 +1,11 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
+
+from datetime import datetime
 
 import os
 import json
@@ -16,6 +18,7 @@ import platform
 import io
 import glob
 import re
+import secrets
 import shutil
 import uuid
 import textwrap
@@ -36,11 +39,13 @@ from docx import Document
 
 import requests
 import yt_dlp
+import bcrypt
 
 from database import SessionLocal, engine, create_tables
 
 from models import (
     User,
+    UserSession,
     Project,
     MediaAsset,
     Comic,
@@ -48,6 +53,13 @@ from models import (
     AmiviChunk,
     Avatar,
     WrongAnswer,
+    LearningRoom,
+    RoomMember,
+    RoomMessage,
+    Classroom,
+    ClassroomMember,
+    Assignment,
+    AssignmentSubmission,
 )
 
 
@@ -130,6 +142,18 @@ def startup():
 # ============================================================
 # REQUEST MODELS
 # ============================================================
+
+class AuthRegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str = "student"  # "student" | "teacher"
+
+
+class AuthLoginRequest(BaseModel):
+    email: str
+    password: str
+
 
 class AmiviRequest(BaseModel):
     text: str = ""
@@ -218,6 +242,308 @@ class WrongAnswerRequest(BaseModel):
     explanation: str = ""
     image_id: int | None = None
     video_id: int | None = None
+
+
+# ------------------------------------------------------------
+# COLLABORATIVE LEARNING ROOMS
+# ------------------------------------------------------------
+
+class RoomCreateRequest(BaseModel):
+    name: str
+    topic: str = ""
+    description: str = ""
+    display_name: str
+
+
+class RoomJoinRequest(BaseModel):
+    room_code: str
+    display_name: str
+
+
+class RoomMaterialRequest(BaseModel):
+    member_token: str
+    shared_material: str = ""
+
+
+class RoomMessageRequest(BaseModel):
+    member_token: str
+    message: str
+
+
+class RoomLinkRequest(BaseModel):
+    member_token: str
+    kind: str  # "amivi" | "amico" | "quiz"
+    project_id: int
+
+
+class RoomScoreRequest(BaseModel):
+    member_token: str
+    score: int
+    total: int
+
+
+class RoomLeaveRequest(BaseModel):
+    member_token: str
+
+
+# ------------------------------------------------------------
+# TEACHER/STUDENT CLASSROOMS
+# ------------------------------------------------------------
+
+class ClassroomCreateRequest(BaseModel):
+    name: str
+    subject: str = ""
+    description: str = ""
+    display_name: str
+
+
+class ClassroomJoinRequest(BaseModel):
+    class_code: str
+    display_name: str
+
+
+class AssignmentCreateRequest(BaseModel):
+    member_token: str
+    title: str
+    instructions: str = ""
+    quiz_project_id: int
+    amivi_project_id: int | None = None
+    amico_project_id: int | None = None
+    due_at: str | None = None  # ISO 8601, optional
+
+
+class SubmissionCreateRequest(BaseModel):
+    member_token: str
+    score: int
+    total: int
+
+
+class ClassroomLeaveRequest(BaseModel):
+    member_token: str
+
+
+class ParentCodeRequest(BaseModel):
+    member_token: str
+    regenerate: bool = False
+
+
+class ParentLoginRequest(BaseModel):
+    parent_code: str
+
+
+class TeacherCodeRequest(BaseModel):
+    member_token: str
+    regenerate: bool = False
+
+
+class TeacherLoginRequest(BaseModel):
+    teacher_code: str
+
+
+class StudentCodeRequest(BaseModel):
+    member_token: str
+    regenerate: bool = False
+
+
+class StudentLoginRequest(BaseModel):
+    student_code: str
+
+
+# ============================================================
+# AUTH — REGISTER / LOGIN / SESSION
+#
+# The platform's real, account-based auth: email + password,
+# hashed with bcrypt, session identified by an opaque token (the
+# same "token in the browser" idea used everywhere else in this
+# app — RoomMember, ClassroomMember — just platform-wide via
+# UserSession instead of scoped to one room/classroom). The token
+# travels as `Authorization: Bearer <token>` and is looked up via
+# the get_current_user dependency on any endpoint that needs to
+# know who's asking.
+# ============================================================
+
+def hash_password(password: str) -> str:
+
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except (ValueError, TypeError):
+        # a malformed/missing hash should never match
+        return False
+
+
+def serialize_user(user) -> dict:
+
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+    }
+
+
+def get_current_user(authorization: str | None = Header(default=None)):
+
+    if not authorization or not authorization.lower().startswith("bearer "):
+
+        raise HTTPException(status_code=401, detail="Not signed in.")
+
+    token = authorization[7:].strip()
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Not signed in.")
+
+    db = SessionLocal()
+
+    try:
+
+        session = (
+            db.query(UserSession)
+            .filter(UserSession.token == token)
+            .first()
+        )
+
+        if not session:
+            raise HTTPException(status_code=401, detail="Your session has expired. Please log in again.")
+
+        user = db.query(User).filter(User.id == session.user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=401, detail="Your session has expired. Please log in again.")
+
+        return user
+
+    finally:
+        db.close()
+
+
+@app.post("/api/auth/register")
+def auth_register(payload: AuthRegisterRequest):
+
+    name = payload.name.strip()
+    email = payload.email.strip().lower()
+    password = payload.password
+    role = payload.role.strip().lower() if payload.role else "student"
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Your name is required.")
+
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email is required.")
+
+    if not password or len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+
+    if role not in ("student", "teacher"):
+        role = "student"
+
+    db = SessionLocal()
+
+    try:
+
+        existing = db.query(User).filter(User.email == email).first()
+
+        if existing:
+            raise HTTPException(status_code=409, detail="An account with that email already exists.")
+
+        user = User(
+            name=name,
+            email=email,
+            role=role,
+            password_hash=hash_password(password),
+        )
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        session = UserSession(
+            user_id=user.id,
+            token=secrets.token_urlsafe(32),
+        )
+
+        db.add(session)
+        db.commit()
+
+        return {
+            "status": "success",
+            "user": serialize_user(user),
+            "token": session.token,
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/auth/login")
+def auth_login(payload: AuthLoginRequest):
+
+    email = payload.email.strip().lower()
+    password = payload.password
+
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email and password are both required.")
+
+    db = SessionLocal()
+
+    try:
+
+        user = db.query(User).filter(User.email == email).first()
+
+        if not user or not user.password_hash or not verify_password(password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Incorrect email or password.")
+
+        session = UserSession(
+            user_id=user.id,
+            token=secrets.token_urlsafe(32),
+        )
+
+        db.add(session)
+        db.commit()
+
+        return {
+            "status": "success",
+            "user": serialize_user(user),
+            "token": session.token,
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/auth/logout")
+def auth_logout(authorization: str | None = Header(default=None)):
+
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return {"status": "success"}
+
+    token = authorization[7:].strip()
+
+    db = SessionLocal()
+
+    try:
+
+        session = db.query(UserSession).filter(UserSession.token == token).first()
+
+        if session:
+            db.delete(session)
+            db.commit()
+
+        return {"status": "success"}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/auth/me")
+def auth_me(current_user=Depends(get_current_user)):
+
+    return {"user": serialize_user(current_user)}
 
 
 # ============================================================
@@ -472,6 +798,7 @@ def save_project(
     input_text,
     language,
     data,
+    user_id=None,
 ):
 
     db = SessionLocal()
@@ -484,6 +811,7 @@ def save_project(
             input_text=input_text,
             language=language,
             data=data,
+            user_id=user_id,
         )
 
         db.add(row)
@@ -855,6 +1183,117 @@ def latest_comic_for_project(project_id: int):
             .order_by(Comic.id.desc())
             .first()
         )
+
+    finally:
+        db.close()
+
+
+def latest_quiz_for_project(project_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        return (
+            db.query(Quiz)
+            .filter(Quiz.project_id == project_id)
+            .order_by(Quiz.id.desc())
+            .first()
+        )
+
+    finally:
+        db.close()
+
+
+def list_amivi_chunks_for_project(project_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        return (
+            db.query(AmiviChunk)
+            .filter(AmiviChunk.project_id == project_id)
+            .order_by(AmiviChunk.chunk_number.asc())
+            .all()
+        )
+
+    finally:
+        db.close()
+
+
+def update_project_data(project_id: int, patch: dict):
+    """
+    Merges `patch` into the project's existing `data` JSON
+    (creating it if it doesn't exist yet) instead of overwriting
+    it. Used after generation finishes to record things like
+    `thumbnail_media_id` / `video_id`, once the underlying media
+    actually exists.
+
+    Best-effort: swallows errors so a Library bookkeeping hiccup
+    never breaks the AMIVI/AMICO generation flow that's already
+    returned its result to the user.
+    """
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(Project)
+            .filter(Project.id == project_id)
+            .first()
+        )
+
+        if not row:
+            return
+
+        merged = dict(row.data or {})
+        merged.update(patch)
+        row.data = merged
+
+        db.add(row)
+        db.commit()
+
+    except Exception as exc:
+
+        print(
+            f"update_project_data failed for "
+            f"project {project_id} (non-fatal): {exc}"
+        )
+        db.rollback()
+
+    finally:
+        db.close()
+
+
+def delete_project(project_id: int):
+    """
+    Deletes a project. Related media, AMIVI chunks, comics and
+    quizzes are removed automatically via the existing PostgreSQL
+    foreign-key ON DELETE CASCADE relationships defined in
+    models.py — no manual cleanup needed here.
+    """
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(Project)
+            .filter(Project.id == project_id)
+            .first()
+        )
+
+        if not row:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found.",
+            )
+
+        db.delete(row)
+        db.commit()
 
     finally:
         db.close()
@@ -3794,6 +4233,7 @@ def compose_amico_photostory(
 @app.post("/api/amivi/generate")
 async def amivi_generate(
     request: AmiviRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
@@ -3886,6 +4326,7 @@ async def amivi_generate(
                 **content,
                 "source_url": source_url,
             },
+            user_id=current_user.id,
         )
 
         processed_chunks = []
@@ -4002,6 +4443,23 @@ async def amivi_generate(
                 f"amivi_{project_id}.mp4",
                 project_id,
             )
+
+        # -----------------------------------------------------
+        # Record the Library thumbnail (first chunk's image)
+        # and the video, now that they actually exist.
+        # -----------------------------------------------------
+
+        update_project_data(
+            project_id,
+            {
+                "thumbnail_media_id": (
+                    processed_chunks[0]["image_id"]
+                    if processed_chunks
+                    else None
+                ),
+                "video_id": video_id,
+            },
+        )
 
         return {
             "status": "success",
@@ -4147,6 +4605,7 @@ async def amivi_edit_chunk(
 @app.post("/api/amico/generate")
 async def amico_generate(
     request: AmicoRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
@@ -4303,6 +4762,7 @@ async def amico_generate(
             input_text=topic,
             language=request.language,
             data=comic,
+            user_id=current_user.id,
         )
 
         # -----------------------------------------------------
@@ -4389,10 +4849,27 @@ async def amico_generate(
         )
 
         # -----------------------------------------------------
-        # Response
+        # Record the Library thumbnail (the final composed
+        # comic sheet for the first page), now that it exists.
         # -----------------------------------------------------
 
         first_page = pages[0] if pages else None
+
+        update_project_data(
+            project_id,
+            {
+                "thumbnail_media_id": (
+                    first_page["comic_image_id"]
+                    if first_page
+                    else None
+                ),
+                "comic_id": comic_id,
+            },
+        )
+
+        # -----------------------------------------------------
+        # Response
+        # -----------------------------------------------------
 
         return {
             "status": "success",
@@ -4858,6 +5335,7 @@ async def amico_photostory_generate(
     file: UploadFile = File(...),
     language: str = Form("en"),
     panel_count: int = Form(6),
+    current_user=Depends(get_current_user),
 ):
 
     try:
@@ -4939,6 +5417,7 @@ async def amico_photostory_generate(
             input_text=photo_description,
             language=language,
             data=story,
+            user_id=current_user.id,
         )
 
         # -----------------------------------------------------
@@ -5265,6 +5744,219 @@ def comic_detail(comic_id: int):
 
 
 # ============================================================
+# LIBRARY
+#
+# The central place a user can see, open and delete every
+# AMIVI / AMICO / Quiz project they've created. Built entirely
+# on the existing Project / MediaAsset / AmiviChunk / Comic /
+# Quiz tables and their existing FK ON DELETE CASCADE
+# relationships — no new storage, no static media folder.
+# ============================================================
+
+LIBRARY_PROJECT_TYPES = ("amivi", "amico", "quiz")
+
+
+def list_library_projects(user_id=None):
+
+    db = SessionLocal()
+
+    try:
+
+        query = db.query(Project).filter(
+            Project.project_type.in_(LIBRARY_PROJECT_TYPES)
+        )
+
+        if user_id is not None:
+            # A user sees their own projects, plus the legacy
+            # ones created before accounts existed (user_id is
+            # NULL on those) — those stay visible to everyone
+            # rather than becoming orphaned and invisible.
+            query = query.filter(
+                (Project.user_id == user_id) | (Project.user_id.is_(None))
+            )
+
+        return query.order_by(Project.id.desc()).all()
+
+    finally:
+        db.close()
+
+
+@app.get("/api/library")
+def library_list(current_user=Depends(get_current_user)):
+
+    projects = list_library_projects(user_id=current_user.id)
+
+    results = []
+
+    for row in projects:
+
+        data = row.data or {}
+
+        thumbnail_media_id = data.get(
+            "thumbnail_media_id"
+        )
+
+        results.append(
+            {
+                "id": row.id,
+                "type": row.project_type,
+                "title": row.title,
+                "input_text": row.input_text,
+                "language": row.language,
+                "created_at": (
+                    row.created_at.isoformat()
+                    if row.created_at
+                    else None
+                ),
+                "thumbnail_url": (
+                    f"/api/media/{thumbnail_media_id}"
+                    if thumbnail_media_id
+                    else None
+                ),
+            }
+        )
+
+    return {"projects": results}
+
+
+@app.get("/api/library/{project_id}")
+def library_project_detail(project_id: int, current_user=Depends(get_current_user)):
+
+    project = get_project(project_id)
+
+    if project.project_type not in LIBRARY_PROJECT_TYPES:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    # Legacy (pre-auth) projects have no owner and stay visible to
+    # everyone. A project owned by someone else is reported as
+    # not-found rather than forbidden, so we don't leak whether a
+    # given project id exists.
+    if project.user_id is not None and project.user_id != current_user.id:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    # Start from whatever's on the project itself, then layer
+    # in the fully up-to-date content from the child table that
+    # actually stays current across edits (AmiviChunk rows for
+    # AMIVI, the latest Comic row for AMICO, the latest Quiz row
+    # for Quiz) — Project.data alone can be stale for AMIVI/AMICO
+    # since their images are generated *after* the project row
+    # is first created.
+
+    data = dict(project.data or {})
+
+    if project.project_type == "amivi":
+
+        chunks = list_amivi_chunks_for_project(
+            project_id
+        )
+
+        data["chunks"] = [
+            {
+                "chunk_id": chunk.id,
+                "chunk_number": chunk.chunk_number,
+                "key_point": chunk.key_point,
+                "text": chunk.text,
+                "slogan": chunk.slogan,
+                "description": chunk.description,
+                "voice_script": chunk.voice_script,
+                "image_id": chunk.image_id,
+                "image_url": (
+                    f"/api/media/{chunk.image_id}"
+                    if chunk.image_id
+                    else None
+                ),
+                "audio_id": chunk.audio_id,
+                "audio_url": (
+                    f"/api/media/{chunk.audio_id}"
+                    if chunk.audio_id
+                    else None
+                ),
+            }
+            for chunk in chunks
+        ]
+
+        video_id = data.get("video_id")
+
+        data["video_url"] = (
+            f"/api/media/{video_id}"
+            if video_id
+            else None
+        )
+
+    elif project.project_type == "amico":
+
+        comic = latest_comic_for_project(
+            project_id
+        )
+
+        if comic:
+            data = dict(comic.data or {})
+
+    elif project.project_type == "quiz":
+
+        quiz = latest_quiz_for_project(
+            project_id
+        )
+
+        if quiz:
+            data = dict(quiz.data or {})
+
+    return {
+        "id": project.id,
+        "type": project.project_type,
+        "title": project.title,
+        "input_text": project.input_text,
+        "language": project.language,
+        "data": data,
+        "created_at": (
+            project.created_at.isoformat()
+            if project.created_at
+            else None
+        ),
+    }
+
+
+@app.delete("/api/library/{project_id}")
+def library_project_delete(project_id: int, current_user=Depends(get_current_user)):
+
+    project = get_project(project_id)
+
+    if project.project_type not in LIBRARY_PROJECT_TYPES:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    # Legacy (pre-auth) projects have no owner and remain deletable
+    # by anyone, consistent with the "keep globally visible" choice.
+    # A project owned by someone else is reported as not-found rather
+    # than forbidden, so we don't leak whether a given project id exists.
+    if project.user_id is not None and project.user_id != current_user.id:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    delete_project(project_id)
+
+    return {
+        "status": "success",
+        "project_id": project_id,
+        "message": "Project deleted.",
+    }
+
+
+# ============================================================
 # QUIZ
 # ============================================================
 
@@ -5278,6 +5970,7 @@ async def quiz_generate(
     generate_images: bool = Form(True),
     generate_videos: bool = Form(True),
     file: UploadFile | None = File(None),
+    current_user=Depends(get_current_user),
 ):
 
     try:
@@ -5356,6 +6049,7 @@ async def quiz_generate(
             input_text=source_text or topic_clean,
             language=language,
             data=quiz,
+            user_id=current_user.id,
         )
 
         processed_questions = []
@@ -5623,6 +6317,1533 @@ def media(
             )
         },
     )
+
+
+# ============================================================
+# COLLABORATIVE LEARNING ROOMS
+#
+# Built entirely on three new tables (learning_rooms,
+# room_members, room_messages) plus pointers into the EXISTING
+# Project / MediaAsset / Comic / Quiz tables. AMIVI, AMICO and
+# Quiz content shared in a room is generated by calling the
+# normal, already-existing /api/amivi/generate, /api/amico/generate
+# and /api/quiz/generate endpoints — this section never
+# regenerates or duplicates that logic, it only remembers which
+# existing Project a room is pointing at.
+#
+# There's no authentication in this app yet, so a room
+# "membership" is a lightweight token handed back on join/create
+# and kept client-side — enough to know who's who inside one
+# room, without building a real login system.
+# ============================================================
+
+ROOM_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I/L
+
+
+def generate_room_code(length: int = 6) -> str:
+
+    return "".join(
+        secrets.choice(ROOM_CODE_ALPHABET)
+        for _ in range(length)
+    )
+
+
+def get_room_member_by_token(db, room_id: int, member_token: str):
+
+    member = (
+        db.query(RoomMember)
+        .filter(
+            RoomMember.room_id == room_id,
+            RoomMember.token == member_token,
+        )
+        .first()
+    )
+
+    if not member:
+
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of this room.",
+        )
+
+    return member
+
+
+def serialize_member(member) -> dict:
+
+    return {
+        "id": member.id,
+        "display_name": member.display_name,
+        "is_host": member.is_host,
+        "quiz_score": member.quiz_score,
+        "quiz_total": member.quiz_total,
+        "joined_at": (
+            member.joined_at.isoformat()
+            if member.joined_at
+            else None
+        ),
+    }
+
+
+def serialize_room(room, members=None) -> dict:
+
+    return {
+        "id": room.id,
+        "name": room.name,
+        "topic": room.topic,
+        "description": room.description,
+        "room_code": room.room_code,
+        "shared_material": room.shared_material,
+        "created_by_name": room.created_by_name,
+        "amivi_project_id": room.amivi_project_id,
+        "amico_project_id": room.amico_project_id,
+        "quiz_project_id": room.quiz_project_id,
+        "created_at": (
+            room.created_at.isoformat()
+            if room.created_at
+            else None
+        ),
+        "members": (
+            [serialize_member(m) for m in members]
+            if members is not None
+            else []
+        ),
+    }
+
+
+def room_project_summary(project_id):
+
+    if not project_id:
+        return None
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(Project)
+            .filter(Project.id == project_id)
+            .first()
+        )
+
+        if not row:
+            return None
+
+        data = row.data or {}
+        thumbnail_media_id = data.get("thumbnail_media_id")
+
+        return {
+            "project_id": row.id,
+            "title": row.title,
+            "type": row.project_type,
+            "thumbnail_url": (
+                f"/api/media/{thumbnail_media_id}"
+                if thumbnail_media_id
+                else None
+            ),
+        }
+
+    finally:
+        db.close()
+
+
+def get_room_or_404(db, room_code: str):
+
+    room = (
+        db.query(LearningRoom)
+        .filter(
+            LearningRoom.room_code == room_code.strip().upper()
+        )
+        .first()
+    )
+
+    if not room:
+
+        raise HTTPException(
+            status_code=404,
+            detail="No room found with that code.",
+        )
+
+    return room
+
+
+@app.post("/api/rooms")
+def create_room(payload: RoomCreateRequest):
+
+    name = payload.name.strip()
+    display_name = payload.display_name.strip()
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Room name is required.")
+
+    if not display_name:
+        raise HTTPException(status_code=400, detail="Your name is required.")
+
+    db = SessionLocal()
+
+    try:
+
+        room_code = None
+
+        for _ in range(10):
+
+            candidate = generate_room_code()
+
+            clash = (
+                db.query(LearningRoom)
+                .filter(LearningRoom.room_code == candidate)
+                .first()
+            )
+
+            if not clash:
+                room_code = candidate
+                break
+
+        if not room_code:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Could not generate a unique room code. Please try again.",
+            )
+
+        room = LearningRoom(
+            name=name,
+            topic=payload.topic.strip() or None,
+            description=payload.description.strip() or None,
+            room_code=room_code,
+            created_by_name=display_name,
+        )
+
+        db.add(room)
+        db.flush()  # assigns room.id before the member row needs it
+
+        member = RoomMember(
+            room_id=room.id,
+            display_name=display_name,
+            token=secrets.token_urlsafe(24),
+            is_host=True,
+        )
+
+        db.add(member)
+        db.commit()
+        db.refresh(room)
+        db.refresh(member)
+
+        return {
+            "status": "success",
+            "room": serialize_room(room, members=[member]),
+            "member": {**serialize_member(member), "token": member.token},
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/rooms/join")
+def join_room(payload: RoomJoinRequest):
+
+    display_name = payload.display_name.strip()
+
+    if not display_name:
+        raise HTTPException(status_code=400, detail="Your name is required.")
+
+    if not payload.room_code.strip():
+        raise HTTPException(status_code=400, detail="Room code is required.")
+
+    db = SessionLocal()
+
+    try:
+
+        room = get_room_or_404(db, payload.room_code)
+
+        member = RoomMember(
+            room_id=room.id,
+            display_name=display_name,
+            token=secrets.token_urlsafe(24),
+            is_host=False,
+        )
+
+        db.add(member)
+        db.commit()
+        db.refresh(member)
+
+        members = (
+            db.query(RoomMember)
+            .filter(RoomMember.room_id == room.id)
+            .order_by(RoomMember.joined_at.asc())
+            .all()
+        )
+
+        return {
+            "status": "success",
+            "room": serialize_room(room, members=members),
+            "member": {**serialize_member(member), "token": member.token},
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/api/rooms/{room_code}")
+def room_detail(room_code: str):
+
+    db = SessionLocal()
+
+    try:
+
+        room = get_room_or_404(db, room_code)
+
+        members = (
+            db.query(RoomMember)
+            .filter(RoomMember.room_id == room.id)
+            .order_by(RoomMember.joined_at.asc())
+            .all()
+        )
+
+        message_count = (
+            db.query(RoomMessage)
+            .filter(RoomMessage.room_id == room.id)
+            .count()
+        )
+
+        payload = serialize_room(room, members=members)
+        payload["message_count"] = message_count
+
+        amivi_id = room.amivi_project_id
+        amico_id = room.amico_project_id
+        quiz_id = room.quiz_project_id
+
+    finally:
+        db.close()
+
+    payload["amivi"] = room_project_summary(amivi_id)
+    payload["amico"] = room_project_summary(amico_id)
+    payload["quiz"] = room_project_summary(quiz_id)
+
+    return payload
+
+
+@app.get("/api/rooms/{room_code}/messages")
+def room_messages(room_code: str):
+
+    db = SessionLocal()
+
+    try:
+
+        room = get_room_or_404(db, room_code)
+
+        rows = (
+            db.query(RoomMessage)
+            .filter(RoomMessage.room_id == room.id)
+            .order_by(RoomMessage.created_at.asc())
+            .limit(300)
+            .all()
+        )
+
+        return {
+            "messages": [
+                {
+                    "id": m.id,
+                    "sender_name": m.sender_name,
+                    "message": m.message,
+                    "created_at": (
+                        m.created_at.isoformat()
+                        if m.created_at
+                        else None
+                    ),
+                }
+                for m in rows
+            ]
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/rooms/{room_code}/messages")
+def room_send_message(room_code: str, payload: RoomMessageRequest):
+
+    text = payload.message.strip()
+
+    if not text:
+        raise HTTPException(status_code=400, detail="Message can't be empty.")
+
+    db = SessionLocal()
+
+    try:
+
+        room = get_room_or_404(db, room_code)
+        member = get_room_member_by_token(db, room.id, payload.member_token)
+
+        msg = RoomMessage(
+            room_id=room.id,
+            sender_name=member.display_name,
+            message=text,
+        )
+
+        db.add(msg)
+        db.commit()
+        db.refresh(msg)
+
+        return {
+            "status": "success",
+            "message": {
+                "id": msg.id,
+                "sender_name": msg.sender_name,
+                "message": msg.message,
+                "created_at": (
+                    msg.created_at.isoformat()
+                    if msg.created_at
+                    else None
+                ),
+            },
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/rooms/{room_code}/material")
+def room_update_material(room_code: str, payload: RoomMaterialRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        room = get_room_or_404(db, room_code)
+        get_room_member_by_token(db, room.id, payload.member_token)
+
+        room.shared_material = payload.shared_material
+        db.add(room)
+        db.commit()
+        db.refresh(room)
+
+        return {
+            "status": "success",
+            "shared_material": room.shared_material,
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/rooms/{room_code}/link")
+def room_link_project(room_code: str, payload: RoomLinkRequest):
+
+    if payload.kind not in ("amivi", "amico", "quiz"):
+
+        raise HTTPException(
+            status_code=400,
+            detail="kind must be amivi, amico or quiz.",
+        )
+
+    db = SessionLocal()
+
+    try:
+
+        room = get_room_or_404(db, room_code)
+        get_room_member_by_token(db, room.id, payload.member_token)
+
+        project = (
+            db.query(Project)
+            .filter(Project.id == payload.project_id)
+            .first()
+        )
+
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found.")
+
+        if project.project_type != payload.kind:
+
+            raise HTTPException(
+                status_code=400,
+                detail=f"That project isn't a {payload.kind} project.",
+            )
+
+        setattr(room, f"{payload.kind}_project_id", project.id)
+
+        db.add(room)
+        db.commit()
+        db.refresh(room)
+
+        amivi_id = room.amivi_project_id
+        amico_id = room.amico_project_id
+        quiz_id = room.quiz_project_id
+
+    finally:
+        db.close()
+
+    return {
+        "status": "success",
+        "amivi": room_project_summary(amivi_id),
+        "amico": room_project_summary(amico_id),
+        "quiz": room_project_summary(quiz_id),
+    }
+
+
+@app.post("/api/rooms/{room_code}/score")
+def room_submit_score(room_code: str, payload: RoomScoreRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        room = get_room_or_404(db, room_code)
+        member = get_room_member_by_token(db, room.id, payload.member_token)
+
+        member.quiz_score = max(0, payload.score)
+        member.quiz_total = max(0, payload.total)
+
+        db.add(member)
+        db.commit()
+
+        members = (
+            db.query(RoomMember)
+            .filter(RoomMember.room_id == room.id)
+            .order_by(RoomMember.joined_at.asc())
+            .all()
+        )
+
+        return {
+            "status": "success",
+            "members": [serialize_member(m) for m in members],
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/rooms/{room_code}/leave")
+def room_leave(room_code: str, payload: RoomLeaveRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        room = get_room_or_404(db, room_code)
+        member = get_room_member_by_token(db, room.id, payload.member_token)
+
+        db.delete(member)
+        db.commit()
+
+        return {"status": "success"}
+
+    finally:
+        db.close()
+
+
+# ============================================================
+# TEACHER/STUDENT CLASSROOMS
+#
+# A separate concept from the peer-to-peer LearningRoom above:
+# one teacher, any number of students, homework assignments and
+# a gradebook. Reuses the same lightweight token-based
+# "membership" pattern (no passwords), and reuses the existing
+# AMIVI / AMICO / Quiz generation endpoints + the Project table
+# for all generated content — Assignment only ever stores
+# pointers (project_id), never a copy of the content itself.
+# ============================================================
+
+def get_classroom_or_404(db, class_code: str):
+
+    classroom = (
+        db.query(Classroom)
+        .filter(
+            Classroom.class_code == class_code.strip().upper()
+        )
+        .first()
+    )
+
+    if not classroom:
+
+        raise HTTPException(
+            status_code=404,
+            detail="No classroom found with that code.",
+        )
+
+    return classroom
+
+
+def get_classroom_member_by_token(db, classroom_id: int, member_token: str):
+
+    member = (
+        db.query(ClassroomMember)
+        .filter(
+            ClassroomMember.classroom_id == classroom_id,
+            ClassroomMember.token == member_token,
+        )
+        .first()
+    )
+
+    if not member:
+
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of this classroom.",
+        )
+
+    return member
+
+
+def require_teacher(member):
+
+    if member.role != "teacher":
+
+        raise HTTPException(
+            status_code=403,
+            detail="Only the teacher can do that.",
+        )
+
+    return member
+
+
+def serialize_classroom_member(member) -> dict:
+
+    return {
+        "id": member.id,
+        "display_name": member.display_name,
+        "role": member.role,
+        "joined_at": (
+            member.joined_at.isoformat()
+            if member.joined_at
+            else None
+        ),
+    }
+
+
+def serialize_assignment(db, assignment, student_count: int) -> dict:
+
+    submitted_member_ids = {
+        row[0]
+        for row in (
+            db.query(AssignmentSubmission.member_id)
+            .filter(AssignmentSubmission.assignment_id == assignment.id)
+            .distinct()
+            .all()
+        )
+    }
+
+    return {
+        "id": assignment.id,
+        "title": assignment.title,
+        "instructions": assignment.instructions,
+        "quiz_project_id": assignment.quiz_project_id,
+        "amivi_project_id": assignment.amivi_project_id,
+        "amico_project_id": assignment.amico_project_id,
+        "due_at": (
+            assignment.due_at.isoformat()
+            if assignment.due_at
+            else None
+        ),
+        "created_at": (
+            assignment.created_at.isoformat()
+            if assignment.created_at
+            else None
+        ),
+        "submitted_count": len(submitted_member_ids),
+        "student_count": student_count,
+    }
+
+
+def parse_due_at(raw: str | None):
+
+    if not raw:
+        return None
+
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+
+        raise HTTPException(
+            status_code=400,
+            detail="due_at must be an ISO 8601 date/time.",
+        )
+
+
+def serialize_assignment_for_member(db, assignment, member_id: int) -> dict:
+    """
+    Same shape as serialize_assignment, but scoped to one member's
+    own status/score/history on this assignment instead of the
+    whole-class tally — used by the student's own assignment list
+    and by the read-only parent view.
+    """
+
+    latest = (
+        db.query(AssignmentSubmission)
+        .filter(
+            AssignmentSubmission.assignment_id == assignment.id,
+            AssignmentSubmission.member_id == member_id,
+        )
+        .order_by(AssignmentSubmission.submitted_at.desc())
+        .first()
+    )
+
+    attempt_count = (
+        db.query(AssignmentSubmission)
+        .filter(
+            AssignmentSubmission.assignment_id == assignment.id,
+            AssignmentSubmission.member_id == member_id,
+        )
+        .count()
+    )
+
+    return {
+        "id": assignment.id,
+        "title": assignment.title,
+        "instructions": assignment.instructions,
+        "due_at": (
+            assignment.due_at.isoformat()
+            if assignment.due_at
+            else None
+        ),
+        "created_at": (
+            assignment.created_at.isoformat()
+            if assignment.created_at
+            else None
+        ),
+        "status": "submitted" if latest else "not_started",
+        "score": latest.score if latest else None,
+        "total": latest.total if latest else None,
+        "attempts": attempt_count,
+        "last_submitted_at": (
+            latest.submitted_at.isoformat() if latest else None
+        ),
+    }
+
+
+@app.post("/api/classrooms")
+def create_classroom(payload: ClassroomCreateRequest):
+
+    name = payload.name.strip()
+    display_name = payload.display_name.strip()
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Classroom name is required.")
+
+    if not display_name:
+        raise HTTPException(status_code=400, detail="Your name is required.")
+
+    db = SessionLocal()
+
+    try:
+
+        class_code = None
+
+        for _ in range(10):
+
+            candidate = generate_room_code()
+
+            clash = (
+                db.query(Classroom)
+                .filter(Classroom.class_code == candidate)
+                .first()
+            )
+
+            if not clash:
+                class_code = candidate
+                break
+
+        if not class_code:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Could not generate a unique class code. Please try again.",
+            )
+
+        teacher_code = None
+
+        for _ in range(10):
+
+            candidate = generate_room_code(length=10)
+
+            clash = (
+                db.query(Classroom)
+                .filter(Classroom.teacher_code == candidate)
+                .first()
+            )
+
+            if not clash:
+                teacher_code = candidate
+                break
+
+        if not teacher_code:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Could not generate a unique teacher code. Please try again.",
+            )
+
+        classroom = Classroom(
+            name=name,
+            subject=payload.subject.strip() or None,
+            description=payload.description.strip() or None,
+            class_code=class_code,
+            teacher_code=teacher_code,
+            teacher_name=display_name,
+        )
+
+        db.add(classroom)
+        db.flush()
+
+        member = ClassroomMember(
+            classroom_id=classroom.id,
+            display_name=display_name,
+            token=secrets.token_urlsafe(24),
+            role="teacher",
+        )
+
+        db.add(member)
+        db.commit()
+        db.refresh(classroom)
+        db.refresh(member)
+
+        return {
+            "status": "success",
+            "classroom": {
+                "id": classroom.id,
+                "name": classroom.name,
+                "subject": classroom.subject,
+                "description": classroom.description,
+                "class_code": classroom.class_code,
+                "teacher_name": classroom.teacher_name,
+                "created_at": classroom.created_at.isoformat(),
+                "members": [serialize_classroom_member(member)],
+                "assignments": [],
+            },
+            "member": {**serialize_classroom_member(member), "token": member.token},
+            "teacher_code": classroom.teacher_code,
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/classrooms/join")
+def join_classroom(payload: ClassroomJoinRequest):
+
+    display_name = payload.display_name.strip()
+
+    if not display_name:
+        raise HTTPException(status_code=400, detail="Your name is required.")
+
+    if not payload.class_code.strip():
+        raise HTTPException(status_code=400, detail="Class code is required.")
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, payload.class_code)
+
+        student_code = None
+
+        for _ in range(10):
+
+            candidate = generate_room_code(length=10)
+
+            clash = (
+                db.query(ClassroomMember)
+                .filter(ClassroomMember.student_code == candidate)
+                .first()
+            )
+
+            if not clash:
+                student_code = candidate
+                break
+
+        if not student_code:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Could not generate a unique login code. Please try again.",
+            )
+
+        member = ClassroomMember(
+            classroom_id=classroom.id,
+            display_name=display_name,
+            token=secrets.token_urlsafe(24),
+            role="student",
+            student_code=student_code,
+        )
+
+        db.add(member)
+        db.commit()
+        db.refresh(member)
+
+        return {
+            "status": "success",
+            "member": {**serialize_classroom_member(member), "token": member.token},
+            "student_code": member.student_code,
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}")
+def classroom_detail(class_code: str):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+
+        members = (
+            db.query(ClassroomMember)
+            .filter(ClassroomMember.classroom_id == classroom.id)
+            .order_by(ClassroomMember.joined_at.asc())
+            .all()
+        )
+
+        student_count = sum(1 for m in members if m.role == "student")
+
+        assignments = (
+            db.query(Assignment)
+            .filter(Assignment.classroom_id == classroom.id)
+            .order_by(Assignment.created_at.desc())
+            .all()
+        )
+
+        return {
+            "id": classroom.id,
+            "name": classroom.name,
+            "subject": classroom.subject,
+            "description": classroom.description,
+            "class_code": classroom.class_code,
+            "teacher_name": classroom.teacher_name,
+            "created_at": (
+                classroom.created_at.isoformat()
+                if classroom.created_at
+                else None
+            ),
+            "members": [serialize_classroom_member(m) for m in members],
+            "assignments": [
+                serialize_assignment(db, a, student_count) for a in assignments
+            ],
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/classrooms/{class_code}/assignments")
+def create_assignment(class_code: str, payload: AssignmentCreateRequest):
+
+    title = payload.title.strip()
+
+    if not title:
+        raise HTTPException(status_code=400, detail="Assignment title is required.")
+
+    due_at = parse_due_at(payload.due_at)
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        quiz_project = (
+            db.query(Project)
+            .filter(Project.id == payload.quiz_project_id)
+            .first()
+        )
+
+        if not quiz_project or quiz_project.project_type != "quiz":
+
+            raise HTTPException(
+                status_code=400,
+                detail="quiz_project_id must point at an existing quiz project.",
+            )
+
+        assignment = Assignment(
+            classroom_id=classroom.id,
+            title=title,
+            instructions=payload.instructions.strip() or None,
+            quiz_project_id=payload.quiz_project_id,
+            amivi_project_id=payload.amivi_project_id,
+            amico_project_id=payload.amico_project_id,
+            due_at=due_at,
+        )
+
+        db.add(assignment)
+        db.commit()
+        db.refresh(assignment)
+
+        student_count = (
+            db.query(ClassroomMember)
+            .filter(
+                ClassroomMember.classroom_id == classroom.id,
+                ClassroomMember.role == "student",
+            )
+            .count()
+        )
+
+        return {
+            "status": "success",
+            "assignment": serialize_assignment(db, assignment, student_count),
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/assignments/{assignment_id}")
+def assignment_detail(class_code: str, assignment_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+
+        assignment = (
+            db.query(Assignment)
+            .filter(
+                Assignment.id == assignment_id,
+                Assignment.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found.")
+
+        student_count = (
+            db.query(ClassroomMember)
+            .filter(
+                ClassroomMember.classroom_id == classroom.id,
+                ClassroomMember.role == "student",
+            )
+            .count()
+        )
+
+        return serialize_assignment(db, assignment, student_count)
+
+    finally:
+        db.close()
+
+
+@app.post("/api/classrooms/{class_code}/assignments/{assignment_id}/submit")
+def submit_assignment(class_code: str, assignment_id: int, payload: SubmissionCreateRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+
+        assignment = (
+            db.query(Assignment)
+            .filter(
+                Assignment.id == assignment_id,
+                Assignment.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found.")
+
+        submission = AssignmentSubmission(
+            assignment_id=assignment.id,
+            member_id=member.id,
+            score=max(0, payload.score),
+            total=max(0, payload.total),
+        )
+
+        db.add(submission)
+        db.commit()
+        db.refresh(submission)
+
+        return {
+            "status": "success",
+            "submission": {
+                "id": submission.id,
+                "score": submission.score,
+                "total": submission.total,
+                "submitted_at": submission.submitted_at.isoformat(),
+            },
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/assignments/{assignment_id}/results")
+def assignment_results(class_code: str, assignment_id: int, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        teacher = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(teacher)
+
+        assignment = (
+            db.query(Assignment)
+            .filter(
+                Assignment.id == assignment_id,
+                Assignment.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found.")
+
+        students = (
+            db.query(ClassroomMember)
+            .filter(
+                ClassroomMember.classroom_id == classroom.id,
+                ClassroomMember.role == "student",
+            )
+            .order_by(ClassroomMember.joined_at.asc())
+            .all()
+        )
+
+        results = []
+
+        for student in students:
+
+            latest = (
+                db.query(AssignmentSubmission)
+                .filter(
+                    AssignmentSubmission.assignment_id == assignment.id,
+                    AssignmentSubmission.member_id == student.id,
+                )
+                .order_by(AssignmentSubmission.submitted_at.desc())
+                .first()
+            )
+
+            attempt_count = (
+                db.query(AssignmentSubmission)
+                .filter(
+                    AssignmentSubmission.assignment_id == assignment.id,
+                    AssignmentSubmission.member_id == student.id,
+                )
+                .count()
+            )
+
+            results.append(
+                {
+                    "member_id": student.id,
+                    "display_name": student.display_name,
+                    "score": latest.score if latest else None,
+                    "total": latest.total if latest else None,
+                    "attempts": attempt_count,
+                    "last_submitted_at": (
+                        latest.submitted_at.isoformat() if latest else None
+                    ),
+                }
+            )
+
+        return {"assignment_id": assignment.id, "results": results}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/history")
+def classroom_history(class_code: str, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+
+        rows = (
+            db.query(AssignmentSubmission, Assignment)
+            .join(Assignment, AssignmentSubmission.assignment_id == Assignment.id)
+            .filter(AssignmentSubmission.member_id == member.id)
+            .order_by(AssignmentSubmission.submitted_at.desc())
+            .all()
+        )
+
+        return {
+            "history": [
+                {
+                    "submission_id": submission.id,
+                    "assignment_id": assignment.id,
+                    "assignment_title": assignment.title,
+                    "score": submission.score,
+                    "total": submission.total,
+                    "submitted_at": (
+                        submission.submitted_at.isoformat()
+                        if submission.submitted_at
+                        else None
+                    ),
+                }
+                for submission, assignment in rows
+            ]
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/classrooms/{class_code}/leave")
+def leave_classroom(class_code: str, payload: ClassroomLeaveRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+
+        db.delete(member)
+        db.commit()
+
+        return {"status": "success"}
+
+    finally:
+        db.close()
+
+
+# ------------------------------------------------------------
+# Parent access — a student can generate their own read-only
+# "parent code" and hand it to a parent. The code alone is
+# enough to view that one student's assignments/scores/history
+# in this classroom; it carries no class code and no password,
+# and it can't write anything.
+# ------------------------------------------------------------
+
+@app.post("/api/classrooms/{class_code}/parent-code")
+def classroom_parent_code(class_code: str, payload: ParentCodeRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+
+        if member.parent_code and not payload.regenerate:
+
+            return {
+                "status": "success",
+                "parent_code": member.parent_code,
+            }
+
+        parent_code = None
+
+        for _ in range(10):
+
+            candidate = generate_room_code(length=10)
+
+            clash = (
+                db.query(ClassroomMember)
+                .filter(ClassroomMember.parent_code == candidate)
+                .first()
+            )
+
+            if not clash:
+                parent_code = candidate
+                break
+
+        if not parent_code:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Could not generate a unique parent code. Please try again.",
+            )
+
+        member.parent_code = parent_code
+        db.commit()
+
+        return {
+            "status": "success",
+            "parent_code": parent_code,
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/api/parents/{parent_code}")
+def parent_view(parent_code: str):
+
+    db = SessionLocal()
+
+    try:
+
+        member = (
+            db.query(ClassroomMember)
+            .filter(ClassroomMember.parent_code == parent_code.strip())
+            .first()
+        )
+
+        if not member:
+
+            raise HTTPException(
+                status_code=404,
+                detail="That parent code isn't recognized. Double-check it with your student.",
+            )
+
+        classroom = (
+            db.query(Classroom)
+            .filter(Classroom.id == member.classroom_id)
+            .first()
+        )
+
+        if not classroom:
+            raise HTTPException(status_code=404, detail="Classroom not found.")
+
+        assignments = (
+            db.query(Assignment)
+            .filter(Assignment.classroom_id == classroom.id)
+            .order_by(Assignment.created_at.desc())
+            .all()
+        )
+
+        history_rows = (
+            db.query(AssignmentSubmission, Assignment)
+            .join(Assignment, AssignmentSubmission.assignment_id == Assignment.id)
+            .filter(AssignmentSubmission.member_id == member.id)
+            .order_by(AssignmentSubmission.submitted_at.desc())
+            .all()
+        )
+
+        return {
+            "classroom": {
+                "name": classroom.name,
+                "subject": classroom.subject,
+                "description": classroom.description,
+                "teacher_name": classroom.teacher_name,
+            },
+            "student": {
+                "display_name": member.display_name,
+                "joined_at": (
+                    member.joined_at.isoformat()
+                    if member.joined_at
+                    else None
+                ),
+            },
+            "assignments": [
+                serialize_assignment_for_member(db, a, member.id)
+                for a in assignments
+            ],
+            "history": [
+                {
+                    "submission_id": submission.id,
+                    "assignment_id": assignment.id,
+                    "assignment_title": assignment.title,
+                    "score": submission.score,
+                    "total": submission.total,
+                    "submitted_at": (
+                        submission.submitted_at.isoformat()
+                        if submission.submitted_at
+                        else None
+                    ),
+                }
+                for submission, assignment in history_rows
+            ],
+        }
+
+    finally:
+        db.close()
+
+
+# ------------------------------------------------------------
+# Teacher login — recovers teacher access to an EXISTING
+# classroom from a new device/browser (the browser-stored
+# session is the only thing that normally keeps a teacher
+# "logged in", so losing it with no recovery path would lock
+# them out of their own classroom). The teacher_code is private
+# — never shown to students — and is distinct from class_code,
+# which anyone with it can use to join as a student.
+# ------------------------------------------------------------
+
+@app.post("/api/classrooms/{class_code}/teacher-code")
+def classroom_teacher_code(class_code: str, payload: TeacherCodeRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        if classroom.teacher_code and not payload.regenerate:
+
+            return {
+                "status": "success",
+                "teacher_code": classroom.teacher_code,
+            }
+
+        teacher_code = None
+
+        for _ in range(10):
+
+            candidate = generate_room_code(length=10)
+
+            clash = (
+                db.query(Classroom)
+                .filter(Classroom.teacher_code == candidate)
+                .first()
+            )
+
+            if not clash:
+                teacher_code = candidate
+                break
+
+        if not teacher_code:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Could not generate a unique teacher code. Please try again.",
+            )
+
+        classroom.teacher_code = teacher_code
+        db.commit()
+
+        return {
+            "status": "success",
+            "teacher_code": teacher_code,
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/classrooms/{class_code}/teacher-login")
+def classroom_teacher_login(class_code: str, payload: TeacherLoginRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+
+        code = payload.teacher_code.strip()
+
+        if not code or not classroom.teacher_code or not secrets.compare_digest(classroom.teacher_code, code):
+
+            raise HTTPException(status_code=403, detail="Invalid teacher code.")
+
+        teacher = (
+            db.query(ClassroomMember)
+            .filter(
+                ClassroomMember.classroom_id == classroom.id,
+                ClassroomMember.role == "teacher",
+            )
+            .first()
+        )
+
+        if not teacher:
+            raise HTTPException(status_code=404, detail="No teacher found for this classroom.")
+
+        return {
+            "status": "success",
+            "member": {**serialize_classroom_member(teacher), "token": teacher.token},
+        }
+
+    finally:
+        db.close()
+
+
+# ------------------------------------------------------------
+# Student login — the same recovery idea as teacher login, for
+# a student's own membership. A student_code is issued the
+# moment they register (join), so this is available to them
+# from the start, not something they have to think to set up.
+# ------------------------------------------------------------
+
+@app.post("/api/classrooms/{class_code}/student-code")
+def classroom_student_code(class_code: str, payload: StudentCodeRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+
+        if member.student_code and not payload.regenerate:
+
+            return {
+                "status": "success",
+                "student_code": member.student_code,
+            }
+
+        student_code = None
+
+        for _ in range(10):
+
+            candidate = generate_room_code(length=10)
+
+            clash = (
+                db.query(ClassroomMember)
+                .filter(ClassroomMember.student_code == candidate)
+                .first()
+            )
+
+            if not clash:
+                student_code = candidate
+                break
+
+        if not student_code:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Could not generate a unique login code. Please try again.",
+            )
+
+        member.student_code = student_code
+        db.commit()
+
+        return {
+            "status": "success",
+            "student_code": student_code,
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/api/classrooms/{class_code}/student-login")
+def classroom_student_login(class_code: str, payload: StudentLoginRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+
+        code = payload.student_code.strip()
+
+        member = None
+
+        if code:
+            member = (
+                db.query(ClassroomMember)
+                .filter(
+                    ClassroomMember.classroom_id == classroom.id,
+                    ClassroomMember.role == "student",
+                    ClassroomMember.student_code == code,
+                )
+                .first()
+            )
+
+        if not member:
+
+            raise HTTPException(status_code=403, detail="Invalid login code.")
+
+        return {
+            "status": "success",
+            "member": {**serialize_classroom_member(member), "token": member.token},
+        }
+
+    finally:
+        db.close()
 
 
 # ============================================================

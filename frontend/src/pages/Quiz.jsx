@@ -10,8 +10,10 @@ import {
   Home as HomeIcon,
   Archive,
   Clock,
+  Loader2,
+  AlertTriangle,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import FileUpload from '../components/ui/FileUpload';
 import {
@@ -20,6 +22,7 @@ import {
   saveWrongAnswer,
   listWrongAnswers,
   deleteWrongAnswer,
+  getLibraryProject,
 } from '../services/api';
 
 // ============================================================
@@ -70,6 +73,7 @@ function timeAgo(isoString, t) {
 
 export default function Quiz() {
   const navigate = useNavigate();
+  const { projectId } = useParams();
   const { t } = useLanguage();
 
   // --------------------------------------------------------
@@ -107,6 +111,59 @@ export default function Quiz() {
   const [finished, setFinished] = useState(false);
   const [wrongQuestions, setWrongQuestions] = useState([]);
   const [isRetake, setIsRetake] = useState(false);
+
+  // --------------------------------------------------------
+  // OPEN FROM LIBRARY STATE
+  // --------------------------------------------------------
+
+  const [isOpeningProject, setIsOpeningProject] = useState(false);
+  const [openProjectError, setOpenProjectError] = useState(null);
+
+  // ============================================================
+  // OPEN FROM LIBRARY (load a previously saved quiz instead of
+  // running the generator again)
+  // ============================================================
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    let cancelled = false;
+
+    setIsOpeningProject(true);
+    setOpenProjectError(null);
+
+    getLibraryProject(projectId)
+      .then((project) => {
+        if (cancelled) return;
+
+        if (!project?.data?.questions?.length) {
+          throw new Error('This quiz has no questions to show.');
+        }
+
+        setQuiz({ ...project.data, quizId: project.id });
+        setIsRetake(false);
+        setIsBankSession(false);
+        setMasteredBankIds([]);
+        setStarted(false);
+        setCurrentQuestion(0);
+        setSelectedAnswer(null);
+        setScore(0);
+        setFinished(false);
+        setWrongQuestions([]);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setOpenProjectError(err?.message || 'Unable to load this quiz.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsOpeningProject(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   // ============================================================
   // WRONG ANSWERS BANK — LOAD / SAVE / RETAKE
@@ -322,6 +379,35 @@ export default function Quiz() {
     setFinished(false);
     setWrongQuestions([]);
   };
+
+  // ============================================================
+  // RENDER: OPENING FROM LIBRARY (loading / error)
+  // ============================================================
+
+  if (projectId && isOpeningProject) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center py-12">
+        <Loader2 className="w-10 h-10 text-purple-500 animate-spin mb-4" />
+        <p className="text-slate-500 font-bold">{t('Loading your saved quiz...')}</p>
+      </div>
+    );
+  }
+
+  if (projectId && openProjectError && !quiz) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center py-12">
+        <AlertTriangle className="w-10 h-10 text-red-400 mb-4" />
+        <p className="text-slate-700 font-bold text-lg mb-1">{t('Unable to load this quiz.')}</p>
+        <p className="text-slate-400 font-medium text-sm mb-6">{openProjectError}</p>
+        <button
+          onClick={() => navigate('/library')}
+          className="px-6 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors"
+        >
+          {t('Back to Library')}
+        </button>
+      </div>
+    );
+  }
 
   // ============================================================
   // RENDER: GENERATION FORM

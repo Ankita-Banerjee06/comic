@@ -1,12 +1,13 @@
 import FileUpload from '../components/ui/FileUpload';
 import ProcessingAnimation from '../components/ui/ProcessingAnimation';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import {
   generateAmivi,
   regenerateAmiviImage,
   editAmiviChunk,
+  getLibraryProject,
   API_URL,
 } from '../services/api';
 
@@ -41,7 +42,40 @@ export default function Amivi() {
   const [editingChunk, setEditingChunk] = useState(null);
 
   const navigate = useNavigate();
+  const { projectId } = useParams();
   const { language, t } = useLanguage();
+
+  // ============================================================
+  // OPEN FROM LIBRARY (load a previously saved AMIVI project
+  // instead of running the generator again)
+  // ============================================================
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    let cancelled = false;
+
+    setIsProcessing(true);
+    setError(null);
+    setResult(null);
+
+    getLibraryProject(projectId)
+      .then((project) => {
+        if (cancelled) return;
+        setResult({ ...project.data, project_id: project.id });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err?.message || 'Unable to load this AMIVI project.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsProcessing(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   // ============================================================
   // HELPERS

@@ -1,6 +1,7 @@
 import FileUpload from '../components/ui/FileUpload';
 import ProcessingAnimation from '../components/ui/ProcessingAnimation';
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   generateAmico,
   regenerateAmicoPanel,
@@ -12,6 +13,7 @@ import {
   deleteAvatar,
   generateAmicoPhotoStory,
   listProjects,
+  getLibraryProject,
   mediaUrl,
   downloadMedia,
 } from '../services/api';
@@ -80,6 +82,7 @@ export default function Amico() {
   const [psFullscreen, setPsFullscreen] = useState(false);
 
   const { language, t } = useLanguage();
+  const { projectId } = useParams();
 
   useEffect(() => {
     listAvatars()
@@ -94,6 +97,40 @@ export default function Amico() {
         .catch(() => {});
     }
   }, [source, amiviProjects.length]);
+
+  // ============================================================
+  // OPEN FROM LIBRARY (load a previously saved AMICO comic
+  // instead of running the generator again)
+  // ============================================================
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    let cancelled = false;
+
+    setMode('comic');
+    setIsProcessing(true);
+    setError(null);
+    setResult(null);
+
+    getLibraryProject(projectId)
+      .then((project) => {
+        if (cancelled) return;
+        setResult({ ...project.data, project_id: project.id });
+        setCurrentPageIndex(0);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err?.message || 'Unable to load this AMICO comic.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsProcessing(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   // ============================================================
   // GENERATE

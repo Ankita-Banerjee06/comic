@@ -38,6 +38,7 @@ def get_db():
 def create_tables():
     from models import (
         User,
+        UserSession,
         Project,
         MediaAsset,
         Comic,
@@ -45,6 +46,31 @@ def create_tables():
         AmiviChunk,
         Avatar,
         WrongAnswer,
+        LearningRoom,
+        RoomMember,
+        RoomMessage,
+        Classroom,
+        ClassroomMember,
+        Assignment,
+        AssignmentSubmission,
     )
 
     Base.metadata.create_all(bind=engine)
+    _run_lightweight_migrations()
+
+
+def _run_lightweight_migrations():
+    """
+    create_all() only creates tables that don't exist yet — it never
+    alters a table this app already created in an earlier version.
+    `users` is one of those pre-existing tables, so a new column
+    added to the User model (like password_hash) needs to be added
+    here explicitly. Safe to run on every startup: IF NOT EXISTS
+    makes it a no-op once the column is already there.
+    """
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)")
+        )
