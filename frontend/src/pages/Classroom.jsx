@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   GraduationCap,
   Users,
@@ -32,6 +32,7 @@ import {
   createAssignment,
   submitAssignment,
   getAssignmentResults,
+  getSubmissionDetail,
   getClassroomHistory,
   leaveClassroom,
   getParentCode,
@@ -113,6 +114,7 @@ function formatDue(iso) {
 
 export default function ClassroomPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [session, setSession] = useState(() => loadSession());
   const [parentSession, setParentSession] = useState(() => loadParentSession());
@@ -152,6 +154,31 @@ export default function ClassroomPage() {
       .catch((err) => setParentError(err?.message || "That parent code isn't recognized."))
       .finally(() => setParentLoading(false));
   }, []);
+
+  // Landing here from the Dashboard's "Your Classrooms" list — the
+  // Dashboard already knows which classroom + membership to open
+  // (via /api/me/classrooms), so drop straight into it instead of
+  // making the user go through the join/login form again.
+  useEffect(() => {
+    const enterAs = location.state?.enterAs;
+    if (!enterAs) return;
+
+    const newSession = {
+      classCode: enterAs.classCode,
+      memberToken: enterAs.memberToken,
+      memberId: enterAs.memberId,
+      displayName: enterAs.displayName,
+      role: enterAs.role,
+    };
+    saveSession(newSession);
+    setSession(newSession);
+    setScreen('classroom');
+
+    // Clear the one-time nav state so a later refresh of this page
+    // doesn't keep re-applying it (harmless, but unnecessary).
+    navigate(location.pathname, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   useEffect(() => {
     if (screen === 'classroom' && session?.classCode) {
@@ -1530,6 +1557,7 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [detailMember, setDetailMember] = useState(null); // { member_id, display_name } | null
 
   useEffect(() => {
     setLoading(true);
@@ -1539,6 +1567,19 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
       .catch((err) => setError(err?.message || 'Unable to load results.'))
       .finally(() => setLoading(false));
   }, [classroom.class_code, assignment.id, session.memberToken]);
+
+  if (detailMember) {
+    return (
+      <SubmissionDetailModal
+        session={session}
+        classroom={classroom}
+        assignment={assignment}
+        member={detailMember}
+        onBack={() => setDetailMember(null)}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1566,18 +1607,132 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
 
           {!loading && !error && results?.length > 0 && (
             <div className="space-y-2">
-              {results.map((r) => (
-                <div key={r.member_id} className="flex items-center justify-between border border-slate-100 rounded-xl px-4 py-2.5">
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{r.display_name}</p>
-                    <p className="text-xs text-slate-400 font-semibold">
-                      {r.attempts > 0 ? `${r.attempts} attempt${r.attempts === 1 ? '' : 's'}` : 'Not started'}
-                    </p>
+              {results.map((r) => {
+                const canReview = r.attempts > 0;
+                const Row = canReview ? 'button' : 'div';
+                return (
+                  <Row
+                    key={r.member_id}
+                    onClick={canReview ? () => setDetailMember(r) : undefined}
+                    className={`w-full flex items-center justify-between border border-slate-100 rounded-xl px-4 py-2.5 text-left ${
+                      canReview ? 'hover:border-teal-200 hover:bg-teal-50/40 transition-colors cursor-pointer' : ''
+                    }`}
+                  >
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">{r.display_name}</p>
+                      <p className="text-xs text-slate-400 font-semibold">
+                        {canReview ? `${r.attempts} attempt${r.attempts === 1 ? '' : 's'} — tap to review answers` : 'Not started'}
+                      </p>
+                    </div>
+                    {r.total ? (
+                      <span className="font-extrabold text-slate-900">{r.score}/{r.total}</span>
+                    ) : (
+                      <span className="text-xs font-bold text-slate-300">—</span>
+                    )}
+                  </Row>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SUBMISSION DETAIL MODAL (teacher — per-question review of one
+// student's latest attempt)
+// ============================================================
+
+function SubmissionDetailModal({ session, classroom, assignment, member, onBack, onClose }) {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    getSubmissionDetail(classroom.class_code, assignment.id, member.member_id, session.memberToken)
+      .then((data) => setDetail(data))
+      .catch((err) => setError(err?.message || "Unable to load this student's answers."))
+      .finally(() => setLoading(false));
+  }, [classroom.class_code, assignment.id, member.member_id, session.memberToken]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 shrink-0">
+          <button onClick={onBack} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors">
+            <ArrowRight className="w-4.5 h-4.5 rotate-180" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-extrabold text-slate-900 truncate">{member.display_name}</h3>
+            <p className="text-xs text-slate-400 font-semibold truncate">{assignment.title}</p>
+          </div>
+          <button onClick={onClose} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors">
+            <X className="w-4.5 h-4.5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {loading && (
+            <div className="py-12 flex justify-center">
+              <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
+            </div>
+          )}
+
+          {!loading && error && <p className="text-red-500 font-bold text-sm text-center py-8">{error}</p>}
+
+          {!loading && !error && detail && !detail.submitted && (
+            <p className="text-slate-400 font-medium text-sm text-center py-8">This student hasn't submitted this homework yet.</p>
+          )}
+
+          {!loading && !error && detail?.submitted && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                <span className="text-sm font-bold text-slate-600">Score</span>
+                <span className="font-extrabold text-slate-900">{detail.score}/{detail.total}</span>
+              </div>
+
+              {detail.questions.length === 0 && (
+                <p className="text-slate-400 font-medium text-sm text-center py-6">
+                  This homework's quiz is no longer available, so its questions can't be shown — the score above is still accurate.
+                </p>
+              )}
+
+              {detail.questions.map((q) => (
+                <div key={q.question_index} className="border border-slate-100 rounded-xl p-4">
+                  <p className="font-bold text-slate-800 text-sm mb-3">
+                    {q.question_index + 1}. {q.question}
+                  </p>
+
+                  {q.image_url && (
+                    <img src={mediaUrl(q.image_url)} alt={q.question} className="w-full max-h-40 object-contain rounded-lg border border-slate-100 mb-3" />
+                  )}
+
+                  <div className="space-y-1.5">
+                    {(q.options || []).map((opt, idx) => {
+                      let cls = 'bg-slate-50 border border-slate-100 text-slate-400';
+                      if (idx === q.correct) cls = 'bg-green-50 border border-green-300 text-green-700';
+                      else if (idx === q.selected) cls = 'bg-red-50 border border-red-300 text-red-600';
+                      return (
+                        <div key={idx} className={`px-3 py-2 rounded-lg font-semibold text-sm flex items-center justify-between ${cls}`}>
+                          <span>{opt}</span>
+                          {idx === q.correct && <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
+                          {idx === q.selected && idx !== q.correct && <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+                        </div>
+                      );
+                    })}
                   </div>
-                  {r.total ? (
-                    <span className="font-extrabold text-slate-900">{r.score}/{r.total}</span>
-                  ) : (
-                    <span className="text-xs font-bold text-slate-300">—</span>
+
+                  {q.selected === null && (
+                    <p className="text-xs font-semibold text-amber-600 mt-2">Skipped — no answer selected.</p>
+                  )}
+
+                  {q.explanation && (
+                    <p className="text-xs text-slate-500 font-medium mt-3 leading-relaxed">{q.explanation}</p>
                   )}
                 </div>
               ))}
@@ -1596,7 +1751,7 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
 function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubmitted }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [player, setPlayer] = useState(null); // { questions, idx, selected, score }
+  const [player, setPlayer] = useState(null); // { questions, idx, selected, score, answers }
   const [finished, setFinished] = useState(false);
 
   useEffect(() => {
@@ -1607,7 +1762,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
       .then((project) => {
         const questions = project?.data?.questions || [];
         if (!questions.length) throw new Error('This homework has no questions to show.');
-        setPlayer({ questions, idx: 0, selected: null, score: 0 });
+        setPlayer({ questions, idx: 0, selected: null, score: 0, answers: [] });
       })
       .catch((err) => setError(err?.message || 'Unable to load this homework.'))
       .finally(() => setLoading(false));
@@ -1615,7 +1770,23 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
 
   const handleSelect = (i) => {
     if (player.selected !== null) return;
-    setPlayer((p) => ({ ...p, selected: i, score: i === p.questions[p.idx].correct ? p.score + 1 : p.score }));
+    setPlayer((p) => {
+      const q = p.questions[p.idx];
+      const isCorrect = i === q.correct;
+      return {
+        ...p,
+        selected: i,
+        score: isCorrect ? p.score + 1 : p.score,
+        // Record every question's answer as it's picked — the
+        // teacher's per-question review reads this back, so it
+        // has to survive moving on to the next question, unlike
+        // `selected` which resets each time.
+        answers: [
+          ...p.answers,
+          { question_index: p.idx, selected: i, correct: q.correct, is_correct: isCorrect },
+        ],
+      };
+    });
   };
 
   const handleNext = async () => {
@@ -1631,6 +1802,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
         memberToken: session.memberToken,
         score: player.score,
         total: player.questions.length,
+        answers: player.answers,
       });
       onSubmitted(assignment.id, { submitted_count: assignment.submitted_count + 1 });
       setFinished(true);

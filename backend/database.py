@@ -79,3 +79,13 @@ def _run_lightweight_migrations():
         conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)")
         )
+        conn.execute(
+            text("ALTER TABLE assignment_submissions ADD COLUMN IF NOT EXISTS answers JSON")
+        )
+        # classroom_members.user_id / room_members.user_id should already
+        # exist (those tables were created with the column already in the
+        # model), but this is a harmless no-op if so — cheap insurance
+        # against ever trying to write to a column that isn't there.
+        conn.execute(
+            text("ALTER TABLE classroom_members ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL")
+        )

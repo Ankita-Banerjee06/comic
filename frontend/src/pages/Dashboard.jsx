@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ClipboardList,
   Palette,
@@ -9,8 +10,10 @@ import {
   BarChart3,
   ArrowRight,
   Loader2,
+  School,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getMyClassrooms } from '../services/api';
 
 export default function Dashboard() {
   const { user, role, loading } = useAuth();
@@ -57,6 +60,101 @@ function DashboardHeader({ name, role }) {
             ? 'Build lessons, assign homework, and track how your students are doing — all in one place.'
             : 'Pick up your homework, keep learning with AMIVI and AMICO, or jump into a quiz.'}
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// YOUR CLASSROOMS (real-account view of the code-based Classroom
+// feature) — every classroom this account has been linked to via
+// creating/joining a classroom, or logging in with a teacher/
+// student code, while signed in. Clicking one drops straight into
+// it on the Classroom page without re-entering any code.
+// ============================================================
+
+function ClassroomsPanel({ role }) {
+  const navigate = useNavigate();
+  const [classrooms, setClassrooms] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    getMyClassrooms()
+      .then((data) => setClassrooms(data.classrooms || []))
+      .catch((err) => setError(err?.message || 'Unable to load your classrooms.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const openClassroom = (c) => {
+    navigate('/classroom', {
+      state: {
+        enterAs: {
+          classCode: c.class_code,
+          memberToken: c.member_token,
+          memberId: c.member_id,
+          displayName: c.display_name,
+          role: c.role,
+        },
+      },
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex items-center justify-center py-10">
+        <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
+      </div>
+    );
+  }
+
+  // Quietly say nothing rather than surface a scary error on the
+  // dashboard's first paint — the Classroom page itself will show
+  // the real error if the person goes looking there.
+  if (error) return null;
+
+  if (!classrooms || classrooms.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="font-bold text-slate-900 mb-1">Your classrooms</h2>
+          <p className="text-sm text-slate-500 font-medium">
+            {role === 'teacher'
+              ? "You haven't created a classroom with this account yet."
+              : "You haven't joined a classroom with this account yet."}
+          </p>
+        </div>
+        <Link
+          to="/classroom"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm text-white bg-slate-800 hover:bg-slate-700 transition-colors shrink-0"
+        >
+          {role === 'teacher' ? 'Create a classroom' : 'Join a classroom'} <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
+        <School className="w-4.5 h-4.5 text-slate-400" /> Your classrooms
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {classrooms.map((c) => (
+          <button
+            key={c.classroom_id}
+            onClick={() => openClassroom(c)}
+            className="text-left border border-slate-100 rounded-xl px-4 py-3 hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
+          >
+            <p className="font-bold text-slate-800 text-sm truncate">{c.name}</p>
+            <p className="text-xs text-slate-400 font-semibold truncate mb-2">{c.subject || 'No subject set'}</p>
+            <p className="text-xs font-bold text-slate-500">
+              {c.role === 'teacher'
+                ? `${c.student_count ?? 0} student${c.student_count === 1 ? '' : 's'} · ${c.assignment_count} assignment${c.assignment_count === 1 ? '' : 's'}`
+                : `${c.assignment_count} assignment${c.assignment_count === 1 ? '' : 's'}`}
+            </p>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -151,6 +249,7 @@ function StudentDashboard({ user }) {
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <DashboardHeader name={user?.name} role="student" />
+      <ClassroomsPanel role="student" />
       <TileGrid tiles={tiles} />
     </div>
   );
@@ -217,6 +316,7 @@ function TeacherDashboard({ user }) {
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <DashboardHeader name={user?.name} role="teacher" />
+      <ClassroomsPanel role="teacher" />
       <TileGrid tiles={tiles} />
     </div>
   );

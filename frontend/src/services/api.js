@@ -682,7 +682,7 @@ async function parseClassroomError(response, fallback) {
 export async function createClassroom({ name, subject = '', description = '', displayName }) {
   const response = await fetch(`${API_URL}/api/classrooms`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       name,
       subject,
@@ -697,7 +697,7 @@ export async function createClassroom({ name, subject = '', description = '', di
 export async function joinClassroom({ classCode, displayName }) {
   const response = await fetch(`${API_URL}/api/classrooms/join`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       class_code: classCode,
       display_name: displayName,
@@ -710,6 +710,14 @@ export async function joinClassroom({ classCode, displayName }) {
 export async function getClassroom(classCode) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}`);
   if (!response.ok) throw await parseClassroomError(response, 'Unable to load this classroom.');
+  return response.json();
+}
+
+export async function getMyClassrooms() {
+  const response = await fetch(`${API_URL}/api/me/classrooms`, {
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load your classrooms.');
   return response.json();
 }
 
@@ -737,11 +745,11 @@ export async function getAssignment(classCode, assignmentId) {
   return response.json();
 }
 
-export async function submitAssignment(classCode, assignmentId, { memberToken, score, total }) {
+export async function submitAssignment(classCode, assignmentId, { memberToken, score, total, answers = [] }) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ member_token: memberToken, score, total }),
+    body: JSON.stringify({ member_token: memberToken, score, total, answers }),
   });
   if (!response.ok) throw await parseClassroomError(response, 'Failed to submit homework.');
   return response.json();
@@ -752,6 +760,14 @@ export async function getAssignmentResults(classCode, assignmentId, memberToken)
     `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}/results?member_token=${encodeURIComponent(memberToken)}`
   );
   if (!response.ok) throw await parseClassroomError(response, 'Unable to load results.');
+  return response.json();
+}
+
+export async function getSubmissionDetail(classCode, assignmentId, memberId, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}/submissions/${memberId}?member_token=${encodeURIComponent(memberToken)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, "Unable to load this student's answers.");
   return response.json();
 }
 
@@ -802,7 +818,7 @@ export async function getTeacherCode(classCode, { memberToken, regenerate = fals
 export async function teacherLogin(classCode, { teacherCode }) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/teacher-login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ teacher_code: teacherCode }),
   });
   if (!response.ok) throw await parseClassroomError(response, "That class code or teacher code isn't recognized.");
@@ -822,7 +838,7 @@ export async function getStudentCode(classCode, { memberToken, regenerate = fals
 export async function studentLogin(classCode, { studentCode }) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/student-login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ student_code: studentCode }),
   });
   if (!response.ok) throw await parseClassroomError(response, "That class code or login code isn't recognized.");

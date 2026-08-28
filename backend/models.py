@@ -746,6 +746,13 @@ class AssignmentSubmission(Base):
     score = Column(Integer, nullable=False, default=0)
     total = Column(Integer, nullable=False, default=0)
 
+    # Per-question detail for this attempt: a list of
+    # {question_index, selected, correct, is_correct}. Nullable —
+    # added after submissions already existed in production (see
+    # the lightweight migration in database.py) and older rows
+    # simply have nothing to show here beyond the score.
+    answers = Column(JSON, nullable=True)
+
     submitted_at = Column(
         DateTime,
         nullable=False,

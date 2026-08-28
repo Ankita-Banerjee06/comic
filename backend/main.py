@@ -313,10 +313,18 @@ class AssignmentCreateRequest(BaseModel):
     due_at: str | None = None  # ISO 8601, optional
 
 
+class SubmissionAnswer(BaseModel):
+    question_index: int
+    selected: int | None = None
+    correct: int | None = None
+    is_correct: bool = False
+
+
 class SubmissionCreateRequest(BaseModel):
     member_token: str
     score: int
     total: int
+    answers: list[SubmissionAnswer] = []
 
 
 class ClassroomLeaveRequest(BaseModel):
@@ -418,6 +426,42 @@ def get_current_user(authorization: str | None = Header(default=None)):
             raise HTTPException(status_code=401, detail="Your session has expired. Please log in again.")
 
         return user
+
+    finally:
+        db.close()
+
+
+def get_current_user_optional(authorization: str | None = Header(default=None)):
+    """
+    Same lookup as get_current_user, but returns None instead of
+    raising when there's no (or an invalid) session — for endpoints
+    like Classroom join/create that must keep working for someone
+    who isn't logged into a real account, but should silently link
+    the membership to their account when they are.
+    """
+
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+
+    token = authorization[7:].strip()
+
+    if not token:
+        return None
+
+    db = SessionLocal()
+
+    try:
+
+        session = (
+            db.query(UserSession)
+            .filter(UserSession.token == token)
+            .first()
+        )
+
+        if not session:
+            return None
+
+        return db.query(User).filter(User.id == session.user_id).first()
 
     finally:
         db.close()
@@ -7026,7 +7070,7 @@ def serialize_assignment_for_member(db, assignment, member_id: int) -> dict:
 
 
 @app.post("/api/classrooms")
-def create_classroom(payload: ClassroomCreateRequest):
+def create_classroom(payload: ClassroomCreateRequest, current_user=Depends(get_current_user_optional)):
 
     name = payload.name.strip()
     display_name = payload.display_name.strip()
@@ -7104,6 +7148,13 @@ def create_classroom(payload: ClassroomCreateRequest):
             display_name=display_name,
             token=secrets.token_urlsafe(24),
             role="teacher",
+            # Auto-link to the real account when the browser is
+            # logged in — lets the Teacher Dashboard show this
+            # classroom without the teacher having to do anything
+            # extra. Classroom creation still works fine when no
+            # one's logged into a real account (current_user is
+            # None), unchanged from before.
+            user_id=current_user.id if current_user else None,
         )
 
         db.add(member)
@@ -7133,7 +7184,7 @@ def create_classroom(payload: ClassroomCreateRequest):
 
 
 @app.post("/api/classrooms/join")
-def join_classroom(payload: ClassroomJoinRequest):
+def join_classroom(payload: ClassroomJoinRequest, current_user=Depends(get_current_user_optional)):
 
     display_name = payload.display_name.strip()
 
@@ -7178,6 +7229,9 @@ def join_classroom(payload: ClassroomJoinRequest):
             token=secrets.token_urlsafe(24),
             role="student",
             student_code=student_code,
+            # Same auto-link as the teacher side above — safe no-op
+            # when nobody's logged into a real account.
+            user_id=current_user.id if current_user else None,
         )
 
         db.add(member)
@@ -7367,6 +7421,7 @@ def submit_assignment(class_code: str, assignment_id: int, payload: SubmissionCr
             member_id=member.id,
             score=max(0, payload.score),
             total=max(0, payload.total),
+            answers=[a.model_dump() for a in payload.answers] if payload.answers else None,
         )
 
         db.add(submission)
@@ -7457,6 +7512,118 @@ def assignment_results(class_code: str, assignment_id: int, member_token: str):
             )
 
         return {"assignment_id": assignment.id, "results": results}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/assignments/{assignment_id}/submissions/{member_id}")
+def assignment_submission_detail(class_code: str, assignment_id: int, member_id: int, member_token: str):
+    """
+    Teacher-only, question-by-question view of one student's latest
+    attempt: what they picked, what was correct, and (when available)
+    the explanation — pulled from the quiz's own question bank and
+    overlaid with what AssignmentSubmission.answers recorded.
+    """
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        teacher = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(teacher)
+
+        assignment = (
+            db.query(Assignment)
+            .filter(
+                Assignment.id == assignment_id,
+                Assignment.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found.")
+
+        student = (
+            db.query(ClassroomMember)
+            .filter(
+                ClassroomMember.id == member_id,
+                ClassroomMember.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found in this classroom.")
+
+        submission = (
+            db.query(AssignmentSubmission)
+            .filter(
+                AssignmentSubmission.assignment_id == assignment.id,
+                AssignmentSubmission.member_id == member_id,
+            )
+            .order_by(AssignmentSubmission.submitted_at.desc())
+            .first()
+        )
+
+        if not submission:
+            return {
+                "display_name": student.display_name,
+                "assignment_title": assignment.title,
+                "submitted": False,
+                "questions": [],
+            }
+
+        # The submission only recorded which option index was picked
+        # per question — the question text/options/explanation still
+        # live on the quiz's own Project row, so pull that back in.
+        # A deleted quiz project shouldn't break this view; just show
+        # the score with no question detail underneath it.
+        questions_bank = []
+
+        if assignment.quiz_project_id:
+
+            try:
+                quiz_project = get_project(assignment.quiz_project_id)
+                questions_bank = (quiz_project.data or {}).get("questions", [])
+            except HTTPException:
+                questions_bank = []
+
+        answers_by_index = {
+            a.get("question_index"): a
+            for a in (submission.answers or [])
+        }
+
+        questions = []
+
+        for idx, q in enumerate(questions_bank):
+
+            a = answers_by_index.get(idx)
+
+            questions.append(
+                {
+                    "question_index": idx,
+                    "question": q.get("q", ""),
+                    "options": q.get("options", []),
+                    "correct": q.get("correct"),
+                    "explanation": q.get("explanation"),
+                    "image_url": q.get("image_url"),
+                    "selected": a.get("selected") if a else None,
+                    "is_correct": a.get("is_correct") if a else None,
+                }
+            )
+
+        return {
+            "display_name": student.display_name,
+            "assignment_title": assignment.title,
+            "submitted": True,
+            "score": submission.score,
+            "total": submission.total,
+            "submitted_at": submission.submitted_at.isoformat(),
+            "questions": questions,
+        }
 
     finally:
         db.close()
@@ -7729,7 +7896,7 @@ def classroom_teacher_code(class_code: str, payload: TeacherCodeRequest):
 
 
 @app.post("/api/classrooms/{class_code}/teacher-login")
-def classroom_teacher_login(class_code: str, payload: TeacherLoginRequest):
+def classroom_teacher_login(class_code: str, payload: TeacherLoginRequest, current_user=Depends(get_current_user_optional)):
 
     db = SessionLocal()
 
@@ -7754,6 +7921,14 @@ def classroom_teacher_login(class_code: str, payload: TeacherLoginRequest):
 
         if not teacher:
             raise HTTPException(status_code=404, detail="No teacher found for this classroom.")
+
+        # Opportunistically link this (possibly pre-existing, from
+        # before real accounts existed) membership to whoever's
+        # logged in right now, so it starts showing up on their
+        # Teacher Dashboard too.
+        if current_user and not teacher.user_id:
+            teacher.user_id = current_user.id
+            db.commit()
 
         return {
             "status": "success",
@@ -7824,7 +7999,7 @@ def classroom_student_code(class_code: str, payload: StudentCodeRequest):
 
 
 @app.post("/api/classrooms/{class_code}/student-login")
-def classroom_student_login(class_code: str, payload: StudentLoginRequest):
+def classroom_student_login(class_code: str, payload: StudentLoginRequest, current_user=Depends(get_current_user_optional)):
 
     db = SessionLocal()
 
@@ -7851,10 +8026,93 @@ def classroom_student_login(class_code: str, payload: StudentLoginRequest):
 
             raise HTTPException(status_code=403, detail="Invalid login code.")
 
+        # Same opportunistic link as teacher-login above.
+        if current_user and not member.user_id:
+            member.user_id = current_user.id
+            db.commit()
+
         return {
             "status": "success",
             "member": {**serialize_classroom_member(member), "token": member.token},
         }
+
+    finally:
+        db.close()
+
+
+# ============================================================
+# MY CLASSROOMS (real account — Teacher/Student Dashboard)
+#
+# Lists every classroom a logged-in User's account has been
+# linked to (see the auto-link at classroom create/join/
+# teacher-login/student-login above). Each entry carries the
+# ClassroomMember's own token, so the frontend can drop straight
+# into the existing token-scoped Classroom endpoints without any
+# of them needing to change.
+# ============================================================
+
+@app.get("/api/me/classrooms")
+def my_classrooms(current_user=Depends(get_current_user)):
+
+    db = SessionLocal()
+
+    try:
+
+        memberships = (
+            db.query(ClassroomMember)
+            .filter(ClassroomMember.user_id == current_user.id)
+            .order_by(ClassroomMember.joined_at.desc())
+            .all()
+        )
+
+        classrooms = []
+
+        for member in memberships:
+
+            classroom = (
+                db.query(Classroom)
+                .filter(Classroom.id == member.classroom_id)
+                .first()
+            )
+
+            if not classroom:
+                continue
+
+            assignment_count = (
+                db.query(Assignment)
+                .filter(Assignment.classroom_id == classroom.id)
+                .count()
+            )
+
+            student_count = None
+
+            if member.role == "teacher":
+
+                student_count = (
+                    db.query(ClassroomMember)
+                    .filter(
+                        ClassroomMember.classroom_id == classroom.id,
+                        ClassroomMember.role == "student",
+                    )
+                    .count()
+                )
+
+            classrooms.append(
+                {
+                    "classroom_id": classroom.id,
+                    "class_code": classroom.class_code,
+                    "name": classroom.name,
+                    "subject": classroom.subject,
+                    "role": member.role,
+                    "member_id": member.id,
+                    "member_token": member.token,
+                    "display_name": member.display_name,
+                    "assignment_count": assignment_count,
+                    "student_count": student_count,
+                }
+            )
+
+        return {"classrooms": classrooms}
 
     finally:
         db.close()
