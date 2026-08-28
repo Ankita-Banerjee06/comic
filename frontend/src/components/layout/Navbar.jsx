@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Menu, X, User, Globe, Image as ImageIcon, BookOpen, HelpCircle, Library, ChevronDown, Users, GraduationCap, Video, LayoutDashboard, ClipboardList, LogOut } from 'lucide-react';
+import { Menu, X, User, Globe, Image as ImageIcon, BookOpen, HelpCircle, Library, ChevronDown, Users, GraduationCap, Video, LayoutDashboard, ClipboardList, LogOut, Home } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 const navLinks = [
+  { name: 'Home',          path: '/',               icon: Home },
   { name: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard },
   { name: 'AMIVI',         path: '/amivi',         icon: ImageIcon },
   { name: 'AMICO',         path: '/amico',         icon: BookOpen },

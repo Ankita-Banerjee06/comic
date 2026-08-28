@@ -4329,15 +4329,20 @@ async def amivi_generate(
             user_id=current_user.id,
         )
 
-        processed_chunks = []
+        processed_chunks = [None] * len(chunks)
 
         # -----------------------------------------------------
-        # Generate chunks
+        # Generate each chunk's image + narration (in parallel —
+        # these are independent per-chunk network calls, so
+        # running them one at a time was the main reason AMIVI
+        # generation was slow; each chunk still saves through
+        # its own DB session via save_amivi_chunk, so this is
+        # safe to run concurrently, same pattern as AMICO panels)
         # -----------------------------------------------------
 
-        for index, chunk in enumerate(
-            chunks
-        ):
+        import concurrent.futures
+
+        def process_amivi_chunk(index, chunk):
 
             chunk_number = chunk.get(
                 "chunk_number",
@@ -4403,29 +4408,37 @@ async def amivi_generate(
                 voice_script=voice_script,
             )
 
-            processed_chunks.append(
-                {
-                    "chunk_id": chunk_id,
-                    "chunk_number": chunk_number,
-                    "key_point": key_point,
-                    "text": text,
-                    "slogan": slogan,
-                    "description": description,
-                    "image_prompt": chunk.get(
-                        "image_prompt",
-                        "",
-                    ),
-                    "voice_script": voice_script,
-                    "image_id": image_id,
-                    "image_url": (
-                        f"/api/media/{image_id}"
-                    ),
-                    "audio_id": audio_id,
-                    "audio_url": (
-                        f"/api/media/{audio_id}"
-                    ),
-                }
-            )
+            return {
+                "chunk_id": chunk_id,
+                "chunk_number": chunk_number,
+                "key_point": key_point,
+                "text": text,
+                "slogan": slogan,
+                "description": description,
+                "image_prompt": chunk.get(
+                    "image_prompt",
+                    "",
+                ),
+                "voice_script": voice_script,
+                "image_id": image_id,
+                "image_url": (
+                    f"/api/media/{image_id}"
+                ),
+                "audio_id": audio_id,
+                "audio_url": (
+                    f"/api/media/{audio_id}"
+                ),
+            }
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {
+                executor.submit(process_amivi_chunk, idx, c): idx
+                for idx, c in enumerate(chunks)
+            }
+
+            for future in concurrent.futures.as_completed(futures):
+                idx = futures[future]
+                processed_chunks[idx] = future.result()
 
         # -----------------------------------------------------
         # Optional video
