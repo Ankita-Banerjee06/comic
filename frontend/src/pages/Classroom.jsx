@@ -307,6 +307,14 @@ export default function ClassroomPage() {
         onLeaveClick={() => setShowLeaveConfirm(true)}
         parentData={parentData}
         onParentLogout={handleParentLogout}
+        onRefresh={
+          screen === 'classroom'
+            ? () => load(session.classCode)
+            : screen === 'parent-view'
+            ? () => loadParent(parentSession.parentCode)
+            : undefined
+        }
+        refreshing={screen === 'classroom' ? loading : screen === 'parent-view' ? parentLoading : false}
       />
 
       {screen === 'hub' && (
@@ -393,7 +401,7 @@ export default function ClassroomPage() {
 // HEADER
 // ============================================================
 
-function Header({ screen, classroom, role, onLeaveClick, parentData, onParentLogout }) {
+function Header({ screen, classroom, role, onLeaveClick, parentData, onParentLogout, onRefresh, refreshing }) {
   const isParent = screen === 'parent-view';
 
   const title = isParent
@@ -434,6 +442,16 @@ function Header({ screen, classroom, role, onLeaveClick, parentData, onParentLog
             <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-white/15 border border-white/25">
               {isParent ? '👪 Parent' : role === 'teacher' ? '👩‍🏫 Teacher' : '🎓 Student'}
             </span>
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={refreshing}
+                title="Refresh to see the latest roster, submissions and scores"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 border border-white/25 text-white rounded-xl font-bold text-sm hover:bg-white/20 disabled:opacity-60 transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
+              </button>
+            )}
             <button
               onClick={isParent ? onParentLogout : onLeaveClick}
               className="flex items-center gap-2 px-5 py-2.5 bg-white/10 border border-white/25 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-colors"
