@@ -82,7 +82,7 @@ export default function Landing() {
       <section className="relative overflow-hidden">
 
         <img
-          src="/vlq-hero.png"
+          src="/heropic.png"
           alt="A teacher and students in a digital classroom, with a smart board showing lessons and live quiz results, and students following along on tablets"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: 'center 30%' }}
@@ -90,72 +90,7 @@ export default function Landing() {
         />
         <div aria-hidden className="absolute inset-x-0 bottom-0 h-10 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(15,23,42,0.28), transparent)' }} />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-14" style={{ minHeight: 'calc(100vh - 84px)' }}>
-
-          {/* ── brand + headline ── */}
-          <div className="mb-14">
-            <div className="max-w-xl rounded-3xl p-6 sm:p-7 border border-white/60 shadow-xl" style={{ background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(24px) saturate(160%)', WebkitBackdropFilter: 'blur(24px) saturate(160%)' }}>
-              <div className="flex items-center gap-3 mb-7">
-                <img src="/vlq-logo-clean.png" alt="VLQ" className="h-11 w-auto object-contain flex-shrink-0" />
-                <div>
-                  <div className="font-extrabold text-xl tracking-tight leading-none" style={{ color: '#0f172a' }}>VLQ</div>
-                  <div className="text-[11px] font-bold uppercase tracking-widest mt-1" style={{ color: '#64748b' }}>
-                    Learn at the Speed of Sight
-                  </div>
-                </div>
-              </div>
-
-              <h1 className="font-extrabold leading-[1.08] mb-5" style={{ fontSize: 'clamp(32px,4vw,50px)', color: '#0f172a', letterSpacing: '-0.01em' }}>
-                A visual learning platform for every learner
-              </h1>
-
-              <p className="text-base font-medium mb-8 leading-relaxed" style={{ color: '#475569' }}>
-                From classroom students to working professionals — turn any material into clear visuals, story-driven explanations, and quizzes that help ideas stick.
-              </p>
-
-              <div className="flex flex-wrap gap-3 mb-6">
-                <Link to="/amivi"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-white transition-all hover:-translate-y-0.5 hover:shadow-lg"
-                  style={{ background: '#1d4ed8' }}>
-                  Start Learning <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link to="/quiz"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold transition-all hover:-translate-y-0.5"
-                  style={{ background: 'white', color: '#0f172a', border: '1.5px solid #e2e8f0' }}>
-                  Take a Quiz
-                </Link>
-              </div>
-
-              {/* platform badges */}
-              <div className="flex flex-wrap items-center gap-2 pt-5 mb-3" style={{ borderTop: '1px solid #e2e8f0' }}>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: '#eff6ff' }}>
-                  <Sparkles className="w-3.5 h-3.5" style={{ color: '#2563eb' }} />
-                  <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#1d4ed8' }}>AI-Powered Visuals</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: '#f5f3ff' }}>
-                  <Puzzle className="w-3.5 h-3.5" style={{ color: '#7c3aed' }} />
-                  <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#6d28d9' }}>Practice Quizzes</span>
-                </div>
-              </div>
-
-              {/* subject strip */}
-              <div className="flex flex-wrap items-center gap-2">
-                {subjectChips.map((s) => {
-                  const Icon = s.Icon;
-                  return (
-                    <div key={s.label}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white"
-                      style={{ border: '1px solid #e2e8f0' }}>
-                      <Icon className="w-3.5 h-3.5" style={{ color: s.color }} strokeWidth={2.2} />
-                      <span className="text-[11px] font-bold" style={{ color: '#475569' }}>{s.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-        </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14" style={{ minHeight: 'calc(100vh - 84px)' }} />
       </section>
 
       {/* ════════════════════════════════════════════════════════════
@@ -180,6 +115,40 @@ export default function Landing() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════════
+          FIVE STEPS TO SUCCESS — the VLQ method
+      ═══════════════════════════════════════════════════════════ */}
+      <section className="relative py-20 px-4 sm:px-6 lg:px-10 bg-white">
+        <div className="max-w-[100rem] mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
+              style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #e0e7ff' }}>
+              The VLQ Method
+            </div>
+            <h2 className="font-extrabold leading-tight" style={{ fontSize: 'clamp(28px,3.4vw,42px)', color: '#0f172a' }}>
+              Five Steps to Success
+            </h2>
+            <p className="mt-3 text-lg font-semibold max-w-2xl mx-auto" style={{ color: '#1e293b' }}>
+              Whether you're a student, a teacher, or learning something new for work — the same five steps help you see, understand, and master any subject.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            {[
+              { src: '/vlq-step-1-see.png', alt: 'Step 1: See it. Quick visuals grab your attention and spark curiosity.' },
+              { src: '/vlq-step-2-understand.png', alt: 'Step 2: Understand it. Clear visuals simplify complex ideas in seconds.' },
+              { src: '/vlq-step-3-remember.png', alt: 'Step 3: Remember it. Visual patterns lock in knowledge for the long term.' },
+              { src: '/vlq-step-4-apply.png', alt: 'Step 4: Apply it. Use what you learn with confidence in real life.' },
+              { src: '/vlq-step-5-master.png', alt: 'Step 5: Master it. Reinforce, revisit, and level up every day.' },
+            ].map((step) => (
+              <div key={step.src} className="rounded-2xl overflow-hidden shadow-md border border-slate-100 transition-transform hover:-translate-y-1 hover:shadow-lg">
+                <img src={step.src} alt={step.alt} className="w-full h-auto block" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -243,10 +212,10 @@ export default function Landing() {
           CTA BANNER
       ═══════════════════════════════════════════════════════════ */}
       <section className="relative py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto rounded-2xl text-center text-white relative overflow-hidden" style={{ minHeight: 280, background: 'linear-gradient(135deg,#1d1467 0%,#7c1d6f 55%,#c2410c 100%)' }}>
-          <div aria-hidden className="absolute inset-0 opacity-20" style={{ background: 'radial-gradient(circle at 20% 30%, white 0%, transparent 35%), radial-gradient(circle at 80% 70%, white 0%, transparent 30%)' }} />
+        <div className="max-w-5xl mx-auto rounded-2xl text-center text-white relative overflow-hidden" style={{ minHeight: 280, background: 'linear-gradient(135deg,#0f0a3d 0%,#4a1041 55%,#7a2a09 100%)' }}>
+          <div aria-hidden className="absolute inset-0 opacity-15" style={{ background: 'radial-gradient(circle at 20% 30%, white 0%, transparent 35%), radial-gradient(circle at 80% 70%, white 0%, transparent 30%)' }} />
           <div className="relative z-10 p-10 sm:p-14 flex flex-col items-center justify-center h-full" style={{ minHeight: 280 }}>
-            <h2 className="font-extrabold mb-7 leading-tight" style={{ fontSize: 'clamp(24px,3vw,38px)' }}>
+            <h2 className="font-extrabold mb-7 leading-tight" style={{ fontSize: 'clamp(30px,3.8vw,46px)' }}>
               Ready to learn at the speed of sight?
             </h2>
             <Link to="/amivi"

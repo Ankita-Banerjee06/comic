@@ -118,7 +118,7 @@ function ClassroomsPanel({ role }) {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="font-bold text-slate-900 mb-1">Your classrooms</h2>
-          <p className="text-sm text-slate-500 font-medium">
+          <p className="text-sm text-slate-700 font-medium">
             {role === 'teacher'
               ? "You haven't created a classroom with this account yet."
               : "You haven't joined a classroom with this account yet."}
@@ -137,7 +137,7 @@ function ClassroomsPanel({ role }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
-        <School className="w-4.5 h-4.5 text-slate-400" /> Your classrooms
+        <School className="w-4.5 h-4.5 text-slate-500" /> Your classrooms
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {classrooms.map((c) => (
@@ -147,8 +147,8 @@ function ClassroomsPanel({ role }) {
             className="text-left border border-slate-100 rounded-xl px-4 py-3 hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
           >
             <p className="font-bold text-slate-800 text-sm truncate">{c.name}</p>
-            <p className="text-xs text-slate-400 font-semibold truncate mb-2">{c.subject || 'No subject set'}</p>
-            <p className="text-xs font-bold text-slate-500">
+            <p className="text-xs text-slate-600 font-semibold truncate mb-2">{c.subject || 'No subject set'}</p>
+            <p className="text-xs font-bold text-slate-700">
               {c.role === 'teacher'
                 ? `${c.student_count ?? 0} student${c.student_count === 1 ? '' : 's'} · ${c.assignment_count} assignment${c.assignment_count === 1 ? '' : 's'}`
                 : `${c.assignment_count} assignment${c.assignment_count === 1 ? '' : 's'}`}
@@ -180,7 +180,7 @@ function DashboardTile({ to, icon: Icon, title, description, tint, iconColor, ac
         <Icon className={`w-5 h-5 ${iconColor}`} />
       </div>
       <h3 className="font-bold text-slate-800 mb-1">{title}</h3>
-      <p className="text-slate-500 font-medium text-sm mb-4 flex-1">{description}</p>
+      <p className="text-slate-700 font-medium text-sm mb-4 flex-1">{description}</p>
       <span className={`inline-flex items-center gap-1.5 font-bold text-sm ${accentColor}`}>
         Open <ArrowRight className="w-4 h-4" />
       </span>

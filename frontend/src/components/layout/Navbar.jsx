@@ -69,11 +69,13 @@ export default function Navbar() {
   // back to /login), just the brand and a way to log in or register.
   if (!isAuthenticated) {
     return (
-      <header className="sticky top-0 z-50 bg-indigo-950/40 backdrop-blur-xl border-b border-white/20 shadow-lg">
+      <header className="sticky top-0 z-50 bg-slate-950 border-b border-white/10 shadow-lg">
         <div className="w-full px-6 lg:px-12 flex items-center justify-between" style={{ height: 84 }}>
-          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
+          <Link to="/" className="flex items-center flex-shrink-0">
             <img src="/vlq-logo-clean.png" alt="VLQ" className="h-9 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <span className="font-extrabold text-lg text-white tracking-tight">VLQ</span>
+            <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-white/70 hidden sm:inline leading-tight">
+              Learn at the<br />Speed of Sight
+            </span>
           </Link>
 
           {/* Desktop actions */}
@@ -141,11 +143,18 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-indigo-950/40 backdrop-blur-xl border-b border-white/20 shadow-lg">
-      <div className="w-full px-6 lg:px-12 flex items-center" style={{ height: 84 }}>
+    <header className="sticky top-0 z-50 bg-slate-950 border-b border-white/10 shadow-lg">
+      <div className="w-full px-6 lg:px-12 flex items-center gap-4" style={{ height: 84 }}>
+
+        <Link to="/" className="flex items-center flex-shrink-0">
+          <img src="/vlq-logo-clean.png" alt="VLQ" className="h-8 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <span className="ml-2 text-[9px] font-bold uppercase tracking-widest text-white/70 hidden xl:inline leading-tight">
+            Learn at the<br />Speed of Sight
+          </span>
+        </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex flex-1 items-center justify-center gap-1 lg:gap-1.5">
+        <nav className="hidden md:flex flex-1 items-center justify-center gap-0.5 lg:gap-1">
           {navLinks.map((link) => {
             const Icon = link.icon;
             return (
@@ -154,14 +163,14 @@ export default function Navbar() {
                 to={link.path}
                 end={link.path === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-3.5 lg:px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex-shrink-0 ${
+                  `flex items-center gap-1.5 px-2.5 lg:px-3 py-2 rounded-xl font-bold text-sm transition-all flex-shrink-0 ${
                     isActive
                       ? 'bg-white text-indigo-700 shadow-md'
                       : 'text-white hover:bg-white/15'
                   }`
                 }
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-4 h-4" />
                 <span>{t(link.name)}</span>
               </NavLink>
             );
