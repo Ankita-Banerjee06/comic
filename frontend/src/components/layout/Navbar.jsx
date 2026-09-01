@@ -72,8 +72,8 @@ export default function Navbar() {
       <header className="sticky top-0 z-50 bg-slate-950 border-b border-white/10 shadow-lg">
         <div className="w-full px-6 lg:px-12 flex items-center justify-between" style={{ height: 84 }}>
           <Link to="/" className="flex items-center flex-shrink-0">
-            <img src="/vlq-logo-clean.png" alt="VLQ" className="h-9 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-white/70 hidden sm:inline leading-tight">
+            <img src="/vlq-logo-clean.png" alt="VLQ" className="h-14 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <span className="ml-2.5 text-sm font-bold uppercase tracking-widest text-white hidden sm:inline leading-tight">
               Learn at the<br />Speed of Sight
             </span>
           </Link>
@@ -147,14 +147,14 @@ export default function Navbar() {
       <div className="w-full px-6 lg:px-12 flex items-center gap-4" style={{ height: 84 }}>
 
         <Link to="/" className="flex items-center flex-shrink-0">
-          <img src="/vlq-logo-clean.png" alt="VLQ" className="h-8 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          <span className="ml-2 text-[9px] font-bold uppercase tracking-widest text-white/70 hidden xl:inline leading-tight">
+          <img src="/vlq-logo-clean.png" alt="VLQ" className="h-10 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <span className="ml-2 text-xs font-bold uppercase tracking-widest text-white hidden xl:inline leading-tight">
             Learn at the<br />Speed of Sight
           </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex flex-1 items-center justify-center gap-0.5 lg:gap-1">
+        <nav className="hidden md:flex flex-1 items-center justify-center gap-0.5 flex-wrap">
           {navLinks.map((link) => {
             const Icon = link.icon;
             return (
@@ -163,14 +163,14 @@ export default function Navbar() {
                 to={link.path}
                 end={link.path === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 lg:px-3 py-2 rounded-xl font-bold text-sm transition-all flex-shrink-0 ${
+                  `flex items-center gap-1.5 px-2 lg:px-2.5 py-2 rounded-xl font-bold text-lg transition-all flex-shrink-0 ${
                     isActive
                       ? 'bg-white text-indigo-700 shadow-md'
                       : 'text-white hover:bg-white/15'
                   }`
                 }
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-5 h-5" />
                 <span>{t(link.name)}</span>
               </NavLink>
             );

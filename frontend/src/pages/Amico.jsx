@@ -447,27 +447,25 @@ export default function Amico() {
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
-      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{ minHeight: 220, background: '#fdf2f8' }}>
-        <img
-          src="/vlq-understand-tool.png"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: 'rgba(76,29,89,0.6)' }}
-        />
-        <div className="relative z-10 p-8 sm:p-10 max-w-2xl">
+      <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+        <div className="w-full h-44 sm:h-56" style={{ background: '#fdf2f8' }}>
+          <img
+            src="/vlq-understand-tool.png"
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        </div>
+        <div className="p-8 sm:p-10 max-w-2xl">
           <div
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-white"
-            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)' }}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-pink-700"
+            style={{ background: '#fdf2f8', border: '1px solid #fbcfe8' }}
           >
             AMICO
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-3">{t('AMICO')} {t('Creator')}</h1>
-          <p className="text-white/90 font-medium max-w-xl">{t('Turn any topic into a multi-panel visual story — characters, dialogue and a scene for every idea, so it sticks.')}</p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3">{t('AMICO')} {t('Creator')}</h1>
+          <p className="text-slate-600 font-medium max-w-xl">{t('Turn any topic into a multi-panel visual story — characters, dialogue and a scene for every idea, so it sticks.')}</p>
         </div>
       </div>
 

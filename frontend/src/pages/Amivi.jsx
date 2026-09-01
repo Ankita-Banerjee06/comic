@@ -314,35 +314,32 @@ export default function Amivi() {
           HEADER
       ======================================================= */}
 
-      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{ minHeight: 220, background: '#eff6ff' }}>
+      <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
 
-        <img
-          src="/vlq-amivi-card.jpg"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
+        <div className="w-full h-44 sm:h-56" style={{ background: '#eff6ff' }}>
+          <img
+            src="/vlq-amivi-card.jpg"
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        </div>
 
-        <div
-          className="absolute inset-0"
-          style={{ background: 'rgba(15,23,42,0.6)' }}
-        />
-
-        <div className="relative z-10 p-8 sm:p-10 max-w-2xl">
+        <div className="p-8 sm:p-10 max-w-2xl">
 
           <div
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-white"
-            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)' }}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-blue-700"
+            style={{ background: '#eff6ff', border: '1px solid #dbeafe' }}
           >
             AMIVI
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-3">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3">
             {t('AMIVI')} Studio
           </h1>
 
-          <p className="text-white/90 font-medium max-w-xl">
+          <p className="text-slate-600 font-medium max-w-xl">
             {t(
               'Transform large learning material or public video content into clear visual micro-bits with supporting images, explanations, narration and an optional educational video.'
             )}

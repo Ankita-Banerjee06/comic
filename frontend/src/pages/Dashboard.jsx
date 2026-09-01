@@ -170,20 +170,32 @@ function TileGrid({ tiles }) {
   );
 }
 
-function DashboardTile({ to, icon: Icon, title, description, tint, iconColor, accentColor }) {
+function DashboardTile({ to, icon: Icon, title, description, tint, iconColor, accentColor, image }) {
   return (
     <Link
       to={to}
-      className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md hover:-translate-y-0.5 transition-all group flex flex-col"
+      className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all group flex flex-col"
     >
-      <div className={`w-11 h-11 rounded-xl ${tint} flex items-center justify-center mb-4 group-hover:scale-105 transition-transform`}>
-        <Icon className={`w-5 h-5 ${iconColor}`} />
+      {image && (
+        <div className="aspect-[16/10] overflow-hidden border-b border-slate-100 bg-slate-50">
+          <img
+            src={image}
+            alt=""
+            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+          />
+        </div>
+      )}
+      <div className="p-6 flex flex-col flex-1">
+        <div className={`w-11 h-11 rounded-xl ${tint} flex items-center justify-center mb-4 group-hover:scale-105 transition-transform`}>
+          <Icon className={`w-5 h-5 ${iconColor}`} />
+        </div>
+        <h3 className="font-bold text-slate-800 mb-1">{title}</h3>
+        <p className="text-slate-700 font-medium text-sm mb-4 flex-1">{description}</p>
+        <span className={`inline-flex items-center gap-1.5 font-bold text-sm ${accentColor}`}>
+          Open <ArrowRight className="w-4 h-4" />
+        </span>
       </div>
-      <h3 className="font-bold text-slate-800 mb-1">{title}</h3>
-      <p className="text-slate-700 font-medium text-sm mb-4 flex-1">{description}</p>
-      <span className={`inline-flex items-center gap-1.5 font-bold text-sm ${accentColor}`}>
-        Open <ArrowRight className="w-4 h-4" />
-      </span>
     </Link>
   );
 }
@@ -198,6 +210,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-amber-50',
       iconColor: 'text-amber-600',
       accentColor: 'text-amber-600',
+      image: '/dashboard-homework.png',
     },
     {
       to: '/amivi',
@@ -207,6 +220,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-blue-50',
       iconColor: 'text-blue-600',
       accentColor: 'text-blue-600',
+      image: '/dashboard-amivi.png',
     },
     {
       to: '/quiz',
@@ -216,6 +230,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-purple-50',
       iconColor: 'text-purple-600',
       accentColor: 'text-purple-600',
+      image: '/dashboard-quiz.png',
     },
     {
       to: '/amico',
@@ -225,6 +240,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-pink-50',
       iconColor: 'text-pink-600',
       accentColor: 'text-pink-600',
+      image: '/dashboard-comics.png',
     },
     {
       to: '/library',
@@ -234,6 +250,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-slate-100',
       iconColor: 'text-slate-600',
       accentColor: 'text-slate-600',
+      image: '/dashboard-library.png',
     },
     {
       to: '/collaborate',
@@ -243,6 +260,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-teal-50',
       iconColor: 'text-teal-600',
       accentColor: 'text-teal-600',
+      image: '/dashboard-collaboration.png',
     },
   ];
 
@@ -265,6 +283,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-amber-50',
       iconColor: 'text-amber-600',
       accentColor: 'text-amber-600',
+      image: '/dashboard-homework.png',
     },
     {
       to: '/amivi',
@@ -274,6 +293,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-blue-50',
       iconColor: 'text-blue-600',
       accentColor: 'text-blue-600',
+      image: '/dashboard-amivi.png',
     },
     {
       to: '/amico',
@@ -283,6 +303,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-pink-50',
       iconColor: 'text-pink-600',
       accentColor: 'text-pink-600',
+      image: '/dashboard-comics.png',
     },
     {
       to: '/quiz',
@@ -292,6 +313,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-purple-50',
       iconColor: 'text-purple-600',
       accentColor: 'text-purple-600',
+      image: '/dashboard-quiz.png',
     },
     {
       to: '/classroom',
@@ -310,6 +332,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-indigo-50',
       iconColor: 'text-indigo-600',
       accentColor: 'text-indigo-600',
+      image: '/dashboard-collaboration.png',
     },
   ];
 
