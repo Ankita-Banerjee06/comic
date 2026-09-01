@@ -14,7 +14,7 @@ const navLinks = [
   { name: 'Classroom',     path: '/classroom',     icon: ClipboardList },
   { name: 'Collaborate',   path: '/collaborative', icon: Users },
   { name: 'Courses',       path: '/courses',       icon: GraduationCap },
-  { name: 'Tutorials',     path: '/tutorials',     icon: Video },
+  { name: 'Video Tutorials', path: '/tutorials',   icon: Video },
 ];
 
 function LanguageSwitcher({ langOpen, setLangOpen, language, setLanguage }) {
