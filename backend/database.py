@@ -89,3 +89,20 @@ def _run_lightweight_migrations():
         conn.execute(
             text("ALTER TABLE classroom_members ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL")
         )
+        # AMIVI chunks: a second illustration per chunk, and an
+        # optional inline 2-option "check yourself" question.
+        conn.execute(
+            text("ALTER TABLE amivi_chunks ADD COLUMN IF NOT EXISTS image2_id INTEGER REFERENCES media_assets(id) ON DELETE SET NULL")
+        )
+        conn.execute(
+            text("ALTER TABLE amivi_chunks ADD COLUMN IF NOT EXISTS mcq_question TEXT")
+        )
+        conn.execute(
+            text("ALTER TABLE amivi_chunks ADD COLUMN IF NOT EXISTS mcq_option_a TEXT")
+        )
+        conn.execute(
+            text("ALTER TABLE amivi_chunks ADD COLUMN IF NOT EXISTS mcq_option_b TEXT")
+        )
+        conn.execute(
+            text("ALTER TABLE amivi_chunks ADD COLUMN IF NOT EXISTS mcq_correct VARCHAR(1)")
+        )

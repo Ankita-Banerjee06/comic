@@ -1,7 +1,7 @@
 import FileUpload from '../components/ui/FileUpload';
 import ProcessingAnimation from '../components/ui/ProcessingAnimation';
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import {
   generateAmico,
   regenerateAmicoPanel,
@@ -83,6 +83,12 @@ export default function Amico() {
 
   const { language, t } = useLanguage();
   const { projectId } = useParams();
+  const location = useLocation();
+
+  // AMIVI's "Send to AMICO" button navigates here with the AMIVI
+  // project id in route state, so this page can pre-select it
+  // as the source instead of the learner re-picking it manually.
+  const incomingSourceProjectId = location.state?.sourceProjectId || null;
 
   useEffect(() => {
     listAvatars()
@@ -91,12 +97,24 @@ export default function Amico() {
   }, []);
 
   useEffect(() => {
+    if (incomingSourceProjectId) {
+      setSource('amivi');
+    }
+  }, [incomingSourceProjectId]);
+
+  useEffect(() => {
     if (source === 'amivi' && amiviProjects.length === 0) {
       listProjects('amivi')
         .then((data) => setAmiviProjects(data.projects || []))
         .catch(() => {});
     }
   }, [source, amiviProjects.length]);
+
+  useEffect(() => {
+    if (incomingSourceProjectId && amiviProjects.length > 0) {
+      setSelectedProjectId(String(incomingSourceProjectId));
+    }
+  }, [incomingSourceProjectId, amiviProjects]);
 
   // ============================================================
   // OPEN FROM LIBRARY (load a previously saved AMICO comic

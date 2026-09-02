@@ -183,6 +183,10 @@ class AmiviEditChunkRequest(BaseModel):
     language: str = "en"
 
 
+class AmiviPhotoStoryRequest(BaseModel):
+    project_id: int
+
+
 class AmicoRequest(BaseModel):
     homework_prompt: str = ""
     language: str = "en"
@@ -909,6 +913,11 @@ def save_amivi_chunk(
     image_id,
     audio_id,
     voice_script,
+    image2_id=None,
+    mcq_question=None,
+    mcq_option_a=None,
+    mcq_option_b=None,
+    mcq_correct=None,
 ):
 
     db = SessionLocal()
@@ -923,8 +932,13 @@ def save_amivi_chunk(
             slogan=slogan,
             description=description,
             image_id=image_id,
+            image2_id=image2_id,
             audio_id=audio_id,
             voice_script=voice_script,
+            mcq_question=mcq_question,
+            mcq_option_a=mcq_option_a,
+            mcq_option_b=mcq_option_b,
+            mcq_correct=mcq_correct,
         )
 
         db.add(row)
@@ -1901,9 +1915,19 @@ def generate_amivi_content(
         "- Create a short memorable slogan for each chunk.\n"
         "- Create a clear explanation for each chunk.\n"
         "- Create a detailed supporting image prompt for each chunk.\n"
+        "- Also create a SECOND supporting image prompt for the same "
+        "chunk that illustrates it from a different angle — e.g. a "
+        "close-up detail vs. a wide diagram, or a before/after, or "
+        "a different step of the same process. It must not just "
+        "reword the first image prompt; it should add a genuinely "
+        "different visual.\n"
         "- Prefer educational visuals such as diagrams, labeled illustrations, "
         "process visuals, maps, charts or realistic educational scenes when appropriate.\n"
-        "- Create a short narration script for each chunk.\n\n"
+        "- Create a short narration script for each chunk.\n"
+        "- Create one quick 'check yourself' multiple-choice question "
+        "for each chunk, testing the chunk's key idea, with EXACTLY "
+        "two answer options (one correct, one plausible but wrong). "
+        "Keep both options short.\n\n"
 
         "Return ONLY valid JSON in this exact structure:\n"
 
@@ -1916,7 +1940,14 @@ def generate_amivi_content(
         '      "slogan": "...",\n'
         '      "description": "...",\n'
         '      "image_prompt": "...",\n'
-        '      "voice_script": "..."\n'
+        '      "image_prompt_2": "...",\n'
+        '      "voice_script": "...",\n'
+        '      "mcq": {\n'
+        '        "question": "...",\n'
+        '        "option_a": "...",\n'
+        '        "option_b": "...",\n'
+        '        "correct": "a"\n'
+        "      }\n"
         "    }\n"
         "  ]\n"
         "}\n\n"
@@ -2605,6 +2636,68 @@ def generate_image(
     )
 
 
+def generate_image_resilient(
+    prompt,
+    filename,
+    project_id=None,
+    fallback_label=None,
+):
+
+    """
+    Wraps generate_image() so ONE failed image — most commonly
+    OpenAI's content-safety system blocking a generated prompt —
+    never takes down an entire batch of chunks/panels that were
+    generating in parallel. Tries the real prompt first; on any
+    failure, retries once with a generic, clearly G-rated fallback
+    prompt; if that also fails, returns None so the caller can
+    fall back to a placeholder image instead of crashing.
+    """
+
+    try:
+
+        return generate_image(
+            prompt=prompt,
+            filename=filename,
+            project_id=project_id,
+        )
+
+    except Exception as exc:
+
+        print(
+            "Image generation failed, retrying with a "
+            f"safe fallback prompt: {exc}"
+        )
+
+        safe_subject = (
+            fallback_label or "the lesson"
+        )
+
+        fallback_prompt = (
+            "A simple, wholesome, cartoon-style educational "
+            f"illustration representing: {safe_subject}. "
+            "Bright friendly colors, G-rated, suitable for a "
+            "children's classroom, no people unless clearly "
+            "and modestly dressed."
+        )
+
+        try:
+
+            return generate_image(
+                prompt=fallback_prompt,
+                filename=filename,
+                project_id=project_id,
+            )
+
+        except Exception as retry_exc:
+
+            print(
+                "Fallback image generation also "
+                f"failed: {retry_exc}"
+            )
+
+            return None
+
+
 # ============================================================
 # AVATAR (photo -> appearance description -> comic avatar)
 # ============================================================
@@ -2856,6 +2949,14 @@ def create_amivi_video(
 
         for chunk in chunks:
 
+            # A chunk whose image or narration generation failed
+            # (e.g. an image blocked by content moderation, even
+            # after the safe-fallback retry) shouldn't take down
+            # the whole video — just leave that chunk out of it.
+
+            if not chunk.get("image_id") or not chunk.get("audio_id"):
+                continue
+
             image_asset = get_media(
                 chunk["image_id"]
             )
@@ -2920,9 +3021,13 @@ def create_amivi_video(
 
         if not clips:
 
-            raise Exception(
-                "No valid clips generated."
-            )
+            # Every chunk was missing its image and/or audio —
+            # there's nothing to compile a video from. That's a
+            # degraded result (no video), not a fatal error for
+            # the whole AMIVI generation, so return None instead
+            # of raising.
+
+            return None
 
         with tempfile.NamedTemporaryFile(
             suffix=".mp4",
@@ -3128,6 +3233,95 @@ def wrap_text(
         lines.append(current)
 
     return lines
+
+
+def build_placeholder_panel_image(label, size=1024):
+
+    """
+    Neutral filler artwork for a panel/chunk whose real
+    illustration couldn't be generated (most commonly: OpenAI's
+    content moderation blocked the prompt) or couldn't be loaded.
+    Used so a comic page or poster still composes successfully
+    instead of the whole batch crashing over one bad panel.
+    """
+
+    image = Image.new(
+        "RGB",
+        (size, size),
+        "#E9ECF5",
+    )
+
+    draw = ImageDraw.Draw(image)
+
+    # Simple picture-frame icon (rounded frame + sun + mountain),
+    # drawn with primitive shapes since emoji glyphs aren't
+    # guaranteed to render with the bundled font.
+
+    icon_w, icon_h = 220, 160
+    icon_x = (size - icon_w) // 2
+    icon_y = size // 2 - 190
+
+    draw.rounded_rectangle(
+        (
+            icon_x,
+            icon_y,
+            icon_x + icon_w,
+            icon_y + icon_h,
+        ),
+        radius=18,
+        outline="#A0A8C0",
+        width=10,
+    )
+
+    draw.ellipse(
+        (
+            icon_x + 24,
+            icon_y + 24,
+            icon_x + 64,
+            icon_y + 64,
+        ),
+        fill="#A0A8C0",
+    )
+
+    draw.polygon(
+        [
+            (icon_x + 20, icon_y + icon_h - 20),
+            (icon_x + icon_w * 0.42, icon_y + icon_h * 0.45),
+            (icon_x + icon_w * 0.62, icon_y + icon_h * 0.68),
+            (icon_x + icon_w * 0.78, icon_y + icon_h * 0.42),
+            (icon_x + icon_w - 20, icon_y + icon_h - 20),
+        ],
+        fill="#A0A8C0",
+    )
+
+    font = get_font(46, bold=True)
+
+    text = (
+        (label or "").strip()
+        or "Illustration unavailable"
+    )
+
+    lines = wrap_text(
+        text,
+        font,
+        size - 160,
+    )[:3]
+
+    text_y = size // 2 + 10
+
+    for line in lines:
+
+        draw.text(
+            (size // 2, text_y),
+            line,
+            font=font,
+            fill="#5A6178",
+            anchor="ma",
+        )
+
+        text_y += 60
+
+    return image
 
 
 def draw_wrapped_text(
@@ -3350,33 +3544,43 @@ def render_amico_page(
             "image_id"
         )
 
-        if not image_id:
-            raise ValueError(
-                "A panel is missing image_id."
-            )
+        image = None
 
-        media = get_media(
-            image_id
-        )
+        if image_id:
 
-        if not media.data:
+            try:
 
-            raise ValueError(
-                f"Panel image {image_id} has no data."
-            )
-
-        try:
-
-            image = Image.open(
-                io.BytesIO(
-                    media.data
+                media = get_media(
+                    image_id
                 )
-            ).convert("RGB")
 
-        except Exception as exc:
+                if media.data:
 
-            raise ValueError(
-                f"Could not open panel image {image_id}: {exc}"
+                    image = Image.open(
+                        io.BytesIO(
+                            media.data
+                        )
+                    ).convert("RGB")
+
+            except Exception as exc:
+
+                # A missing/unopenable panel image (e.g. its
+                # generation was blocked by content moderation and
+                # even the safe-fallback retry failed) shouldn't
+                # take down the whole page — fall back to a
+                # placeholder for just this one panel instead.
+
+                print(
+                    f"Could not load panel image {image_id}, "
+                    f"using a placeholder instead: {exc}"
+                )
+
+        if image is None:
+
+            image = build_placeholder_panel_image(
+                panel.get("title")
+                or panel.get("learning_point")
+                or panel.get("scene")
             )
 
         panel_images.append(
@@ -3788,33 +3992,41 @@ def render_photostory_page(
             "image_id"
         )
 
-        if not image_id:
-            raise ValueError(
-                "A panel is missing image_id."
-            )
+        image = None
 
-        media = get_media(
-            image_id
-        )
+        if image_id:
 
-        if not media.data:
+            try:
 
-            raise ValueError(
-                f"Panel image {image_id} has no data."
-            )
-
-        try:
-
-            image = Image.open(
-                io.BytesIO(
-                    media.data
+                media = get_media(
+                    image_id
                 )
-            ).convert("RGB")
 
-        except Exception as exc:
+                if media.data:
 
-            raise ValueError(
-                f"Could not open panel image {image_id}: {exc}"
+                    image = Image.open(
+                        io.BytesIO(
+                            media.data
+                        )
+                    ).convert("RGB")
+
+            except Exception as exc:
+
+                # Same reasoning as render_amico_page: don't let
+                # one panel's missing/unopenable image (e.g. a
+                # moderation-blocked generation) crash the whole
+                # sheet — use a placeholder for that panel only.
+
+                print(
+                    f"Could not load panel image {image_id}, "
+                    f"using a placeholder instead: {exc}"
+                )
+
+        if image is None:
+
+            image = build_placeholder_panel_image(
+                panel.get("title")
+                or panel.get("caption")
             )
 
         panel_images.append(
@@ -4419,7 +4631,7 @@ async def amivi_generate(
                 "",
             )
 
-            image_id = generate_image(
+            image_id = generate_image_resilient(
                 prompt=chunk.get(
                     "image_prompt",
                     "",
@@ -4429,17 +4641,84 @@ async def amivi_generate(
                     f"_chunk_{index}.png"
                 ),
                 project_id=project_id,
+                fallback_label=(
+                    slogan or key_point or text
+                ),
             )
 
-            audio_id = generate_voice(
-                text=voice_script,
-                filename=(
-                    f"amivi_{project_id}"
-                    f"_chunk_{index}.wav"
-                ),
-                language=request.language,
-                project_id=project_id,
+            # Second supporting image — best-effort: a chunk still
+            # works fine with only its first image if this fails.
+            image2_id = None
+
+            image_prompt_2 = chunk.get(
+                "image_prompt_2",
+                "",
             )
+
+            if image_prompt_2:
+
+                image2_id = generate_image_resilient(
+                    prompt=image_prompt_2,
+                    filename=(
+                        f"amivi_{project_id}"
+                        f"_chunk_{index}_b.png"
+                    ),
+                    project_id=project_id,
+                    fallback_label=(
+                        slogan or key_point or text
+                    ),
+                )
+
+            mcq = chunk.get("mcq") or {}
+
+            mcq_question = mcq.get("question", "")
+            mcq_option_a = mcq.get("option_a", "")
+            mcq_option_b = mcq.get("option_b", "")
+
+            mcq_correct = (
+                mcq.get("correct", "") or ""
+            ).strip().lower()[:1]
+
+            if mcq_correct not in ("a", "b"):
+                mcq_correct = None
+
+            # An incomplete MCQ (model skipped a field) shouldn't
+            # be shown as a broken half-question.
+            if not (
+                mcq_question
+                and mcq_option_a
+                and mcq_option_b
+                and mcq_correct
+            ):
+                mcq_question = None
+                mcq_option_a = None
+                mcq_option_b = None
+                mcq_correct = None
+
+            # Best-effort, same reasoning as the images above: a
+            # chunk still works fine (just silently, without
+            # narration) if voice synthesis fails for it.
+            audio_id = None
+
+            try:
+
+                audio_id = generate_voice(
+                    text=voice_script,
+                    filename=(
+                        f"amivi_{project_id}"
+                        f"_chunk_{index}.wav"
+                    ),
+                    language=request.language,
+                    project_id=project_id,
+                )
+
+            except Exception as audio_exc:
+
+                print(
+                    "AMIVI voice generation "
+                    f"failed for chunk {index}: "
+                    f"{audio_exc}"
+                )
 
             chunk_id = save_amivi_chunk(
                 project_id=project_id,
@@ -4449,8 +4728,13 @@ async def amivi_generate(
                 slogan=slogan,
                 description=description,
                 image_id=image_id,
+                image2_id=image2_id,
                 audio_id=audio_id,
                 voice_script=voice_script,
+                mcq_question=mcq_question,
+                mcq_option_a=mcq_option_a,
+                mcq_option_b=mcq_option_b,
+                mcq_correct=mcq_correct,
             )
 
             return {
@@ -4464,15 +4748,30 @@ async def amivi_generate(
                     "image_prompt",
                     "",
                 ),
+                "image_prompt_2": image_prompt_2,
                 "voice_script": voice_script,
                 "image_id": image_id,
                 "image_url": (
                     f"/api/media/{image_id}"
+                    if image_id
+                    else None
+                ),
+                "image2_id": image2_id,
+                "image2_url": (
+                    f"/api/media/{image2_id}"
+                    if image2_id
+                    else None
                 ),
                 "audio_id": audio_id,
                 "audio_url": (
                     f"/api/media/{audio_id}"
+                    if audio_id
+                    else None
                 ),
+                "mcq_question": mcq_question,
+                "mcq_option_a": mcq_option_a,
+                "mcq_option_b": mcq_option_b,
+                "mcq_correct": mcq_correct,
             }
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
@@ -4649,6 +4948,102 @@ async def amivi_edit_chunk(
         }
 
     except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMIVI PHOTO STORY
+# (composes all of a project's already-generated chunk images
+# into one poster-style sheet — reuses AMICO's Photo Story
+# composer/renderer rather than a separate implementation, since
+# the two outputs are the same "labeled diagram poster" format.)
+# ============================================================
+
+@app.post("/api/amivi/generate_photo_story")
+async def amivi_generate_photo_story(
+    request: AmiviPhotoStoryRequest,
+    current_user=Depends(get_current_user),
+):
+
+    try:
+
+        require_services()
+
+        project = get_project(request.project_id)
+
+        if project.project_type != "amivi":
+
+            raise HTTPException(
+                status_code=404,
+                detail="AMIVI project not found.",
+            )
+
+        chunks = list_amivi_chunks_for_project(
+            request.project_id
+        )
+
+        panels = [
+            {
+                "image_id": chunk.image_id,
+                "title": (
+                    chunk.slogan
+                    or chunk.key_point
+                    or f"Chunk {chunk.chunk_number}"
+                ),
+                "caption": (
+                    chunk.description
+                    or chunk.text
+                    or ""
+                ),
+            }
+            for chunk in chunks
+            if chunk.image_id
+        ]
+
+        if not panels:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No chunk images are available yet "
+                    "to build a Photo Story."
+                ),
+            )
+
+        story = {
+            "title": project.title or "AMIVI Visual Learning",
+            "panels": panels,
+        }
+
+        pages = compose_amico_photostory(
+            request.project_id,
+            story,
+            panels_per_page=min(8, max(2, len(panels))),
+            layout="horizontal",
+        )
+
+        update_project_data(
+            request.project_id,
+            {"photo_story_pages": pages},
+        )
+
+        return {
+            "status": "success",
+            "pages": pages,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
 
         raise HTTPException(
             status_code=500,
@@ -4842,13 +5237,17 @@ async def amico_generate(
                     f"{panel.get('scene', '')}"
                 )
 
-            image_id = generate_image(
+            image_id = generate_image_resilient(
                 prompt=image_prompt,
                 filename=(
                     f"amico_{project_id}"
                     f"_panel_{index + 1}.png"
                 ),
                 project_id=project_id,
+                fallback_label=(
+                    panel.get("title")
+                    or panel.get("learning_point")
+                ),
             )
 
             return {
@@ -4859,7 +5258,11 @@ async def amico_generate(
                 "learning_point": panel.get("learning_point", ""),
                 "image_prompt": image_prompt,
                 "image_id": image_id,
-                "image_url": f"/api/media/{image_id}",
+                "image_url": (
+                    f"/api/media/{image_id}"
+                    if image_id
+                    else None
+                ),
             }
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
@@ -5497,13 +5900,14 @@ async def amico_photostory_generate(
                     f"{panel.get('title', '')}"
                 )
 
-            image_id = generate_image(
+            image_id = generate_image_resilient(
                 prompt=image_prompt,
                 filename=(
                     f"amico_photostory_{project_id}"
                     f"_panel_{index + 1}.png"
                 ),
                 project_id=project_id,
+                fallback_label=panel.get("title"),
             )
 
             return {
@@ -5512,7 +5916,11 @@ async def amico_photostory_generate(
                 "caption": panel.get("caption", ""),
                 "image_prompt": image_prompt,
                 "image_id": image_id,
-                "image_url": f"/api/media/{image_id}",
+                "image_url": (
+                    f"/api/media/{image_id}"
+                    if image_id
+                    else None
+                ),
             }
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
@@ -5931,12 +6339,22 @@ def library_project_detail(project_id: int, current_user=Depends(get_current_use
                     if chunk.image_id
                     else None
                 ),
+                "image2_id": chunk.image2_id,
+                "image2_url": (
+                    f"/api/media/{chunk.image2_id}"
+                    if chunk.image2_id
+                    else None
+                ),
                 "audio_id": chunk.audio_id,
                 "audio_url": (
                     f"/api/media/{chunk.audio_id}"
                     if chunk.audio_id
                     else None
                 ),
+                "mcq_question": chunk.mcq_question,
+                "mcq_option_a": chunk.mcq_option_a,
+                "mcq_option_b": chunk.mcq_option_b,
+                "mcq_correct": chunk.mcq_correct,
             }
             for chunk in chunks
         ]
@@ -5947,6 +6365,14 @@ def library_project_detail(project_id: int, current_user=Depends(get_current_use
             f"/api/media/{video_id}"
             if video_id
             else None
+        )
+
+        # A previously generated Photo Story (built on demand, not
+        # part of the original generation) — surface it if present
+        # so reopening the project shows it without regenerating.
+        data["photo_story_pages"] = data.get(
+            "photo_story_pages",
+            [],
         )
 
     elif project.project_type == "amico":
@@ -6223,6 +6649,87 @@ async def quiz_generate(
 
     except HTTPException:
         raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# QUIZ QUESTION IMAGE (standalone — generates one illustration,
+# and optionally a narrated explanation video, for a single
+# question. Used by category quizzes, which build their
+# questions directly from a curated bank on the frontend rather
+# than through /api/quiz/generate, but still want the same
+# AI-illustrated look as a generated quiz.)
+# ============================================================
+
+@app.post("/api/quiz/generate_question_image")
+async def quiz_generate_question_image(
+    prompt: str = Form(...),
+    explanation: str = Form(""),
+    language: str = Form("en"),
+    current_user=Depends(get_current_user),
+):
+
+    try:
+
+        require_services()
+
+        image_id = generate_image_resilient(
+            prompt=prompt,
+            filename=f"quiz_category_{uuid.uuid4().hex[:8]}.png",
+            project_id=None,
+            fallback_label=prompt,
+        )
+
+        video_id = None
+
+        if image_id and explanation:
+
+            try:
+
+                video_id = generate_quiz_explanation_video(
+                    explanation_text=explanation,
+                    image_id=image_id,
+                    filename=f"quiz_category_{uuid.uuid4().hex[:8]}.mp4",
+                    language=language,
+                    project_id=None,
+                )
+
+            except Exception as video_exc:
+
+                import traceback
+
+                traceback.print_exc()
+
+                print(
+                    "Category quiz video generation "
+                    f"failed: {video_exc}"
+                )
+
+        return {
+            "status": "success",
+            "image_id": image_id,
+            "image_url": (
+                f"/api/media/{image_id}"
+                if image_id
+                else None
+            ),
+            "video_id": video_id,
+            "video_url": (
+                f"/api/media/{video_id}"
+                if video_id
+                else None
+            ),
+        }
 
     except Exception as exc:
 

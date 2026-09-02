@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Clock, Star, ArrowRight, Video, Layers, Palette, BookOpen, Puzzle, Rocket, Brain, Lightbulb } from 'lucide-react';
+import { Play, Clock, Star, ArrowRight, Video, Layers, Palette, BookOpen, Puzzle, Rocket, Brain, Lightbulb, Compass, GraduationCap } from 'lucide-react';
 
-const categories = ['All', 'AMIVI', 'AMICO', 'Quiz', 'Study Tips', 'Getting Started'];
+const categories = ['All', 'AMIVI', 'AMICO', 'Quiz', 'Study Tips', 'Getting Started', 'For Teachers'];
 
 const tutorials = [
   {
@@ -47,6 +47,22 @@ const tutorials = [
     steps: ['Use images over text', 'Create mind maps', 'Practice with quizzes', 'Review visuals regularly'],
     description: 'Proven visual learning strategies that help you understand, remember and apply knowledge faster.'
   },
+  {
+    id: 7, icon: Compass, title: 'Introduction to Project VLQ',
+    category: 'Getting Started', duration: '0:52', level: 'All Levels',
+    tint: 'bg-indigo-50', iconColor: 'text-indigo-600',
+    videoUrl: '/videos/vlq-intro-1.mp4', thumbnail: '/videos/vlq-intro-1-thumb.jpg',
+    steps: ['Meet Project VLQ', 'See how visual learning works', 'Explore what you can build', 'Get started in minutes'],
+    description: 'A short introduction to Project VLQ — what it is and how it turns learning material into visual, memorable lessons.'
+  },
+  {
+    id: 8, icon: GraduationCap, title: 'VLQ — Benefits to Teachers',
+    category: 'For Teachers', duration: '0:27', level: 'All Levels',
+    tint: 'bg-emerald-50', iconColor: 'text-emerald-600',
+    videoUrl: '/videos/vlq-benefits-to-teachers.mp4', thumbnail: '/videos/vlq-benefits-to-teachers-thumb.jpg',
+    steps: ['Cut lesson prep time with ready-made visuals', 'Reinforce learning with spaced-repetition quizzes', 'Auto-generate homework from any lesson', 'Track teacher-learner success with VLQ analytics'],
+    description: 'See how VLQ helps teachers save prep time, reinforce learning through visuals and quizzes, and track student progress with built-in analytics.'
+  },
 ];
 
 const levelBadge = {
@@ -58,7 +74,7 @@ const levelBadge = {
 
 export default function Tutorials() {
   const [activeCategory, setActiveCategory] = useState('All');
-  const [featured, setFeatured] = useState(tutorials[3]);
+  const [featured, setFeatured] = useState(tutorials.find(t => t.id === 7) || tutorials[0]);
 
   const filtered = tutorials.filter(t =>
     activeCategory === 'All' || t.category === activeCategory
@@ -113,15 +129,28 @@ export default function Tutorials() {
         </div>
         <div className="flex flex-col lg:flex-row gap-0 bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
           {/* Video preview */}
-          <div className={`lg:w-1/2 h-56 lg:h-auto ${featured.tint} flex flex-col items-center justify-center relative cursor-pointer group`}>
-            <featured.icon className={`w-16 h-16 mb-4 ${featured.iconColor}`} />
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-              <Play className="w-7 h-7 text-slate-800 ml-0.5" fill="currentColor" />
+          {featured.videoUrl ? (
+            <div className="lg:w-1/2 h-56 lg:h-auto bg-black relative">
+              <video
+                key={featured.id}
+                controls
+                poster={featured.thumbnail}
+                className="w-full h-full object-cover"
+              >
+                <source src={featured.videoUrl} type="video/mp4" />
+              </video>
             </div>
-            <div className="absolute bottom-4 right-4 bg-black/50 text-white text-xs font-bold px-2.5 py-1 rounded-md">
-              {featured.duration}
+          ) : (
+            <div className={`lg:w-1/2 h-56 lg:h-auto ${featured.tint} flex flex-col items-center justify-center relative cursor-pointer group`}>
+              <featured.icon className={`w-16 h-16 mb-4 ${featured.iconColor}`} />
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+                <Play className="w-7 h-7 text-slate-800 ml-0.5" fill="currentColor" />
+              </div>
+              <div className="absolute bottom-4 right-4 bg-black/50 text-white text-xs font-bold px-2.5 py-1 rounded-md">
+                {featured.duration}
+              </div>
             </div>
-          </div>
+          )}
           {/* Info */}
           <div className="lg:w-1/2 p-7 flex flex-col justify-center">
             <div className="flex gap-2 mb-3">
@@ -142,13 +171,19 @@ export default function Tutorials() {
               ))}
             </div>
             <div className="flex items-center gap-4 mb-5 text-xs text-slate-400 font-semibold">
-              <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />{featured.rating}</span>
-              <span className="flex items-center gap-1.5"><Play className="w-3 h-3" />{featured.views} views</span>
+              {featured.rating && (
+                <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />{featured.rating}</span>
+              )}
+              {featured.views && (
+                <span className="flex items-center gap-1.5"><Play className="w-3 h-3" />{featured.views} views</span>
+              )}
               <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" />{featured.duration}</span>
             </div>
-            <button className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white w-max hover:-translate-y-0.5 transition-all bg-indigo-600 hover:bg-indigo-700">
-              <Play className="w-4 h-4" fill="currentColor" /> Watch tutorial
-            </button>
+            {!featured.videoUrl && (
+              <button className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white w-max hover:-translate-y-0.5 transition-all bg-indigo-600 hover:bg-indigo-700">
+                <Play className="w-4 h-4" fill="currentColor" /> Watch tutorial
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -179,9 +214,19 @@ export default function Tutorials() {
             className={`bg-white rounded-2xl overflow-hidden border shadow-sm hover:shadow-md group cursor-pointer transition-all flex flex-col ${featured.id === tut.id ? 'border-indigo-300' : 'border-slate-200'}`}
           >
             {/* Thumbnail */}
-            <div className={`h-36 ${tut.tint} flex items-center justify-center relative`}>
-              <tut.icon className={`w-10 h-10 ${tut.iconColor}`} />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center">
+            <div className={`h-36 relative overflow-hidden ${tut.thumbnail ? '' : tut.tint}`}>
+              {tut.thumbnail ? (
+                <img
+                  src={tut.thumbnail}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <tut.icon className={`w-10 h-10 ${tut.iconColor}`} />
+                </div>
+              )}
+              <div className={`absolute inset-0 transition-colors flex items-center justify-center ${tut.thumbnail ? 'bg-black/10 group-hover:bg-black/25' : 'bg-black/0 group-hover:bg-black/5'}`}>
                 <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
                   <Play className="w-4 h-4 text-slate-800 ml-0.5" fill="currentColor" />
                 </div>
@@ -203,8 +248,12 @@ export default function Tutorials() {
               </div>
               <h3 className="font-bold text-slate-800 text-sm mb-2 leading-snug group-hover:text-indigo-700 transition-colors flex-1">{tut.title}</h3>
               <div className="flex items-center gap-3 text-xs font-medium text-slate-400 mt-2 pt-2 border-t border-slate-100">
-                <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />{tut.rating}</span>
-                <span className="flex items-center gap-1"><Play className="w-3 h-3" />{tut.views}</span>
+                {tut.rating && (
+                  <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />{tut.rating}</span>
+                )}
+                {tut.views && (
+                  <span className="flex items-center gap-1"><Play className="w-3 h-3" />{tut.views}</span>
+                )}
                 <span className="ml-auto text-indigo-600 font-bold group-hover:underline">Watch →</span>
               </div>
             </div>

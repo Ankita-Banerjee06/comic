@@ -330,6 +330,15 @@ class AmiviChunk(Base):
         nullable=True,
     )
 
+    # A second supporting illustration for the same idea (a
+    # different angle/framing), so a chunk isn't limited to one
+    # image the way the original AMIVI implementation was.
+    image2_id = Column(
+        Integer,
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     audio_id = Column(
         Integer,
         ForeignKey("media_assets.id", ondelete="SET NULL"),
@@ -337,6 +346,13 @@ class AmiviChunk(Base):
     )
 
     voice_script = Column(Text, nullable=True)
+
+    # A quick 2-option "check yourself" question tied to this
+    # chunk's key idea. mcq_correct is "a" or "b".
+    mcq_question = Column(Text, nullable=True)
+    mcq_option_a = Column(Text, nullable=True)
+    mcq_option_b = Column(Text, nullable=True)
+    mcq_correct = Column(String(1), nullable=True)
 
     created_at = Column(
         DateTime,

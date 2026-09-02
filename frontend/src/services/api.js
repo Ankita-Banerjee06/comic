@@ -151,6 +151,26 @@ export async function regenerateAmiviImage(
   return response.json();
 }
 
+export async function generateAmiviPhotoStory(projectId) {
+  const response = await fetch(`${API_URL}/api/amivi/generate_photo_story`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({
+      project_id: projectId,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to generate Photo Story.');
+  }
+
+  return response.json();
+}
+
 export async function editAmiviChunk(
   chunk,
   language = 'en',
@@ -225,6 +245,41 @@ export async function generateQuiz({
     throw new Error(
       err.detail ||
         'Failed to generate quiz.'
+    );
+  }
+
+  return response.json();
+}
+
+// Generates one illustration for a single question — used by
+// category quizzes, which build their questions directly from a
+// curated bank instead of going through generateQuiz(), but still
+// want the same AI-illustrated look.
+export async function generateQuizQuestionImage(prompt, explanation, language) {
+  const formData = new FormData();
+  formData.append('prompt', prompt || '');
+  formData.append('explanation', explanation || '');
+  formData.append('language', language || 'en');
+
+  const response = await fetch(
+    `${API_URL}/api/quiz/generate_question_image`,
+    {
+      method: 'POST',
+      headers: {
+        ...authHeaders(),
+      },
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(
+      () => ({})
+    );
+
+    throw new Error(
+      err.detail ||
+        'Failed to generate question image.'
     );
   }
 

@@ -18,12 +18,14 @@ import { useLanguage } from '../contexts/LanguageContext';
 import FileUpload from '../components/ui/FileUpload';
 import {
   generateQuiz,
+  generateQuizQuestionImage,
   mediaUrl,
   saveWrongAnswer,
   listWrongAnswers,
   deleteWrongAnswer,
   getLibraryProject,
 } from '../services/api';
+import { QUIZ_CATEGORIES, buildCategoryQuiz } from '../data/quizCategoryBanks';
 
 // ============================================================
 // HELPERS
@@ -74,17 +76,18 @@ function timeAgo(isoString, t) {
 export default function Quiz() {
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // --------------------------------------------------------
   // GENERATION FORM STATE
   // --------------------------------------------------------
 
   const [view, setView] = useState('setup'); // 'setup' | 'bank'
-  const [inputMode, setInputMode] = useState('topic'); // 'topic' | 'material'
+  const [inputMode, setInputMode] = useState('topic'); // 'topic' | 'category' | 'material'
   const [topic, setTopic] = useState('');
   const [materialText, setMaterialText] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null); // category key, e.g. 'india'
   const [numQuestions, setNumQuestions] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
@@ -256,8 +259,68 @@ export default function Quiz() {
       return;
     }
 
+    if (inputMode === 'category' && !selectedCategory) {
+      setGenError(t('Please choose a category.'));
+      return;
+    }
+
     if (inputMode === 'material' && !materialText.trim() && !uploadedFile) {
       setGenError(t('Please paste or upload some material.'));
+      return;
+    }
+
+    // A category quiz uses the exact questions from the source PDF —
+    // no AI rewriting, no wait for the questions themselves. Each
+    // question still gets its own AI-generated illustration (fetched
+    // in parallel, same as a fully AI-generated quiz), so the look
+    // matches. A fresh random subset is sampled every time, so
+    // retaking the same category surfaces different questions.
+    // (No auto-save to the Library here, since this never creates a
+    // project — that's AI-generation-only.)
+    if (inputMode === 'category') {
+      const category = QUIZ_CATEGORIES.find((c) => c.key === selectedCategory);
+      const builtQuiz = buildCategoryQuiz(category, numQuestions);
+
+      setIsGenerating(true);
+
+      try {
+        const illustratedQuestions = await Promise.all(
+          builtQuiz.questions.map(async (q) => {
+            try {
+              const img = await generateQuizQuestionImage(q.q, q.explanation, language);
+              return {
+                ...q,
+                image_id: img.image_id,
+                image_url: img.image_url,
+                video_id: img.video_id,
+                video_url: img.video_url,
+              };
+            } catch (imgErr) {
+              // A missing illustration shouldn't block the quiz —
+              // the question still works fine without a picture.
+              console.error('Question image generation failed:', imgErr);
+              return q;
+            }
+          })
+        );
+
+        setQuiz({ ...builtQuiz, questions: illustratedQuestions, quizId: null });
+        setIsRetake(false);
+        setIsBankSession(false);
+        setMasteredBankIds([]);
+        setStarted(false);
+        setCurrentQuestion(0);
+        setSelectedAnswer(null);
+        setScore(0);
+        setFinished(false);
+        setWrongQuestions([]);
+      } catch (err) {
+        console.error('Category quiz generation error:', err);
+        setGenError(err?.message || t('Failed to generate quiz.'));
+      } finally {
+        setIsGenerating(false);
+      }
+
       return;
     }
 
@@ -560,7 +623,7 @@ export default function Quiz() {
             <button
               type="button"
               onClick={() => setInputMode('topic')}
-              className={`flex-1 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-3.5 px-2 rounded-2xl font-bold text-sm sm:text-base flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center transition-all ${
                 inputMode === 'topic'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
@@ -571,8 +634,20 @@ export default function Quiz() {
             </button>
             <button
               type="button"
+              onClick={() => setInputMode('category')}
+              className={`flex-1 py-3.5 px-2 rounded-2xl font-bold text-sm sm:text-base flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center transition-all ${
+                inputMode === 'category'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+              }`}
+            >
+              <Archive size={20} />
+              {t('Category')}
+            </button>
+            <button
+              type="button"
               onClick={() => setInputMode('material')}
-              className={`flex-1 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-3.5 px-2 rounded-2xl font-bold text-sm sm:text-base flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center transition-all ${
                 inputMode === 'material'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
@@ -597,6 +672,32 @@ export default function Quiz() {
                 )}
                 className="w-full p-5 bg-purple-50 border-2 border-purple-200 rounded-2xl text-gray-700 font-semibold focus:ring-4 focus:ring-purple-300 focus:border-purple-400 focus:outline-none text-lg transition-all"
               />
+            </div>
+          ) : inputMode === 'category' ? (
+            <div className="space-y-2 mb-6">
+              <label className="block text-sm font-bold text-gray-700">
+                {t('Category')}
+              </label>
+              <p className="text-sm text-gray-500 font-semibold -mt-1 mb-1">
+                {t('Pick a ready-made topic — every attempt draws a fresh set of questions.')}
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {QUIZ_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.key)}
+                    className={`flex flex-col items-center justify-center gap-1.5 py-5 rounded-2xl font-bold text-base border-2 transition-all ${
+                      selectedCategory === cat.key
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-lg'
+                        : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100'
+                    }`}
+                  >
+                    <span className="text-2xl">{cat.emoji}</span>
+                    {t(cat.label)}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="space-y-5 mb-6">

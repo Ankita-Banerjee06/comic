@@ -7,6 +7,7 @@ import {
   generateAmivi,
   regenerateAmiviImage,
   editAmiviChunk,
+  generateAmiviPhotoStory,
   getLibraryProject,
   API_URL,
 } from '../services/api';
@@ -15,7 +16,7 @@ import {
   Sparkles,
   RefreshCw,
   Pencil,
-  Save,
+  CheckCircle2,
   ArrowRight,
   Video,
   Maximize,
@@ -41,6 +42,16 @@ export default function Amivi() {
   const [processingChunkId, setProcessingChunkId] = useState(null);
   const [editingChunk, setEditingChunk] = useState(null);
 
+  // Per-slot regenerate tracking, e.g. "42:1" or "42:2"
+  const [regeneratingKey, setRegeneratingKey] = useState(null);
+
+  // { [chunk_id]: 'a' | 'b' } — which option the learner picked
+  // for each chunk's inline "check yourself" question.
+  const [mcqAnswers, setMcqAnswers] = useState({});
+
+  const [isGeneratingPhotoStory, setIsGeneratingPhotoStory] = useState(false);
+  const [photoStoryError, setPhotoStoryError] = useState(null);
+
   const navigate = useNavigate();
   const { projectId } = useParams();
   const { language, t } = useLanguage();
@@ -58,6 +69,8 @@ export default function Amivi() {
     setIsProcessing(true);
     setError(null);
     setResult(null);
+    setMcqAnswers({});
+    setPhotoStoryError(null);
 
     getLibraryProject(projectId)
       .then((project) => {
@@ -121,15 +134,24 @@ export default function Amivi() {
     setVideoUrl('');
     setError(null);
     setFullscreenChunk(null);
+    setMcqAnswers({});
+    setPhotoStoryError(null);
   };
 
-  const openFullscreen = (chunk) => {
-    setFullscreenChunk(chunk);
+  const openFullscreen = (chunk, slot = 1) => {
+    setFullscreenChunk({ ...chunk, __slot: slot });
   };
 
   const closeFullscreen = () => {
     setFullscreenChunk(null);
   };
+
+  // Whichever image is showing in the fullscreen viewer right now.
+  const fullscreenImageUrl = fullscreenChunk
+    ? fullscreenChunk.__slot === 2
+      ? fullscreenChunk.image2_url
+      : fullscreenChunk.image_url
+    : null;
 
   // Escape key closes fullscreen viewer
   useEffect(() => {
@@ -195,25 +217,60 @@ export default function Amivi() {
     }
   };
 
-  const handleRegenerate = async (chunk) => {
-    setProcessingChunkId(chunk.chunk_id);
+  const handleRegenerate = async (chunk, slot = 1) => {
+    const key = `${chunk.chunk_id}:${slot}`;
+    setRegeneratingKey(key);
     try {
-      const data = await regenerateAmiviImage(chunk, language, result?.project_id);
-      
+      // Slot 2 regenerates from the chunk's second ("alternate
+      // angle") image prompt instead of its primary one.
+      const chunkForRequest =
+        slot === 2
+          ? { ...chunk, image_prompt: chunk.image_prompt_2 || chunk.slogan || chunk.text }
+          : chunk;
+
+      const data = await regenerateAmiviImage(chunkForRequest, language, result?.project_id);
+
       // Update result state with new image
       setResult(prev => ({
         ...prev,
-        chunks: prev.chunks.map(c => 
-          c.chunk_id === chunk.chunk_id 
-            ? { ...c, image_id: data.image_id, image_url: data.image_url } 
-            : c
-        )
+        chunks: prev.chunks.map(c => {
+          if (c.chunk_id !== chunk.chunk_id) return c;
+
+          return slot === 2
+            ? { ...c, image2_id: data.image_id, image2_url: data.image_url }
+            : { ...c, image_id: data.image_id, image_url: data.image_url };
+        })
       }));
     } catch (err) {
       console.error('Regenerate image error:', err);
       alert('Failed to regenerate image.');
     } finally {
-      setProcessingChunkId(null);
+      setRegeneratingKey(null);
+    }
+  };
+
+  // ============================================================
+  // PHOTO STORY (combine every chunk's image into one poster)
+  // ============================================================
+
+  const handleGeneratePhotoStory = async () => {
+    if (!result?.project_id) return;
+
+    setIsGeneratingPhotoStory(true);
+    setPhotoStoryError(null);
+
+    try {
+      const data = await generateAmiviPhotoStory(result.project_id);
+
+      setResult(prev => ({
+        ...prev,
+        photo_story_pages: data.pages,
+      }));
+    } catch (err) {
+      console.error('Photo Story generation error:', err);
+      setPhotoStoryError(err?.message || 'Failed to generate Photo Story.');
+    } finally {
+      setIsGeneratingPhotoStory(false);
     }
   };
 
@@ -633,32 +690,54 @@ export default function Amivi() {
                     className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all"
                   >
 
-                    {/* IMAGE */}
+                    {/* IMAGES (primary + optional second angle) */}
 
                     <div className="relative bg-gray-100">
 
-                      {chunk.image_url ? (
+                      <div className={`grid ${chunk.image2_url ? 'grid-cols-2 gap-0.5' : 'grid-cols-1'}`}>
 
-                        <img
-                          src={getMediaUrl(
-                            chunk.image_url
-                          )}
-                          alt={
-                            chunk.text ||
-                            `Chunk ${
-                              index + 1
-                            }`
-                          }
-                          className="w-full aspect-square object-cover"
-                        />
+                        {chunk.image_url ? (
 
-                      ) : (
+                          <img
+                            src={getMediaUrl(
+                              chunk.image_url
+                            )}
+                            alt={
+                              chunk.text ||
+                              `Chunk ${
+                                index + 1
+                              }`
+                            }
+                            className="w-full aspect-square object-cover cursor-pointer"
+                            onClick={() => openFullscreen(chunk, 1)}
+                          />
 
-                        <div className="w-full aspect-square flex items-center justify-center text-gray-400 font-bold">
-                          Image unavailable
-                        </div>
+                        ) : (
 
-                      )}
+                          <div className="w-full aspect-square flex items-center justify-center text-gray-400 font-bold">
+                            Image unavailable
+                          </div>
+
+                        )}
+
+                        {chunk.image2_url && (
+
+                          <img
+                            src={getMediaUrl(
+                              chunk.image2_url
+                            )}
+                            alt={
+                              (chunk.text ||
+                                `Chunk ${index + 1}`) +
+                              ' (alternate view)'
+                            }
+                            className="w-full aspect-square object-cover cursor-pointer"
+                            onClick={() => openFullscreen(chunk, 2)}
+                          />
+
+                        )}
+
+                      </div>
 
                       {/* NUMBER */}
 
@@ -670,7 +749,8 @@ export default function Amivi() {
                         type="button"
                         onClick={() =>
                           openFullscreen(
-                            chunk
+                            chunk,
+                            1
                           )
                         }
                         className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center shadow-lg transition-all hover:scale-110"
@@ -680,16 +760,33 @@ export default function Amivi() {
                         <Maximize size={18} />
                       </button>
 
-                      {/* DOWNLOAD IMAGE */}
-                      {chunk.image_url && (
+                    </div>
+
+                    {/* PER-IMAGE ACTIONS */}
+
+                    <div className={`grid ${chunk.image2_url ? 'grid-cols-2' : 'grid-cols-1'} gap-0.5 bg-gray-100 border-t border-gray-200`}>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRegenerate(chunk, 1)}
+                        disabled={regeneratingKey === `${chunk.chunk_id}:1`}
+                        className="py-2 text-xs font-bold text-blue-700 hover:bg-blue-50 flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
+                        title="Regenerate this image"
+                      >
+                        <RefreshCw size={13} className={regeneratingKey === `${chunk.chunk_id}:1` ? 'animate-spin' : ''} />
+                        {chunk.image2_url ? 'Redo image 1' : 'Regenerate'}
+                      </button>
+
+                      {chunk.image2_url && (
                         <button
                           type="button"
-                          onClick={() => handleDownload(getMediaUrl(chunk.image_url), `amivi-chunk-${index + 1}.png`)}
-                          className="absolute top-16 right-4 w-10 h-10 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center shadow-lg transition-all hover:scale-110"
-                          title="Download Image"
-                          aria-label="Download Image"
+                          onClick={() => handleRegenerate(chunk, 2)}
+                          disabled={regeneratingKey === `${chunk.chunk_id}:2`}
+                          className="py-2 text-xs font-bold text-blue-700 hover:bg-blue-50 flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
+                          title="Regenerate this image"
                         >
-                          <Download size={18} />
+                          <RefreshCw size={13} className={regeneratingKey === `${chunk.chunk_id}:2` ? 'animate-spin' : ''} />
+                          Redo image 2
                         </button>
                       )}
 
@@ -724,6 +821,58 @@ export default function Amivi() {
 
                       )}
 
+                      {chunk.mcq_question && (
+
+                        <div className="mt-5 p-4 bg-purple-50 rounded-2xl border border-purple-100">
+
+                          <p className="text-xs font-bold text-purple-700 uppercase tracking-wide mb-2">
+                            🎯 {t('Quick Check')}
+                          </p>
+
+                          <p className="text-gray-800 font-bold mb-3">
+                            {chunk.mcq_question}
+                          </p>
+
+                          <div className="space-y-2">
+                            {['a', 'b'].map((opt) => {
+                              const optionText = opt === 'a' ? chunk.mcq_option_a : chunk.mcq_option_b;
+                              const answered = mcqAnswers[chunk.chunk_id];
+                              const isCorrect = opt === chunk.mcq_correct;
+                              const isPicked = answered === opt;
+
+                              let cls = 'bg-white border-gray-200 text-gray-700 hover:border-purple-300';
+
+                              if (answered) {
+                                if (isCorrect) cls = 'bg-green-50 border-green-400 text-green-700';
+                                else if (isPicked) cls = 'bg-red-50 border-red-400 text-red-700';
+                                else cls = 'bg-white border-gray-100 text-gray-400';
+                              }
+
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  disabled={!!answered}
+                                  onClick={() =>
+                                    setMcqAnswers((prev) => ({
+                                      ...prev,
+                                      [chunk.chunk_id]: opt,
+                                    }))
+                                  }
+                                  className={`w-full text-left px-4 py-2.5 rounded-xl border-2 font-semibold transition-all disabled:cursor-default ${cls}`}
+                                >
+                                  {optionText}
+                                  {answered && isCorrect && ' ✓'}
+                                  {answered && isPicked && !isCorrect && ' ✗'}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                        </div>
+
+                      )}
+
                       {chunk.audio_url && (
 
                         <audio
@@ -739,7 +888,7 @@ export default function Amivi() {
 
                       )}
 
-                      <div className="grid grid-cols-2 gap-3 mt-5">
+                      <div className="grid grid-cols-1 gap-3 mt-5">
 
                         <button
                           type="button"
@@ -750,17 +899,6 @@ export default function Amivi() {
                         >
                           <Pencil size={16} />
                           Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRegenerate(chunk)}
-                          disabled={processingChunkId === chunk.chunk_id}
-                          className="py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold flex justify-center items-center gap-2 disabled:opacity-50 transition"
-                          title="Regenerate Image"
-                        >
-                          <RefreshCw size={16} className={processingChunkId === chunk.chunk_id ? "animate-spin" : ""} />
-                          Regenerate
                         </button>
 
                       </div>
@@ -788,23 +926,106 @@ export default function Amivi() {
           </div>
 
 
+          {/* PHOTO STORY */}
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7">
+
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
+
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  📖 {t('Photo Story')}
+                </h3>
+                <p className="text-sm text-gray-500 font-semibold mt-1">
+                  {t('Combine every chunk into one poster-style sheet you can print or share.')}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGeneratePhotoStory}
+                disabled={isGeneratingPhotoStory || !result?.project_id}
+                className="px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center gap-2 transition-all"
+              >
+                <Sparkles className={`w-5 h-5 ${isGeneratingPhotoStory ? 'animate-pulse' : ''}`} />
+                {isGeneratingPhotoStory
+                  ? t('Generating...')
+                  : (result?.photo_story_pages?.length
+                      ? t('Regenerate Photo Story')
+                      : t('Generate Photo Story'))}
+              </button>
+
+            </div>
+
+            {photoStoryError && (
+              <p className="text-red-500 font-bold mb-4">{photoStoryError}</p>
+            )}
+
+            {(result?.photo_story_pages || []).length > 0 && (
+
+              <div className="space-y-6">
+
+                {result.photo_story_pages.map((page) => (
+
+                  <div key={page.page_number} className="space-y-2">
+
+                    <div className="rounded-2xl overflow-hidden border-2 border-purple-100 shadow-sm">
+                      <img
+                        src={getMediaUrl(page.comic_image_url)}
+                        alt={`Photo Story page ${page.page_number}`}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDownload(
+                            getMediaUrl(page.comic_image_url),
+                            `amivi-photo-story-page-${page.page_number}.png`
+                          )
+                        }
+                        className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm"
+                      >
+                        <Download size={16} />
+                        {t('Download Page')} {page.page_number}
+                      </button>
+                    </div>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            )}
+
+          </div>
+
+
           {/* BOTTOM ACTIONS */}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
-            <button
-              type="button"
-              className="py-4 bg-gray-900 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 opacity-70 cursor-not-allowed"
+            <div
+              className="py-4 bg-gray-50 border-2 border-gray-100 text-gray-600 rounded-2xl font-bold text-lg flex items-center justify-center gap-3"
             >
-              <Save size={20} />
-              Save to Library
-            </button>
+              <CheckCircle2 size={20} className="text-green-500" />
+              {t('Saved to Library')}
+            </div>
 
             <button
               type="button"
-              className="py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 opacity-70 cursor-not-allowed"
+              onClick={() =>
+                navigate('/amico', {
+                  state: { sourceProjectId: result.project_id },
+                })
+              }
+              disabled={!result?.project_id}
+              className="py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all"
             >
-              Send to AMICO
+              {t('Send to AMICO')}
               <ArrowRight size={20} />
             </button>
 
@@ -860,11 +1081,11 @@ export default function Amivi() {
 
             <div className="flex-1 min-w-0 w-full h-full flex items-center justify-center">
 
-              {fullscreenChunk.image_url ? (
+              {fullscreenImageUrl ? (
 
                 <img
                   src={getMediaUrl(
-                    fullscreenChunk.image_url
+                    fullscreenImageUrl
                   )}
                   alt={
                     fullscreenChunk.text ||
@@ -893,6 +1114,7 @@ export default function Amivi() {
                 <span className="px-4 py-2 rounded-full bg-red-500 text-white font-bold">
                   Chunk{' '}
                   {fullscreenChunk.chunk_number || ''}
+                  {fullscreenChunk.__slot === 2 ? ' (view 2)' : ''}
                 </span>
 
                 <button
@@ -911,6 +1133,24 @@ export default function Amivi() {
                   fullscreenChunk.key_point ||
                   'AMIVI Visual'}
               </h2>
+
+              {fullscreenImageUrl && (
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDownload(
+                      getMediaUrl(fullscreenImageUrl),
+                      `amivi-chunk-${fullscreenChunk.chunk_number || ''}${fullscreenChunk.__slot === 2 ? '-b' : ''}.png`
+                    )
+                  }
+                  className="mt-4 w-full px-4 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Download size={16} />
+                  {t('Download Image')}
+                </button>
+
+              )}
 
 
               {fullscreenChunk.slogan && (
