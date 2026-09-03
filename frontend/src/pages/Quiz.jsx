@@ -286,6 +286,19 @@ export default function Quiz() {
       try {
         const illustratedQuestions = await Promise.all(
           builtQuiz.questions.map(async (q) => {
+            // Prefer the real photo/graphic lifted from the source PDF
+            // over an AI-generated illustration — asking the AI to draw
+            // a specific fact (a person, an event, a diagram) tends to
+            // come out distorted or nonsensical, which is worse than no
+            // picture at all.
+            if (q.curatedImage) {
+              return {
+                ...q,
+                image_url: q.curatedImage,
+                explain_image_url: q.curatedExplainImage,
+              };
+            }
+
             try {
               const img = await generateQuizQuestionImage(q.q, q.explanation, language);
               return {
@@ -914,7 +927,7 @@ export default function Quiz() {
 
         {q.image_url && (
           <img
-            src={mediaUrl(q.image_url)}
+            src={q.image_url.startsWith('/quiz-decks/') ? q.image_url : mediaUrl(q.image_url)}
             alt={q.q}
             className="w-full max-h-80 object-contain rounded-2xl border-2 border-purple-50"
           />
@@ -971,6 +984,13 @@ export default function Quiz() {
               <span className="text-2xl">💡</span>
               <div className="flex-1">
                 <h4 className="text-blue-800 font-bold mb-2 text-lg">{t('Explanation')}</h4>
+                {q.explain_image_url && (
+                  <img
+                    src={q.explain_image_url}
+                    alt=""
+                    className="max-h-56 w-auto rounded-2xl border-2 border-blue-200 mb-3 object-contain"
+                  />
+                )}
                 <p className="text-blue-700 font-semibold leading-relaxed">{q.explanation}</p>
 
                 {q.video_url && (

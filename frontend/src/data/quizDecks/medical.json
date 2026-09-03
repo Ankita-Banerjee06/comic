@@ -1,0 +1,604 @@
+[
+  {
+    "id": 1,
+    "question": "Which Blood type is considered the universal donor?",
+    "options": [
+      "A",
+      "O",
+      "B"
+    ],
+    "correctIndex": 1,
+    "explanation": "O Negative blood donors are universal.\nThere is nothing in their blood for antibodies to\n'attack'.\nO Negative blood is safe to give to anyone,\nregardless of their blood type.",
+    "videoUrl": "https://www.youtube.com/shorts/tJNO9d6yilU",
+    "image": "/quiz-decks/medical/medical-q1-main.png",
+    "explainImage": "/quiz-decks/medical/medical-q1-explain.jpg"
+  },
+  {
+    "id": 2,
+    "question": "What is the Term for low blood sugar?",
+    "options": [
+      "Hypertension",
+      "Hypoglycemia",
+      "Hyperkalemia"
+    ],
+    "correctIndex": 1,
+    "explanation": "Hypoglycemia is a condition in which your blood sugar (glucose) level is\nlower than the standard range\nGlucose is the body´s main source of energy.",
+    "videoUrl": "https://www.youtube.com/watch?v=jk72rCWLiU4",
+    "image": "/quiz-decks/medical/medical-q2-main.png",
+    "explainImage": "/quiz-decks/medical/medical-q2-explain.png"
+  },
+  {
+    "id": 3,
+    "question": "Where in the Human body is the clavicle?",
+    "options": [
+      "LEGS",
+      "SHOULDERS",
+      "HIPS"
+    ],
+    "correctIndex": 1,
+    "explanation": "The clavicle is a bone located between the\nribcage (sternum) and the shoulder blade\n(scapula).\nIt connects the arm to the body.",
+    "videoUrl": "https://www.youtube.com/shorts/Pisox0fw9UI",
+    "image": "/quiz-decks/medical/medical-q3-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q3-explain.jpg"
+  },
+  {
+    "id": 4,
+    "question": "Which Organ filters waste products from the blood?",
+    "options": [
+      "LIVER",
+      "KIDNEYS",
+      "SPLEEN"
+    ],
+    "correctIndex": 1,
+    "explanation": "Kidneys filter waste products from the blood.\nThey remove acid that is produced by the cells in the body in order to\nmaintain a healthy balance of water, salts and minerals\nsuch as sodium, calcium, phosphorus and potassium - in the blood.",
+    "videoUrl": "https://www.youtube.com/shorts/n7ZOqU5s5hU",
+    "image": "/quiz-decks/medical/medical-q4-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q4-explain.jpg"
+  },
+  {
+    "id": 5,
+    "question": "Nephrologist – specialises in diseases of?",
+    "options": [
+      "LIVER",
+      "KIDNEYS",
+      "SPLEEN"
+    ],
+    "correctIndex": 1,
+    "explanation": "Nephrologist is a medical doctor who specializes in\nkidney related care & diseases",
+    "videoUrl": "https://www.youtube.com/shorts/_0T6BC9aHwM",
+    "image": "/quiz-decks/medical/medical-q5-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q5-explain.jpg"
+  },
+  {
+    "id": 6,
+    "question": "A Stroke is a medical condition which affects the?",
+    "options": [
+      "BRAIN",
+      "HEART",
+      "LUNGS"
+    ],
+    "correctIndex": 0,
+    "explanation": "A stroke occurs when the blood supply\nto the brain is blocked by a clot or tear in a blood vessel.\nThere are two types of stroke: ISCHEMIC & HEMORRHAGIC\nIschemic: a blood vessel becomes blocked, usually by a blood clot, thus depriving the\nbrain of oxygen\nHemorrhagic: an artery ruptures, flooding the surrounding tissue with blood",
+    "videoUrl": "https://www.youtube.com/shorts/MgQkxzR8cvY",
+    "image": "/quiz-decks/medical/medical-q6-main.png",
+    "explainImage": "/quiz-decks/medical/medical-q6-explain.jpg"
+  },
+  {
+    "id": 7,
+    "question": "An Oncologist – specialises in diseases which are?",
+    "options": [
+      "CANCER RELATED",
+      "HEART RELATED",
+      "BREATHING RELETED"
+    ],
+    "correctIndex": 0,
+    "explanation": "Oncologist specializes in diagnosing and treating cancer.\nCancer is a multifaceted illness, which is why there are\nseveral different types of oncologists.",
+    "videoUrl": "https://www.youtube.com/shorts/I7_gnWMNxgg",
+    "image": "/quiz-decks/medical/medical-q7-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q7-explain.jpg"
+  },
+  {
+    "id": 8,
+    "question": "Hematologist – specialises in?",
+    "options": [
+      "URINE INFECTIONS",
+      "MENTAL HEALTH",
+      "BLOOD RELATED"
+    ],
+    "correctIndex": 2,
+    "explanation": "Hematologist: diagnoses, treats, helps prevent blood-related conditions",
+    "videoUrl": "https://www.youtube.com/shorts/mPm3n5-rzpQ",
+    "image": "/quiz-decks/medical/medical-q8-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q8-explain.jpg"
+  },
+  {
+    "id": 9,
+    "question": "Otolaryngologist – specialises in disorders of?",
+    "options": [
+      "LIVER, KIDNEY & SPLEEN",
+      "SKIN",
+      "EAR, NOSE. THROAT"
+    ],
+    "correctIndex": 2,
+    "explanation": "Otolaryngologist specialises in diagnosing\nand treating diseases\nof the ear, nose, and throat.\nAlso called ENT doctor.",
+    "videoUrl": "https://www.youtube.com/shorts/tqzZea3EEoY",
+    "image": "/quiz-decks/medical/medical-q9-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q9-explain.jpg"
+  },
+  {
+    "id": 10,
+    "question": "Neonatologist - specialises in disorders of?",
+    "options": [
+      "PANCREAS",
+      "NEW BORN BABIES",
+      "APPENDICITIS"
+    ],
+    "correctIndex": 1,
+    "explanation": "Neonatologist specializes in caring for and treating\npremature babies born with congenital disorders",
+    "videoUrl": "https://www.youtube.com/shorts/OJxe1VcjRw4",
+    "image": "/quiz-decks/medical/medical-q10-main.png",
+    "explainImage": "/quiz-decks/medical/medical-q10-explain.jpg"
+  },
+  {
+    "id": 11,
+    "question": "How many Vital organs are there in the human body?",
+    "options": [
+      "4",
+      "6",
+      "5"
+    ],
+    "correctIndex": 2,
+    "explanation": "The five vital organs:\n: Brain – Heart – Lungs - Liver - Kidneys\nVital organs are those that a person needs to survive.\nA problem with any of these organs can become life threatening.",
+    "videoUrl": "https://www.youtube.com/shorts/cv_Ce-9xvhQ",
+    "image": "/quiz-decks/medical/medical-q11-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q11-explain.jpg"
+  },
+  {
+    "id": 12,
+    "question": "What is the Name of the iron-containing protein in red blood cells that carries oxygen?",
+    "options": [
+      "Neutrophils",
+      "Plasma",
+      "Hemoglobin"
+    ],
+    "correctIndex": 2,
+    "explanation": "Hemoglobin is an iron-containing protein in red blood cells (RBCs)\nIt has two primary functions: 1) Transfer oxygen from the lungs\nto tissues throughout the body\n2) Carry carbon dioxide from cells back to the lungs\nso it can be expelled.",
+    "videoUrl": "https://www.youtube.com/shorts/rUA249lOPLc",
+    "image": "/quiz-decks/medical/medical-q12-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q12-explain.jpg"
+  },
+  {
+    "id": 13,
+    "question": "What is the Rarest blood type?",
+    "options": [
+      "AB",
+      "O",
+      "A"
+    ],
+    "correctIndex": 0,
+    "explanation": "AB negative is the rarest of the eight main blood types.\nAB negative donations are extremely versatile.\nPlasma from AB negative donations\ncan help treat patients of all blood types",
+    "videoUrl": "https://www.youtube.com/shorts/zrSQfUqfwLo",
+    "image": "/quiz-decks/medical/medical-q13-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q13-explain.jpg"
+  },
+  {
+    "id": 14,
+    "question": "Which Organ is responsible for producing insulin?",
+    "options": [
+      "Kidney",
+      "Pancreas",
+      "Liver"
+    ],
+    "correctIndex": 1,
+    "explanation": "Pancreas are located behind the stomach and in front of the spine.\nThey produce insulin, enzymes and hormones.\nInsulin regulates blood sugar, enzymes and hormones break down\nsugars, fats, and starches which aids the digestive system.",
+    "videoUrl": "https://www.youtube.com/shorts/4J4jFREH5TA",
+    "image": "/quiz-decks/medical/medical-q14-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q14-explain.jpg"
+  },
+  {
+    "id": 15,
+    "question": "What Part of the brain is responsible for memory and learning?",
+    "options": [
+      "Hippocampus",
+      "Cerebrum",
+      "Cerebellum"
+    ],
+    "correctIndex": 0,
+    "explanation": "The hippocampus is located in the inner region of the temporal lobe.\nIt is part of the limbic system, which regulates and stores,\nemotional responses and long-term memories.\nIt also plays an important role in spatial processing and navigation.",
+    "videoUrl": "https://www.youtube.com/shorts/NXX13ywBKi4",
+    "image": "/quiz-decks/medical/medical-q15-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q15-explain.jpg"
+  },
+  {
+    "id": 16,
+    "question": "The Process of converting food into energy is called?",
+    "options": [
+      "Homeostasis",
+      "Metabolism",
+      "Liposuction"
+    ],
+    "correctIndex": 1,
+    "explanation": "Metabolism refers to all reactions that take place throughout\nthe body within each cell and that provide the body with energy.",
+    "videoUrl": "https://www.youtube.com/shorts/4sUzLlWkvpE",
+    "image": "/quiz-decks/medical/medical-q16-main.png",
+    "explainImage": "/quiz-decks/medical/medical-q16-explain.jpg"
+  },
+  {
+    "id": 17,
+    "question": "How many Pairs of ribs does the human body typically have?",
+    "options": [
+      "10",
+      "1",
+      "12"
+    ],
+    "correctIndex": 2,
+    "explanation": "In humans there are normally 12 pairs of ribs.\nThe first seven pairs are attached directly to the sternum\nby costal cartilages and are called true ribs.\nThe 8th, 9th, and 10th pairs—false ribs—do not join the sternum directly\nbut are connected to the 7th rib by cartilage.",
+    "videoUrl": "https://www.youtube.com/shorts/4vXC2mgEAAM",
+    "image": "/quiz-decks/medical/medical-q17-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q17-explain.jpg"
+  },
+  {
+    "id": 18,
+    "question": "Name the Cell which transports electric impulses in the nervous system?",
+    "options": [
+      "Neuron",
+      "Glia",
+      "Ependymal"
+    ],
+    "correctIndex": 0,
+    "explanation": "Neurons or nerve cells are units of the brain and nervous system.\nThey are responsible for receiving and relaying sensory electrical signals.\nAverage human brain contains 86 billion neurons",
+    "videoUrl": "https://www.youtube.com/shorts/US1gAU9IS1s",
+    "image": "/quiz-decks/medical/medical-q18-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q18-explain.png"
+  },
+  {
+    "id": 19,
+    "question": "What is the Function of the spleen in the human body?",
+    "options": [
+      "Digestion related",
+      "Respiratory related",
+      "Blood related"
+    ],
+    "correctIndex": 2,
+    "explanation": "The Spleen plays an important role in the functioning of the Haemopoietic\nand Immune systems. It is the largest filter of blood in the human body.\nIt can produce red and white blood cells also.",
+    "videoUrl": "https://www.youtube.com/shorts/yDFXQVpkpo4",
+    "image": "/quiz-decks/medical/medical-q19-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q19-explain.jpg"
+  },
+  {
+    "id": 20,
+    "question": "What is the Largest organ in the human body?",
+    "options": [
+      "Liver",
+      "Brain",
+      "Skin"
+    ],
+    "correctIndex": 2,
+    "explanation": "The skin is the body's largest organ.\nIt protects against germs, regulates body temperature and\nenables touch (tactile) sensations.",
+    "videoUrl": "https://www.youtube.com/shorts/AJAe9sb_QUs",
+    "image": "/quiz-decks/medical/medical-q20-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q20-explain.jpg"
+  },
+  {
+    "id": 21,
+    "question": "What is the Normal resting heart rate for adults?",
+    "options": [
+      "60-100 beats per minute",
+      "100-140 beats per minute",
+      "140-180 beats per minute"
+    ],
+    "correctIndex": 1,
+    "explanation": "The normal resting heart beat rate for adults ranges from\n60 to 100 beats per minute.\nGenerally, a lower heart rate at rest implies more efficient heart function\nand better cardiovascular fitness.",
+    "videoUrl": "https://www.youtube.com/shorts/vTU5C0zhQLU",
+    "image": "/quiz-decks/medical/medical-q21-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q21-explain.jpg"
+  },
+  {
+    "id": 22,
+    "question": "Which Organ produces insulin in the human body?",
+    "options": [
+      "Liver",
+      "Pancreas",
+      "Kidney"
+    ],
+    "correctIndex": 1,
+    "explanation": "Pancreas produce insulin, which is a hormone that lowers the level\nof glucose(a type of sugar) in the blood.\nThe insulin is released into the blood when the glucose level goes up.\nDiabetes occurs when the insulin does not reach its destination.",
+    "videoUrl": "https://www.youtube.com/shorts/5d9hlPU44iI",
+    "image": "/quiz-decks/medical/medical-q22-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q22-explain.jpg"
+  },
+  {
+    "id": 23,
+    "question": "What is the Normal body temperature in Celsius?",
+    "options": [
+      "32-36°C",
+      "38-40°C",
+      "36-38°C"
+    ],
+    "correctIndex": 2,
+    "explanation": "The average normal body temperature is generally accepted as 37°C.\nA temperature over 38°C means you have fever.\nBody temperature changes throughout the day.\nIn adults, it is lowest in the early morning.",
+    "videoUrl": "https://www.youtube.com/shorts/TPz1TqaLUWs",
+    "image": "/quiz-decks/medical/medical-q23-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q23-explain.jpg"
+  },
+  {
+    "id": 24,
+    "question": "What is the Medical term for inflammation of the liver?",
+    "options": [
+      "Gastritis",
+      "Hepatitis",
+      "Pancreatitis"
+    ],
+    "correctIndex": 1,
+    "explanation": "Hepatitis is inflammation of the liver.\nIt can be caused by alcohol, viruses, substance use and certain diseases.",
+    "videoUrl": "https://www.youtube.com/shorts/uCx-oCNJ_-c",
+    "image": "/quiz-decks/medical/medical-q24-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q24-explain.jpg"
+  },
+  {
+    "id": 25,
+    "question": "What is the Medical term for high blood pressure?",
+    "options": [
+      "Hyperglycemia",
+      "Hypotension",
+      "Hypertension"
+    ],
+    "correctIndex": 2,
+    "explanation": "Normal blood pressure is 120/80 m Hg\nThe first number = systolic pressure which is\nthe force of the blood when it is pumped out of the heart.\nThe second number = diastolic pressure which is\nthe number of heartbeats when the heart is being filled with blood.",
+    "videoUrl": "https://www.youtube.com/shorts/Nd_uev3Yx5s",
+    "image": "/quiz-decks/medical/medical-q25-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q25-explain.jpg"
+  },
+  {
+    "id": 26,
+    "question": "What is the Unit of measurement for blood pressure?",
+    "options": [
+      "Milligrams",
+      "Millimeters of mercury (mmHg)",
+      "Litres"
+    ],
+    "correctIndex": 1,
+    "explanation": "Blood pressure is measured in units of ´mm Hg´ e.g. 120/80 m Hg\nThe first number = systolic pressure which is\nthe force of the blood when it is pumped out of the heart.\nThe second number = diastolic pressure which is\nthe number of heartbeats when the heart is being filled with blood.",
+    "videoUrl": "https://www.youtube.com/shorts/OC7km8WLDwI",
+    "image": "/quiz-decks/medical/medical-q26-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q26-explain.jpg"
+  },
+  {
+    "id": 27,
+    "question": "What is the Function of the Gall bladder in the human body?",
+    "options": [
+      "Blood flow System",
+      "Respiratory System",
+      "Digestive System"
+    ],
+    "correctIndex": 2,
+    "explanation": "Gall bladder is a small, pear-shaped organ located in the upper right abdomen.\nIt stores and releases bile to help the digestive system break down fats.\nBile is produced by the liver and stored in the gall bladder.",
+    "videoUrl": "https://www.youtube.com/shorts/c1nFG4VV-_I",
+    "image": "/quiz-decks/medical/medical-q27-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q27-explain.jpg"
+  },
+  {
+    "id": 28,
+    "question": "What is the Full form of a MRI scan?",
+    "options": [
+      "Magnetic Resonance Imaging",
+      "Magnetic Radiation Imaging",
+      "Magnetic Radio Imaging"
+    ],
+    "correctIndex": 0,
+    "explanation": "The MRI scan is a Magnetic Resonance Imaging procedure\nthat uses a magnetic field and radio waves to take pictures\nof your body's interior.\nIt is used to diagnose conditions of internal organ disorders,",
+    "videoUrl": "https://www.youtube.com/shorts/GdVMKLn8NQ4",
+    "image": "/quiz-decks/medical/medical-q28-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q28-explain.jpg"
+  },
+  {
+    "id": 29,
+    "question": "What Imaging technique is used in a CT scan?",
+    "options": [
+      "Magnetic Resonance",
+      "Computed",
+      "Both Computerised & Magnetic"
+    ],
+    "correctIndex": 1,
+    "explanation": "CT scan (Computed Tomography) uses X-rays\nMRI (Magnetic Resonance Imaging) uses Radio waves.\nBoth provide images of internal organs.\nMost doctors start with a CT scan.",
+    "videoUrl": "https://www.youtube.com/watch?v=PRWMmzTkfTE",
+    "image": "/quiz-decks/medical/medical-q29-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q29-explain.jpg"
+  },
+  {
+    "id": 30,
+    "question": "What does a PET scan use?",
+    "options": [
+      "Magnetic Resonance",
+      "Computed Tomography",
+      "Positron Imaging"
+    ],
+    "correctIndex": 2,
+    "explanation": "PET scan is an imaging test that reveals the\nmetabolic or biochemical function of your tissues and organs\nThe most common use of PET is in the detection of\nand treatment of cancer.",
+    "videoUrl": "https://www.youtube.com/watch?v=lk-VzATcv4M",
+    "image": "/quiz-decks/medical/medical-q30-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q30-explain.jpg"
+  },
+  {
+    "id": 31,
+    "question": "Systolic and Diastolic are medical terms used to describe?",
+    "options": [
+      "Blood pressure",
+      "Urine infection",
+      "Vision disorder"
+    ],
+    "correctIndex": 0,
+    "explanation": "Systolic and Diastolic are terms used to describe blood pressure\nNormal blood pressure is 120/80 m Hg\nThe first number represents the systolic pressure which is\nthe force of the blood as it is pumped out of the heart.\nThe second number represents the diastolic pressure which is\nthe number of heartbeats when the heart is being filled with blood.",
+    "videoUrl": "https://www.youtube.com/watch?v=OC7km8WLDwI",
+    "image": "/quiz-decks/medical/medical-q31-main.png",
+    "explainImage": "/quiz-decks/medical/medical-q31-explain.jpg"
+  },
+  {
+    "id": 32,
+    "question": "Ischaemia is a medical term used to describe?",
+    "options": [
+      "Muscle inflamation",
+      "Deficient blood supply",
+      "Kidney disorder"
+    ],
+    "correctIndex": 1,
+    "explanation": "Ischaemia is a restriction in blood supply to any tissue, muscle group,\nor organ of the body, causing a shortage of oxygen",
+    "videoUrl": "https://www.youtube.com/watch?v=MFoGGe-sBQk",
+    "image": "/quiz-decks/medical/medical-q32-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q32-explain.jpg"
+  },
+  {
+    "id": 33,
+    "question": "Neural is a medical term associated with?",
+    "options": [
+      "Respiratory system",
+      "Digestive system",
+      "Nervous system"
+    ],
+    "correctIndex": 2,
+    "explanation": "Neural is a term relating to, or affecting\na nerve or the nervous system",
+    "videoUrl": "https://www.youtube.com/shorts/qBDC79p-9dE",
+    "image": "/quiz-decks/medical/medical-q33-main.png",
+    "explainImage": "/quiz-decks/medical/medical-q33-explain.png"
+  },
+  {
+    "id": 34,
+    "question": "Which Part of the brain controls balance and coordination?",
+    "options": [
+      "Cerebellum",
+      "Cerebrum",
+      "Medulla Oblongata"
+    ],
+    "correctIndex": 0,
+    "explanation": "The cerebellum is primarily responsible for muscle control,\nincluding balance and movement.\nIt also plays a role in other cognitive functions\nsuch as language processing and memory.",
+    "videoUrl": "https://www.youtube.com/watch?v=i-7bHWtkoYA",
+    "image": "/quiz-decks/medical/medical-q34-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q34-explain.jpg"
+  },
+  {
+    "id": 35,
+    "question": "What is the primary Function of the respiratory system?",
+    "options": [
+      "Pump blood throughout the body",
+      "Produce and release hormones",
+      "Exchange oxygen and carbon dioxide"
+    ],
+    "correctIndex": 2,
+    "explanation": "The lungs and respiratory system allow us to breathe.\nThey bring ´Oxygen IN´ our bodies (called inspiration, or inhalation)\nand send ´Carbon dioxide OUT´ (called expiration, or exhalation).\nThis exchange of oxygen and carbon dioxide is called respiration.",
+    "videoUrl": "https://www.youtube.com/shorts/4xAVjdudUlc",
+    "image": "/quiz-decks/medical/medical-q35-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q35-explain.jpg"
+  },
+  {
+    "id": 36,
+    "question": "What is the Medical term for the voice box?",
+    "options": [
+      "Trachea",
+      "Larynx",
+      "Pharynx"
+    ],
+    "correctIndex": 1,
+    "explanation": "Larynx, also called the voice box is the area of the throat\ncontaining the vocal cords and used for breathing,\nswallowing and talking.",
+    "videoUrl": "https://www.youtube.com/watch?v=YOs8O8C8syA",
+    "image": "/quiz-decks/medical/medical-q36-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q36-explain.jpg"
+  },
+  {
+    "id": 37,
+    "question": "An Abnormal heart sound caused by back flow of blood is called?",
+    "options": [
+      "Bing",
+      "Blip",
+      "Murmur"
+    ],
+    "correctIndex": 2,
+    "explanation": "A human heart murmur is an extra whooshing or swishing\nsound heard during a heartbeat, caused by turbulent blood flow,\noften through heart valves.\nMost murmurs are harmless (innocent), especially in children,\nand don't need treatment,",
+    "videoUrl": "https://www.youtube.com/shorts/KnFvtHnXlIc",
+    "image": "/quiz-decks/medical/medical-q37-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q37-explain.jpg"
+  },
+  {
+    "id": 38,
+    "question": "Hepatitis is inflammation of what organ?",
+    "options": [
+      "Heart",
+      "Liver",
+      "Kidney"
+    ],
+    "correctIndex": 1,
+    "explanation": "Hepatitis is inflammation of the liver,\na vital organ on the right side of your belly that processes nutrients, filters blood,\nand fights infections. This inflammation, often caused by viruses (A, B, C, D, E) or\nfactors like heavy alcohol use, toxins, medications, or autoimmune issues, impairs\nliver function.",
+    "videoUrl": "https://www.youtube.com/shorts/Pt2g_ZpPbX4",
+    "image": "/quiz-decks/medical/medical-q38-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q38-explain.jpg"
+  },
+  {
+    "id": 39,
+    "question": "What Part of the human body is the 'oxter‘?",
+    "options": [
+      "The neck",
+      "The spine",
+      "The armpit"
+    ],
+    "correctIndex": 2,
+    "explanation": "An oxter is a word, mostly used in Scotland, Ireland, and Northern England,\nfor the armpit (axilla), the hollow area where the arm joins the shoulder. It's a\nregional and older term, with modern English using \"armpit\" or \"underarm,\" and\nmedicine using \"axilla\".",
+    "videoUrl": "https://www.youtube.com/shorts/yAJ4ijvfSQ0",
+    "image": "/quiz-decks/medical/medical-q39-main.png",
+    "explainImage": "/quiz-decks/medical/medical-q39-explain.jpg"
+  },
+  {
+    "id": 40,
+    "question": "What is Hormone?",
+    "options": [
+      "Stem cell",
+      "Chemical",
+      "Electrical pulse"
+    ],
+    "correctIndex": 1,
+    "explanation": "Hormones are chemical messengers produced by glands in the endocrine\nsystem that travel through the bloodstream to signal organs, tissues, and cells,\nregulating vital functions like growth, metabolism, mood, and reproduction by\ntelling them what to do and when.",
+    "videoUrl": "https://www.youtube.com/shorts/OcOLOuJodx0",
+    "image": "/quiz-decks/medical/medical-q40-main.png",
+    "explainImage": "/quiz-decks/medical/medical-q40-explain.jpg"
+  },
+  {
+    "id": 41,
+    "question": "In the field of medicine & science, was does REM stand for?",
+    "options": [
+      "Rapid Eye Movement",
+      "Radioactive Energy in Motion",
+      "Rapid Energy Motion"
+    ],
+    "correctIndex": 0,
+    "explanation": "Rapid Eye Movement (REM) refers primarily to a stage of sleep where the\nbrain is highly active, dreams are vivid, eyes dart around quickly under closed\nlids, and muscles become temporarily paralyzed (atonia), playing key roles in\nmemory, learning, and emotional regulation, with eye movements possibly\nreflecting dream navigation.",
+    "videoUrl": "https://www.youtube.com/shorts/u--x6Z9GfQg",
+    "image": "/quiz-decks/medical/medical-q41-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q41-explain.jpg"
+  },
+  {
+    "id": 42,
+    "question": "What is SA node?",
+    "options": [
+      "Brain pulse",
+      "Breathing regulator",
+      "Pacemaker"
+    ],
+    "correctIndex": 2,
+    "explanation": "The main function of the SA node is to act as the heart's normal pacemaker.\nIt initiates an action potential that results in an electrical impulse traveling\nthrough the heart's electrical conduction system to cause myocardial\ncontraction",
+    "videoUrl": "https://www.youtube.com/shorts/FXjhjqlD8QE",
+    "image": "/quiz-decks/medical/medical-q42-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q42-explain.jpg"
+  },
+  {
+    "id": 43,
+    "question": "Name the Oath taken by doctors",
+    "options": [
+      "Patient Welfare Oath",
+      "Hippocratic Oath",
+      "Good Ethics Oath"
+    ],
+    "correctIndex": 1,
+    "explanation": "Hippocratic Oath states the professional conduct and obligations of doctors; it is\nan oath of ethics that emphasizes the importance of ethical and professional\nstandards in medicine, and its name is derived from a Greek physician,\nHippocrates, who was widely regarded as the “father of western medicine”.",
+    "videoUrl": "https://www.youtube.com/shorts/YsKd04bW0hA",
+    "image": "/quiz-decks/medical/medical-q43-main.jpg",
+    "explainImage": "/quiz-decks/medical/medical-q43-explain.jpg"
+  }
+]

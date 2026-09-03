@@ -1,0 +1,926 @@
+[
+  {
+    "id": 1,
+    "question": "Which Source has the largest share of Power Generation in India?",
+    "options": [
+      "Hydro",
+      "Thermal",
+      "Wind"
+    ],
+    "correctIndex": 1,
+    "explanation": "Thermal power (coal, gas and oil) accounts for 68.2%\nof power generated in India",
+    "videoUrl": "https://www.youtube.com/shorts/GvYEP_dmzb8",
+    "image": "/quiz-decks/india/india-q1-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q1-explain.jpg"
+  },
+  {
+    "id": 2,
+    "question": "The pastoral community of Todas, live in which Indian state?",
+    "options": [
+      "Rajasthan",
+      "Assam",
+      "Tamil Nadu"
+    ],
+    "correctIndex": 2,
+    "explanation": "The Todas are a small pastoral community who live on the isolated\nNilgiri plateau in Tamil Nadu.\nThe Toda lands are a part of The Nilgiri Biosphere Reserve,\na UNESCO-designated International Biosphere Reserve.",
+    "videoUrl": "https://www.youtube.com/shorts/vL0Kmagl7AI",
+    "image": "/quiz-decks/india/india-q2-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q2-explain.jpg"
+  },
+  {
+    "id": 3,
+    "question": "Van Mahotsav, ‘The Tree Festival’ is associated with?",
+    "options": [
+      "Cutting Trees",
+      "Tree Protection",
+      "Planting Trees"
+    ],
+    "correctIndex": 2,
+    "explanation": "Van Mahotsav, or \"Forest Festival,\" is an annual week-long tree-planting\nfestival in India celebrated from July 1st to 7th to promote conservation\nand increase green cover.",
+    "videoUrl": "https://www.youtube.com/shorts/aF0Ca1sdd6Q",
+    "image": "/quiz-decks/india/india-q3-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q3-explain.jpg"
+  },
+  {
+    "id": 4,
+    "question": "Which Indian state is famous for its backwaters?",
+    "options": [
+      "Kerala",
+      "Punjab",
+      "Gujarat"
+    ],
+    "correctIndex": 0,
+    "explanation": "The Kerala backwaters are a network of brackish lagoons and canals\nrunning parallel to the Arabian Sea along the Malabar coast of Kerala state\nin south-western India.",
+    "videoUrl": "https://www.youtube.com/shorts/9k1wByL7Q9c",
+    "image": "/quiz-decks/india/india-q4-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q4-explain.jpg"
+  },
+  {
+    "id": 5,
+    "question": "What is the National Animal of India?",
+    "options": [
+      "Peacock",
+      "Tiger",
+      "Elephant"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Royal Bengal Tiger is the national animal of India,\nsymbolizing power, strength, elegance, and alertness.\nIndia is home to over 75% of the global tiger population, which is protected\nunder the Wildlife Protection Act.",
+    "videoUrl": "https://www.youtube.com/shorts/QrNZdQ5zvSE",
+    "image": "/quiz-decks/india/india-q5-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q5-explain.jpg"
+  },
+  {
+    "id": 6,
+    "question": "Which Monument is known as a ‘Symbol of Love’ in India?",
+    "options": [
+      "Red Fort",
+      "Qutab Minar",
+      "Taj Mahal"
+    ],
+    "correctIndex": 2,
+    "explanation": "The Taj Mahal was built by the fifth Mughal emperor, Shah Jahan in 1631\nin memory of his third and most favourite wife, Mumtaz Mahal.\nIt is considered to be the greatest of Indo-Islamic architecture.",
+    "videoUrl": "https://www.youtube.com/shorts/3Dz4yaBWPw8",
+    "image": "/quiz-decks/india/india-q6-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q6-explain.jpg"
+  },
+  {
+    "id": 7,
+    "question": "In which Year did India gain independence from British rule?",
+    "options": [
+      "1937",
+      "1947",
+      "1957"
+    ],
+    "correctIndex": 1,
+    "explanation": "India gained independence from British colonial rule on August 15, 1947,\nmarking the end of nearly 200 years of British administration.\nThe day celebrates the end of the British Raj\nand the birth of a new era for India.",
+    "videoUrl": "https://www.youtube.com/shorts/4Z4C6HrIn6w",
+    "image": "/quiz-decks/india/india-q7-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q7-explain.jpg"
+  },
+  {
+    "id": 8,
+    "question": "India’s Largest petrochemical complex is in which state?",
+    "options": [
+      "West Bengal",
+      "Gujarat",
+      "Punjab"
+    ],
+    "correctIndex": 1,
+    "explanation": "India’s largest petrochemical complex is located in Jamnagar, Gujarat.\nOperated by Reliance Industries Limited, the massive refinery is the largest\nin the world, contributing to Gujarat's status as the\n\"petro capital\" of India.",
+    "videoUrl": "https://www.youtube.com/shorts/JB2yvM0iXGc",
+    "image": "/quiz-decks/india/india-q8-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q8-explain.jpg"
+  },
+  {
+    "id": 9,
+    "question": "Which Water system contributes maximum to the Irrigation in India?",
+    "options": [
+      "Surface water",
+      "River water",
+      "Ground water"
+    ],
+    "correctIndex": 2,
+    "explanation": "Ground water (wells and tube wells) contributes the maximum to\nirrigation in India, accounting for over 60–67% of the total irrigated area.\nIt is the primary source for agricultural water.",
+    "videoUrl": "https://www.youtube.com/shorts/u2ZlaRdLVWM",
+    "image": "/quiz-decks/india/india-q9-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q9-explain.jpg"
+  },
+  {
+    "id": 10,
+    "question": "Which Indian state receives the highest average annual rainfall?",
+    "options": [
+      "Meghalaya",
+      "West Bengal",
+      "Kerala"
+    ],
+    "correctIndex": 0,
+    "explanation": "Mawsynram in Meghalaya, India,\nholds the title for the highest average annual rainfall in the world.\nIt gets over 11,000 m (up to 11,872 mm) of rain annually.",
+    "videoUrl": "https://www.youtube.com/shorts/sHardvbTMtc",
+    "image": "/quiz-decks/india/india-q10-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q10-explain.jpg"
+  },
+  {
+    "id": 11,
+    "question": "How many Official Languages are there in India?",
+    "options": [
+      "20",
+      "25",
+      "2"
+    ],
+    "correctIndex": 2,
+    "explanation": "There are 2 official languages in India,\nrecognized under the Eighth Schedule of the Indian Constitution\nThese languages represent India's immense linguistic diversity.",
+    "videoUrl": "https://www.youtube.com/shorts/KFoYcmKlTrs",
+    "image": "/quiz-decks/india/india-q11-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q11-explain.jpg"
+  },
+  {
+    "id": 12,
+    "question": "Malayalam is predominantly spoken in which state?",
+    "options": [
+      "Kerala",
+      "Karnataka",
+      "Tamil Nadu"
+    ],
+    "correctIndex": 0,
+    "explanation": "Malayalam is a Dravidian language spoken predominantly\nin the South Indian state of Kerala,\nserving as the official language for over 35 million people.",
+    "videoUrl": "https://www.youtube.com/shorts/AmENn1Um1gs",
+    "image": "/quiz-decks/india/india-q12-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q12-explain.jpg"
+  },
+  {
+    "id": 13,
+    "question": "Red colour of soil is caused by which of the following?",
+    "options": [
+      "Magnesium Compound",
+      "Iron Compound",
+      "Aluminium Compound"
+    ],
+    "correctIndex": 1,
+    "explanation": "Red color soil is primarily caused by a high concentration of\niron oxides (specifically iron oxide/hematite),\nespecially in warm, temperate, and humid climates.",
+    "videoUrl": "https://www.youtube.com/shorts/RX7rh35ZqzA",
+    "image": "/quiz-decks/india/india-q13-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q13-explain.jpg"
+  },
+  {
+    "id": 14,
+    "question": "The Chitrakote Falls is situated on which of the following rivers?",
+    "options": [
+      "Sharavati",
+      "Indravati",
+      "Hasdeo"
+    ],
+    "correctIndex": 1,
+    "explanation": "Chitrakote Falls is the widest waterfall in India, reaching a width of nearly\n300 metres (980 ft) during the peak monsoon season.\nIt is located on the Indravati river, in the Indian state of Chhattisgarh",
+    "videoUrl": "https://www.youtube.com/shorts/sufdqCPqKik",
+    "image": "/quiz-decks/india/india-q14-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q14-explain.jpg"
+  },
+  {
+    "id": 15,
+    "question": "The Jim Corbett National Park is located in which state?",
+    "options": [
+      "Uttar Pradesh",
+      "Tamil Nadu",
+      "Karnataka"
+    ],
+    "correctIndex": 0,
+    "explanation": "Jim Corbett National Park is a forested wildlife sanctuary\nin northern India’s Uttarakhand State.\nRich in flora and fauna, it is known for Bengal tigers.\nAnimals, including tigers, leopards and wild elephants,\nroam the Dhikala zone.",
+    "videoUrl": "https://www.youtube.com/shorts/mp6EvK6H9pA",
+    "image": "/quiz-decks/india/india-q15-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q15-explain.jpg"
+  },
+  {
+    "id": 16,
+    "question": "The Sunderbans National Park is located in which state?",
+    "options": [
+      "West Bengal",
+      "Kerala",
+      "Uttar Pradesh"
+    ],
+    "correctIndex": 0,
+    "explanation": "Sundarbans National Park is in West Bengal, India.\nIt is located on the Ganges Delta Ganges and adjacent to the\nSundarban Reserve Forest in Bangladesh.",
+    "videoUrl": "https://www.youtube.com/shorts/wpw4Y-Cx2KM",
+    "image": "/quiz-decks/india/india-q16-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q16-explain.jpg"
+  },
+  {
+    "id": 17,
+    "question": "The Ranthambore National Park is located in which state?",
+    "options": [
+      "West Bengal",
+      "Rajasthan",
+      "Uttar Pradesh"
+    ],
+    "correctIndex": 1,
+    "explanation": "Ranthambore National Park is a vast wildlife reserve near the town of\nSawai Madhopur in Rajasthan, northern India.\nIt is a former royal hunting ground and home\nto tigers, leopards and marsh crocodiles.",
+    "videoUrl": "https://www.youtube.com/shorts/99SmiCTnr5g",
+    "image": "/quiz-decks/india/india-q17-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q17-explain.jpg"
+  },
+  {
+    "id": 18,
+    "question": "The Ajanta & Ellora caves are located in which state?",
+    "options": [
+      "Uttar Pradesh",
+      "Maharashtra",
+      "Madhya Pradesh"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Ajanta and Ellora caves are two sites in Maharashtra state\nin western India. They are religious cave monuments\nlocated about 50 miles (80 kilometers) away from each other.",
+    "videoUrl": "https://www.youtube.com/shorts/uw9avz2NLvU",
+    "image": "/quiz-decks/india/india-q18-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q18-explain.jpg"
+  },
+  {
+    "id": 19,
+    "question": "Which is the Longest river in India?",
+    "options": [
+      "Ganges",
+      "Narmada",
+      "Godavari"
+    ],
+    "correctIndex": 0,
+    "explanation": "Ganga (Ganges) is the longest river in India,\n2,525 km from the Himalayas in Uttarakhand\nto the Bay of Bengal in West Bengal.\nWhile the Indus and Brahmaputra are longer in total length, they flow for a\nshorter distance within Indian territory compared to the Ganga.",
+    "videoUrl": "https://www.youtube.com/shorts/TBQD7ozOpDk",
+    "image": "/quiz-decks/india/india-q19-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q19-explain.jpg"
+  },
+  {
+    "id": 20,
+    "question": "Who was the First Prime Minister of India?",
+    "options": [
+      "Sardar Vallabhbhai Patel",
+      "Jawaharlal Nehru",
+      "Subhas Chandra Bose"
+    ],
+    "correctIndex": 1,
+    "explanation": "Jawaharlal Nehru was an Indian anti-colonial nationalist, secular humanist,\nsocial democrat, and statesman.\nHe was a central figure in India during the middle of the 20th century. He\nwas a leader of the Indian nationalist movement in the 1930s and 1940s.",
+    "videoUrl": "https://www.youtube.com/shorts/2A5wZEfPv9w",
+    "image": "/quiz-decks/india/india-q20-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q20-explain.jpg"
+  },
+  {
+    "id": 21,
+    "question": "When is Republic Day celebrated in India?",
+    "options": [
+      "02 October",
+      "15 August",
+      "26 January"
+    ],
+    "correctIndex": 2,
+    "explanation": "Republic Day is a national holiday in India commemorating the adoption of\nthe Constitution of the Republic of India and the country's transition to a\nrepublic which came into effect on 26 January 1950.",
+    "videoUrl": "https://www.youtube.com/shorts/w6C5_LnhiDU",
+    "image": "/quiz-decks/india/india-q21-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q21-explain.jpg"
+  },
+  {
+    "id": 22,
+    "question": "Who is known as India’s \"Father of the Nation\"?",
+    "options": [
+      "Mahatma Gandhi",
+      "Jawaharlal Nehru",
+      "Rajendra Prasad"
+    ],
+    "correctIndex": 0,
+    "explanation": "Mahatma Gandhi is regarded as the \"Father of the Nation\" in.\nHe led India's independence movement through nonviolent resistance\nand is honoured for his role in the nation's freedom struggle.",
+    "videoUrl": "https://www.youtube.com/shorts/mKineWgF5Gg",
+    "image": "/quiz-decks/india/india-q22-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q22-explain.jpg"
+  },
+  {
+    "id": 23,
+    "question": "What is the National Dress for Men in India?",
+    "options": [
+      "Trouser & Shirt",
+      "Dhoti/Kurta Pyjama",
+      "3 piece Suit & Tie"
+    ],
+    "correctIndex": 1,
+    "explanation": "India does not have one single,\nofficially declared national dress due to its vast cultural diversity.\nThe kurta-pyjama is considered the traditional attire for men.\nhttps://www.youtube.com/shorts/gPl2c8qjmnc",
+    "videoUrl": null,
+    "image": "/quiz-decks/india/india-q23-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q23-explain.jpg"
+  },
+  {
+    "id": 24,
+    "question": "What is the National Dress for Women in India?",
+    "options": [
+      "Saree",
+      "Salwar Kameez",
+      "Dress"
+    ],
+    "correctIndex": 0,
+    "explanation": "India does not have one single,\nofficially declared national dress due to its vast cultural diversity.\nThe saree is widely considered the national dress for women.",
+    "videoUrl": "https://www.youtube.com/shorts/NQPUf2FoL80",
+    "image": "/quiz-decks/india/india-q24-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q24-explain.jpg"
+  },
+  {
+    "id": 25,
+    "question": "What was the First State created based on language?",
+    "options": [
+      "Maharashtra",
+      "West Bengal",
+      "Andhra Pradesh"
+    ],
+    "correctIndex": 2,
+    "explanation": "The Andhra State was the first Indian state\ncreated based on language, formed on October 1, 1953,\nfrom the Telugu-speaking northern districts of Madras State.",
+    "videoUrl": "https://www.youtube.com/shorts/gNsLBppYN_E",
+    "image": "/quiz-decks/india/india-q25-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q25-explain.jpg"
+  },
+  {
+    "id": 26,
+    "question": "Which is the Largest Freshwater lake in India?",
+    "options": [
+      "Wular Lake",
+      "Dal Lake",
+      "Pichola Lake"
+    ],
+    "correctIndex": 0,
+    "explanation": "Wular Lake, located in Jammu and Kashmir,\nis India's largest, and one of Asia's largest, freshwater lakes.",
+    "videoUrl": "https://www.youtube.com/shorts/fxn0F9WCAWk",
+    "image": "/quiz-decks/india/india-q26-main.png",
+    "explainImage": "/quiz-decks/india/india-q26-explain.jpg"
+  },
+  {
+    "id": 27,
+    "question": "What is the National Bird of India?",
+    "options": [
+      "Swan",
+      "Peacock",
+      "Eagle"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Peacock is the National Bird of India.\nIt has deep-rooted role in Indian traditions, mythology,\nand widespread presence across the country.\nIt represents beauty, grace, and pride.",
+    "videoUrl": "https://www.youtube.com/shorts/vAJqdthJDRo",
+    "image": "/quiz-decks/india/india-q27-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q27-explain.jpg"
+  },
+  {
+    "id": 28,
+    "question": "What is the National Fruit of India?",
+    "options": [
+      "Apple",
+      "Banana",
+      "Mango"
+    ],
+    "correctIndex": 2,
+    "explanation": "The Mango is the national fruit of India, symbolizing prosperity, abundance,\nand wealth.\nKnown as the \"king of fruits,\" it is native to the Indian subcontinent.\nIndia is the world's largest producer, boasting over 1000 varieties.",
+    "videoUrl": "https://www.youtube.com/shorts/32n0XxpW4Wk",
+    "image": "/quiz-decks/india/india-q28-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q28-explain.jpg"
+  },
+  {
+    "id": 29,
+    "question": "Who Wrote the Indian national anthem?",
+    "options": [
+      "Rabindranath Tagore",
+      "Mahatma Gandhi",
+      "Jawaharlal Nehru"
+    ],
+    "correctIndex": 0,
+    "explanation": "\"Jana Gana Mana,\" composed in Bengali by Nobel laureate\nRabindranath Tagore, was adopted as\nIndia's national anthem on January 24, 1950.",
+    "videoUrl": "https://www.youtube.com/shorts/Ttf5Cf06J2s",
+    "image": "/quiz-decks/india/india-q29-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q29-explain.jpg"
+  },
+  {
+    "id": 30,
+    "question": "What is the Name of the Large Wheel in the center of the Indian flag?",
+    "options": [
+      "Ashoka Chakra",
+      "Vijaya Chakra",
+      "Bharat Chakra"
+    ],
+    "correctIndex": 0,
+    "explanation": "The Ashoka Chakra, or \"wheel of duty,\" is a 24-spoked navy blue emblem\ncentered on the white band of the Indian national flag, representing the\nDharmachakra (wheel of law).",
+    "videoUrl": "https://www.youtube.com/shorts/tu6BmqWfHg4",
+    "image": "/quiz-decks/india/india-q30-main.png",
+    "explainImage": "/quiz-decks/india/india-q30-explain.png"
+  },
+  {
+    "id": 31,
+    "question": "Which City is known as the \"Pink City\" in India?",
+    "options": [
+      "Agra",
+      "Jaipur",
+      "Jodhpur"
+    ],
+    "correctIndex": 1,
+    "explanation": "Jaipur is the capital of India’s Rajasthan state.\nIt is called the Old City, or “Pink City” for its trademark building color.",
+    "videoUrl": "https://www.youtube.com/shorts/nnXu8xPuzRw",
+    "image": "/quiz-decks/india/india-q31-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q31-explain.jpg"
+  },
+  {
+    "id": 32,
+    "question": "Which is the Largest state in India by Area?",
+    "options": [
+      "Rajasthan",
+      "Uttar Pradesh",
+      "Maharashtra"
+    ],
+    "correctIndex": 0,
+    "explanation": "Rajasthan is the largest state in India by area,\ncovering 342,000 sq km /132,000 sq mi\nwhich constitutes approximately 10.4% of the country's total land area.\nLocated in the northwest, it is known as the \"Land of Kings\"\nRajas = Kings & Sthan = Land",
+    "videoUrl": "https://www.youtube.com/shorts/qh4inIjnXGc",
+    "image": "/quiz-decks/india/india-q32-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q32-explain.jpg"
+  },
+  {
+    "id": 33,
+    "question": "Which is India’s tallest Statue?",
+    "options": [
+      "Statue of Unity Gujarat",
+      "Statue of Belief Rajasthan",
+      "Statue of Equality Hyderabad"
+    ],
+    "correctIndex": 0,
+    "explanation": "The Statue of Unity Statue of Sardar Vallabhbhai Patel in Gujarat,\nat 182 meters/ 597 feet is the world's tallest statue.",
+    "videoUrl": "https://www.youtube.com/shorts/LcIADBPXq3",
+    "image": "/quiz-decks/india/india-q33-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q33-explain.jpg"
+  },
+  {
+    "id": 34,
+    "question": "What is the National Dance of India?",
+    "options": [
+      "Bhangra",
+      "Bharat Natyam",
+      "Kathakali"
+    ],
+    "correctIndex": 1,
+    "explanation": "Bharatnatyam is considered the national dance of India.\nIt is one of the oldest and most popular classical dance forms.\nOriginating in Tamil Nadu over 2,000 years ago, it is a spiritual dance form\ncharacterized by expressive hand gestures (mudras),",
+    "videoUrl": "https://www.youtube.com/shorts/sLf0ybloDGA",
+    "image": "/quiz-decks/india/india-q34-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q34-explain.jpg"
+  },
+  {
+    "id": 35,
+    "question": "Where is the Karakoram mountain range located?",
+    "options": [
+      "North West India",
+      "East Himalaya",
+      "Central Himalaya"
+    ],
+    "correctIndex": 0,
+    "explanation": "The Karakoram and Himalayan are two of Asia’s,\nand the world's, highest mountain systems. located along the borders of\nPakistan, India, China, and Afghanistan.\nIt contains the K2 (8,600m), the second highest peak in the world.",
+    "videoUrl": "https://www.youtube.com/watch?v=GBx3FHyA5E8",
+    "image": "/quiz-decks/india/india-q35-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q35-explain.jpg"
+  },
+  {
+    "id": 36,
+    "question": "Where is the Purvancha mountain range located?",
+    "options": [
+      "North India",
+      "Central India",
+      "East India"
+    ],
+    "correctIndex": 2,
+    "explanation": "The Purvanchai Range is the southward extension\nof the Himalayas in northeastern India.\nIt runs along the India-Myanmar border across Arunachal Pradesh,\nNagaland, Manipur, Mizoram, Tripura, and parts of Assam.",
+    "videoUrl": "https://www.youtube.com/watch?v=t5dX9WFOlq8",
+    "image": "/quiz-decks/india/india-q36-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q36-explain.jpg"
+  },
+  {
+    "id": 37,
+    "question": "Where is the Aravalli mountain range located?",
+    "options": [
+      "South India",
+      "Northwest India",
+      "Central India"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Aravalli Range is in north-west India. running in a south-west\ndirection, starting near Delhi, passing through southern Haryana and\nRajasthan, and ending in Ahmedabad, Gujarat.\nThe highest peak is Guru Shikhar in Mount Abu, Rajasthan at 1,722 m",
+    "videoUrl": "https://www.youtube.com/shorts/5ULXO1TNouk",
+    "image": "/quiz-decks/india/india-q37-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q37-explain.jpg"
+  },
+  {
+    "id": 38,
+    "question": "Where is the Vindhya mountain range located?",
+    "options": [
+      "South India",
+      "East India",
+      "Central India"
+    ],
+    "correctIndex": 2,
+    "explanation": "The Vindhya Range is a chain of mountain ridges\nand plateaus in west-central India. It acts as a natural divider\nbetween Northern and Peninsular India.\nStretching over 1,000 km from Gujarat, the range runs\nparallel to the Narmada River.\n.",
+    "videoUrl": "https://www.youtube.com/shorts/8N8uKPMXJiQ",
+    "image": "/quiz-decks/india/india-q38-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q38-explain.jpg"
+  },
+  {
+    "id": 39,
+    "question": "Where is the Satpura mountain range located?",
+    "options": [
+      "East India",
+      "Central India",
+      "North India"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Satpura Range is in Central India,\nIt is a 900-km long chain of seven hills in central India\nthat runs parallel to the Vindhya Range,\nserving as a boundary between northern and southern India. .",
+    "videoUrl": "https://www.youtube.com/shorts/ZFqcZk_BYpQ",
+    "image": "/quiz-decks/india/india-q39-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q39-explain.jpg"
+  },
+  {
+    "id": 40,
+    "question": "Where are the Western Ghats located?",
+    "options": [
+      "West coast",
+      "Central India",
+      "North India"
+    ],
+    "correctIndex": 0,
+    "explanation": "The Western Ghats is a 1,600 km-long mountain range\nrunning parallel to India’s western coast.\nIt traverses through the states of Gujarat, Maharashtra,\nGoa, Karnataka, Kerala, and Tamil Nadu.",
+    "videoUrl": "https://www.youtube.com/shorts/6e8RXv7bAfk",
+    "image": "/quiz-decks/india/india-q40-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q40-explain.jpg"
+  },
+  {
+    "id": 41,
+    "question": "Where are the Eastern Ghats located?",
+    "options": [
+      "Central India",
+      "East Coast",
+      "North India"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Eastern Ghats are a discontinuous range of mountains running along\nIndia's eastern coast, traversing Odisha, Telangana, Andhra Pradesh,\nKarnataka, and Tamil Nadu.",
+    "videoUrl": "https://www.youtube.com/shorts/YGpINhghJVE",
+    "image": "/quiz-decks/india/india-q41-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q41-explain.jpg"
+  },
+  {
+    "id": 42,
+    "question": "Where are the Nilgiri Hills located?",
+    "options": [
+      "North India",
+      "South India",
+      "Central India"
+    ],
+    "correctIndex": 1,
+    "explanation": "The Nilgiri Hills, or \"Blue Mountains,\"\nare a mountain range in the Western Ghats at the Tamil Nadu, Kerala, and\nKarnataka trijunction in South India.",
+    "videoUrl": "https://www.youtube.com/shorts/hr1FVOCjo1M",
+    "image": "/quiz-decks/india/india-q42-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q42-explain.jpg"
+  },
+  {
+    "id": 43,
+    "question": "Which City is known a the ‘Silicon Valley of India’?",
+    "options": [
+      "Chennai",
+      "Pune",
+      "Bengaluru"
+    ],
+    "correctIndex": 2,
+    "explanation": "Bengaluru is a major centre for information technology (IT), and is\nconsistently ranked amongst the world's fastest growing technology\nhubs. As the largest hub and exporter of IT services in the country, it is\nregarded as the \"Silicon Valley of India\".",
+    "videoUrl": "https://www.youtube.com/shorts/ma6-3a0u2zo",
+    "image": "/quiz-decks/india/india-q43-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q43-explain.jpg"
+  },
+  {
+    "id": 44,
+    "question": "Which is the Largest city in India?",
+    "options": [
+      "Delhi",
+      "Mumbai",
+      "Kolkata"
+    ],
+    "correctIndex": 0,
+    "explanation": "Delhi is the largest city in India by both population (over 3 million)\nand area (approx. 1,400–2,100 sq. km) as of 2025,\nserving as the national capital.",
+    "videoUrl": "https://www.youtube.com/shorts/tNc02h2XBL0",
+    "image": "/quiz-decks/india/india-q44-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q44-explain.jpg"
+  },
+  {
+    "id": 45,
+    "question": "Which is the Richest state in India?",
+    "options": [
+      "Maharashtra",
+      "Tamil Nadu",
+      "Karnataka"
+    ],
+    "correctIndex": 0,
+    "explanation": "Maharashtra is the richest state in India by Gross State Domestic\nProduct (GSDP), boasting an economy exceeding $400+ billion.\nIt contributes over 13% of India's total GDP, driven by major industries in\nMumbai, Pune, and Nagpur.",
+    "videoUrl": "https://www.youtube.com/shorts/AOoWj_SnMJ8",
+    "image": "/quiz-decks/india/india-q45-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q45-explain.jpg"
+  },
+  {
+    "id": 46,
+    "question": "Which is the Poorest state in India?",
+    "options": [
+      "Bihar",
+      "Madhya Pradesh",
+      "Meghalaya"
+    ],
+    "correctIndex": 0,
+    "explanation": "As of 2025–2026, Bihar is the poorest state in India based\non per capita income and multidimensional poverty.\nBihar's per capita income is less than half the national average.\nIt is heavily dependent on agriculture, and limited by low industrialization.",
+    "videoUrl": "https://www.youtube.com/shorts/vONw04Kvzxw",
+    "image": "/quiz-decks/india/india-q46-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q46-explain.jpg"
+  },
+  {
+    "id": 47,
+    "question": "In which City is India’s famous Bollywood film industry located?",
+    "options": [
+      "Chennai",
+      "Kolkata",
+      "Mumbai"
+    ],
+    "correctIndex": 2,
+    "explanation": "Bollywood is the massive Hindi-language film industry based in\nMumbai (formerly Bombay), producing over 1,000 films annually and\nserving as the heart of Indian cinema",
+    "videoUrl": "https://www.youtube.com/shorts/aH11_4I4IeI",
+    "image": "/quiz-decks/india/india-q47-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q47-explain.jpg"
+  },
+  {
+    "id": 48,
+    "question": "Name the World’s First Female amputee to climb Mount Everest?",
+    "options": [
+      "Rita Chawla",
+      "Deepa Malik",
+      "Arunima Sinha"
+    ],
+    "correctIndex": 2,
+    "explanation": "Arunima Sinha is an Indian mountaineer.\nShe made history on May 21, 2013, as the\nworld's first female amputee to climb Mount Everest.\nAfter losing her leg in a 2011 train accident, she underwent rigorous training\nto summit the 8,848m peak, becoming a symbol of resilience.",
+    "videoUrl": "https://www.youtube.com/shorts/hYFFcMwPfYA",
+    "image": "/quiz-decks/india/india-q48-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q48-explain.jpg"
+  },
+  {
+    "id": 49,
+    "question": "Who became the First Woman officer to receive a Gallantry Award in the Indian Army?",
+    "options": [
+      "Lt. Gen. Punita Arora",
+      "Major Priya Jhingan",
+      "Lt. Col. Mitali Madhumita"
+    ],
+    "correctIndex": 2,
+    "explanation": "Lt. Col. Mitali Madhumita – A Legacy of Courage .\nHer heroism came to light during the 2010 Kabul embassy attack, where\nshe rushed into the heart of danger to save lives. With no thought for her\nown safety, she displayed the kind of bravery that defines true soldiers —\nselfless, fearless, and resolute.",
+    "videoUrl": "https://www.youtube.com/shorts/IQNN8Rm1_ok",
+    "image": "/quiz-decks/india/india-q49-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q49-explain.jpg"
+  },
+  {
+    "id": 50,
+    "question": "Who was the First Indian sportswoman to be awarded the Padma Shri?",
+    "options": [
+      "Bachendri Pai",
+      "Arati Saha",
+      "Bhakti Sharma"
+    ],
+    "correctIndex": 1,
+    "explanation": "Arati Gupta (born Arati Saha) is an Indian swimmer,\nAt the age of 19,she became the first Asian woman\nto swim across the English Channel on 29 September 1959\nIn 1960, she became the first Indian sportswoman to be awarded the\nPadma Shri, the fourth-highest civilian honor in India",
+    "videoUrl": "https://www.youtube.com/shorts/SlxtobBKXeI",
+    "image": "/quiz-decks/india/india-q50-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q50-explain.jpg"
+  },
+  {
+    "id": 51,
+    "question": "Who became the First Woman president of the United Nations General Assembly?",
+    "options": [
+      "Sarojini Naidu",
+      "Vijaya Lakshmi Pandit",
+      "Aruna Asaf Ali"
+    ],
+    "correctIndex": 1,
+    "explanation": "Vijaya Lakshmi Pandit of India was the first woman\nPresident of the United Nations General Assembly,\nelected to the position in 1953 during its eighth session.\nA prominent diplomat and politician, she served as the 8th President,\nfocusing on issues of international cooperation, decolonization, and peace.",
+    "videoUrl": "https://www.youtube.com/shorts/Ff-Yxu6OCOA",
+    "image": "/quiz-decks/india/india-q51-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q51-explain.jpg"
+  },
+  {
+    "id": 52,
+    "question": "The Pre-monsoon rainfall especially in Kerala, Karnataka, and parts of Tamil Nadu is called?",
+    "options": [
+      "Mango Showers",
+      "Lemon Showers",
+      "Orange Showers"
+    ],
+    "correctIndex": 0,
+    "explanation": "Mango showers are pre-monsoon rains - in March-May.\nIt occurs in South India mainly Karnataka and Kerala.\nIt aids the early ripening of mangoes.\nThey are not part of the main monsoon.",
+    "videoUrl": "https://www.youtube.com/shorts/0eLgPdvc4kk",
+    "image": "/quiz-decks/india/india-q52-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q52-explain.jpg"
+  },
+  {
+    "id": 53,
+    "question": "Jog falls in Karnataka is located on which river?",
+    "options": [
+      "Mandovi",
+      "Sharavati",
+      "Budhabalanga"
+    ],
+    "correctIndex": 1,
+    "explanation": "Jog Falls is a magnificent waterfall on the Sharavati river.\nIt is the second highest plunge waterfall in India.",
+    "videoUrl": "https://www.youtube.com/shorts/kNQq1q8wg6c",
+    "image": "/quiz-decks/india/india-q53-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q53-explain.jpg"
+  },
+  {
+    "id": 54,
+    "question": "Dihang gorge is located in which Indian state?",
+    "options": [
+      "Himachal Pradesh",
+      "Uttar Pradesh",
+      "Arunachal Pradesh"
+    ],
+    "correctIndex": 2,
+    "explanation": "The Dihang Gorge (the Great Bend) lies on the border of Tibet and\nArunachal Pradesh.\nIt is a deep, dramatic gorge in the Eastern Himalayas near Namcha Barwa,\nwhere the Brahmaputra River\nturns sharply south, flowing into India as the Dihang.\nhttps://www.youtube.com/shorts/uvF3F1MEWSI",
+    "videoUrl": null,
+    "image": "/quiz-decks/india/india-q54-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q54-explain.jpg"
+  },
+  {
+    "id": 55,
+    "question": "What is the National Flower of India?",
+    "options": [
+      "Lotus",
+      "Rose",
+      "Lily"
+    ],
+    "correctIndex": 0,
+    "explanation": "NATIONAL FLOWERS\nThe national flower of India is the Lotus.\nIt is a sacred aquatic flower symbolizing purity, beauty, divinity, and\nprosperity, deeply significant in Hinduism, Buddhism, and Jainism.\nIt also symbolises knowledge, honour, and spiritual enlightenment.\nhttps://www.youtube.com/shorts/YJUeIr3J-A0",
+    "videoUrl": null,
+    "image": "/quiz-decks/india/india-q55-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q55-explain.jpg"
+  },
+  {
+    "id": 56,
+    "question": "Which is the Oldest mountain range in India?",
+    "options": [
+      "Satpura",
+      "Vindhya",
+      "Aravalli"
+    ],
+    "correctIndex": 2,
+    "explanation": "The Aravalli Range is in north-west India. running in a south-west\ndirection, starting near Delhi, passing through southern Haryana and\nRajasthan, and ending in Ahmedabad, Gujarat.\nThe highest peak is Guru Shikhar in Mount Abu, Rajasthan at 1,722 m",
+    "videoUrl": "https://www.youtube.com/shorts/5ULXO1TNouk",
+    "image": "/quiz-decks/india/india-q56-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q56-explain.jpg"
+  },
+  {
+    "id": 57,
+    "question": "Where is the Magnetic Hill located?",
+    "options": [
+      "Ladakh",
+      "Western Ghats",
+      "Eastern Ghats"
+    ],
+    "correctIndex": 0,
+    "explanation": "NATIONAL FLOWERS\nThe Magnetic Hill is a gravity hill located, in Leh district of Ladakh, India.\nIt is said that there is a mysterious magnetic force emanating from the hill\nthat pulls stationary vehicles within its range and makes them move uphill.\nOthers believe that it is an optical illusion.\nThis strange occurrence has been experienced by many travellers",
+    "videoUrl": "https://www.youtube.com/shorts/uRQsq38pDb4",
+    "image": "/quiz-decks/india/india-q57-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q57-explain.jpg"
+  },
+  {
+    "id": 58,
+    "question": "Which is the Smallest state in India by Area?",
+    "options": [
+      "Goa",
+      "Tripura",
+      "Sikkim"
+    ],
+    "correctIndex": 0,
+    "explanation": "Goa is the smallest state in India with an area of\n3,702 sq. km. (1,429 sq.mi).\nIt is located on the south-western coast of India, along the Arabian Sea,\nit is renowned for its beaches and tourism.\nPanaji is the capital.",
+    "videoUrl": "https://www.youtube.com/shorts/mHc99CV3A58",
+    "image": "/quiz-decks/india/india-q58-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q58-explain.jpg"
+  },
+  {
+    "id": 59,
+    "question": "Who is known as the \"Missile Man\" of India?",
+    "options": [
+      "Jawahar Lal Nehru",
+      "Subhas Chandra Bose",
+      "A.P.J. Abdul Kalam"
+    ],
+    "correctIndex": 2,
+    "explanation": "Dr. A.P.J. Abdul Kalam (1931–2015) is renowned as the\n\"Missile Man of India\" for his pivotal role in developing India's missile\nprograms, specifically the Agni and Prithvi missiles. He was an aerospace\nscientist and served as the 11th President of India (2002–2007) and made\nmajor contributions to India's nuclear capabilities.\nhttps://www.youtube.com/shorts/LuPjvNuXcj8",
+    "videoUrl": null,
+    "image": "/quiz-decks/india/india-q59-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q59-explain.jpg"
+  },
+  {
+    "id": 60,
+    "question": "Who is known as the \"Iron Man of India\"?",
+    "options": [
+      "Jawahar Lal Nehru",
+      "Sardar Vallabhbhai Patel",
+      "Subhas Chandra Bose"
+    ],
+    "correctIndex": 1,
+    "explanation": "Sardar Vallabhbhai Patel was called the \"Iron Man of India\" for his\nunwavering attempts to integrate the princely states into the Indian\nfederation. He was an Indian independence activist and statesman.\nhttps://www.youtube.com/shorts/xOCz4OymCcE",
+    "videoUrl": null,
+    "image": "/quiz-decks/india/india-q60-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q60-explain.jpg"
+  },
+  {
+    "id": 61,
+    "question": "Which State is known as \"God's Own Country\"?",
+    "options": [
+      "Punjab",
+      "Maharashtra",
+      "Kerala"
+    ],
+    "correctIndex": 2,
+    "explanation": "Kerala is known as \"God's Own Country“,\nfor its lush landscapes, serene backwaters, and rich culture.\nThe phrase highlights the region's intense natural beauty and mythical\norigin as land reclaimed from the sea by Lord Parashurama.\nhttps://www.youtube.com/shorts/1U4ohrQXP38",
+    "videoUrl": null,
+    "image": "/quiz-decks/india/india-q61-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q61-explain.jpg"
+  },
+  {
+    "id": 62,
+    "question": "What is the National Song of India?",
+    "options": [
+      "Vande Mataram",
+      "Jana Gana Mana",
+      "Chak de India"
+    ],
+    "correctIndex": 0,
+    "explanation": "\"Vande Mataram\" is the national song of India, composed in Sanskrit by\nBankim Chandra Chatterjee in the 1870s.\nIt was adopted as the national song on January 24, 1950, holding equal\nstatus with the national anthem, \"Jana Gana Mana\".\nhttps://www.youtube.com/shorts/IKYQPKiQen8",
+    "videoUrl": null,
+    "image": "/quiz-decks/india/india-q62-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q62-explain.jpg"
+  },
+  {
+    "id": 63,
+    "question": "Who was the First Woman President of India?",
+    "options": [
+      "Indira Gandhi",
+      "Pratibha Patil",
+      "Sarojini Naidu"
+    ],
+    "correctIndex": 1,
+    "explanation": "Pratibha Devisingh Patil is the first woman\nto have served as the President of India,\nholding office as the 12th President from July 25, 2007, to July 25, 2012.\nhttps://www.youtube.com/shorts/lEDjCOSJuZY",
+    "videoUrl": null,
+    "image": "/quiz-decks/india/india-q63-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q63-explain.jpg"
+  },
+  {
+    "id": 64,
+    "question": "Who was India’s First Astronaut?",
+    "options": [
+      "Rakesh Sharma",
+      "Ravish Malhotra",
+      "Shubanshu Shukla"
+    ],
+    "correctIndex": 0,
+    "explanation": "Wing Commander Rakesh Sharma\nis the first Indian citizen to travel to space.\nHe flew aboard Soyuz T-11 on 3 April 1984\nas part of the Soviet Interkosmos (Space progamme).",
+    "videoUrl": "https://www.youtube.com/shorts/PqpGi0LUZPE",
+    "image": "/quiz-decks/india/india-q64-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q64-explain.jpg"
+  },
+  {
+    "id": 65,
+    "question": "What is the name of the Highest Civilian award in India?",
+    "options": [
+      "Vishist Seva Medal",
+      "Bharat Ratna",
+      "Padma Shri"
+    ],
+    "correctIndex": 1,
+    "explanation": "Bharat Ratna is the highest civilian award in India.\nIt was instituted on January 2, 1954 and awarded\nin recognition of exceptional service or performance\nof the highest order in any field of human endeavor.",
+    "videoUrl": "https://www.youtube.com/shorts/l1SVBxSosUI",
+    "image": "/quiz-decks/india/india-q65-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q65-explain.jpg"
+  },
+  {
+    "id": 66,
+    "question": "Who is the Richest person in India?",
+    "options": [
+      "Shiv Nadar",
+      "Gautam Adani",
+      "Mukesh Ambani"
+    ],
+    "correctIndex": 2,
+    "explanation": "Mukesh Ambani, chairman of Reliance Industries,\nis the richest person in India and Asia as of early 2026,\nwith a net worth estimated around $102–$116 billion.\nHe controls a massive conglomerate spanning oil, telecom, and retail.",
+    "videoUrl": "https://www.youtube.com/shorts/qkxIbOz6jvg",
+    "image": "/quiz-decks/india/india-q66-main.jpg",
+    "explainImage": "/quiz-decks/india/india-q66-explain.jpg"
+  }
+]

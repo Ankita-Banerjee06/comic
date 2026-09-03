@@ -23,6 +23,7 @@ import Collaborate from './pages/Collaborate';
 import Classroom from './pages/Classroom';
 import Courses from './pages/Courses';
 import Tutorials from './pages/Tutorials';
+import QuizDecks from './pages/QuizDecks';
 
 // Auth Pages
 import Login from './pages/Auth/Login';
@@ -96,6 +97,7 @@ function App() {
           <Route path="/classroom" element={<Classroom />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/tutorials" element={<Tutorials />} />
+          <Route path="/quiz-decks" element={<QuizDecks />} />
         </Route>
 
         {/* Fallback */}
