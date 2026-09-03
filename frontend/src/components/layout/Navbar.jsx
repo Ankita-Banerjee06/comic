@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, User, Globe, Image as ImageIcon, BookOpen, HelpCircle, Library, ChevronDown, Users, GraduationCap, Video, LayoutDashboard, ClipboardList, LogOut, Home, Layers } from 'lucide-react';
+import { Menu, X, User, Globe, Image as ImageIcon, BookOpen, HelpCircle, Library, ChevronDown, Users, GraduationCap, Video, LayoutDashboard, ClipboardList, LogOut, Home } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,7 +15,6 @@ const navLinks = [
   { name: 'Collaborate',   path: '/collaborative', icon: Users },
   { name: 'Courses',       path: '/courses',       icon: GraduationCap },
   { name: 'Video Tutorials', path: '/tutorials',   icon: Video },
-  { name: 'Quiz Decks',    path: '/quiz-decks',    icon: Layers },
 ];
 
 function LanguageSwitcher({ langOpen, setLangOpen, language, setLanguage }) {

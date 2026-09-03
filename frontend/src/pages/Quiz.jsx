@@ -12,20 +12,27 @@ import {
   Clock,
   Loader2,
   AlertTriangle,
+  Layers,
+  MapPin,
+  Stethoscope,
+  ArrowLeft,
+  ArrowRight,
+  ExternalLink,
+  Trophy,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import FileUpload from '../components/ui/FileUpload';
 import {
   generateQuiz,
-  generateQuizQuestionImage,
   mediaUrl,
   saveWrongAnswer,
   listWrongAnswers,
   deleteWrongAnswer,
   getLibraryProject,
 } from '../services/api';
-import { QUIZ_CATEGORIES, buildCategoryQuiz } from '../data/quizCategoryBanks';
+import indiaDeckQuestions from '../data/quizDecks/india.json';
+import medicalDeckQuestions from '../data/quizDecks/medical.json';
 
 // ============================================================
 // HELPERS
@@ -73,21 +80,265 @@ function timeAgo(isoString, t) {
   return years === 1 ? `1 ${t('year ago')}` : `${years} ${t('years ago')}`;
 }
 
+// ============================================================
+// QUIZ DECKS — click-through picture quizzes lifted straight from the
+// source PDFs (real photos/graphics, exact questions and options), a
+// third mode alongside the AI-generated quiz and the Wrong Answers bank.
+// ============================================================
+
+const QUIZ_DECKS = [
+  {
+    id: 'india',
+    name: 'The India Quiz',
+    description: 'Geography, history, culture and famous firsts — how well do you know India?',
+    icon: MapPin,
+    questions: indiaDeckQuestions,
+    banner: 'bg-cyan-400 text-slate-900',
+    option: 'bg-cyan-400 text-slate-900',
+    tint: 'bg-cyan-50',
+    iconColor: 'text-cyan-600',
+    accent: 'from-cyan-500 to-blue-600',
+  },
+  {
+    id: 'medical',
+    name: 'Medical Quiz',
+    description: 'Anatomy, specialists, vital signs and medical terms — test your medical knowledge.',
+    icon: Stethoscope,
+    questions: medicalDeckQuestions,
+    banner: 'bg-yellow-300 text-slate-900',
+    option: 'bg-yellow-300 text-slate-900',
+    tint: 'bg-yellow-50',
+    iconColor: 'text-yellow-600',
+    accent: 'from-amber-500 to-orange-600',
+  },
+];
+
+function DeckPicker({ onSelect }) {
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {QUIZ_DECKS.map(deck => {
+          const Icon = deck.icon;
+          return (
+            <button
+              key={deck.id}
+              onClick={() => onSelect(deck)}
+              className="text-left bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all group"
+            >
+              <div className={`h-32 ${deck.tint} flex items-center justify-center relative`}>
+                <Icon className={`w-14 h-14 ${deck.iconColor}`} />
+                <div className="absolute top-3 right-3 bg-white/90 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+                  {deck.questions.length} questions
+                </div>
+              </div>
+              <div className="p-6">
+                <h3 className="font-bold text-slate-900 text-lg mb-1.5 group-hover:text-indigo-700 transition-colors">{deck.name}</h3>
+                <p className="text-sm text-slate-500 font-medium mb-4 leading-relaxed">{deck.description}</p>
+                <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r ${deck.accent}`}>
+                  Start Quiz <ArrowRight className="w-4 h-4" />
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DeckQuizPlayer({ deck, onExit }) {
+  const [index, setIndex] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [score, setScore] = useState(0);
+  const [finished, setFinished] = useState(false);
+
+  const questions = deck.questions;
+  const q = questions[index];
+  const answered = selected !== null;
+
+  const handleSelect = (i) => {
+    if (answered) return;
+    setSelected(i);
+    if (i === q.correctIndex) setScore(s => s + 1);
+  };
+
+  const handleNext = () => {
+    if (index + 1 >= questions.length) {
+      setFinished(true);
+      return;
+    }
+    setIndex(i => i + 1);
+    setSelected(null);
+  };
+
+  const handleRestart = () => {
+    setIndex(0);
+    setSelected(null);
+    setScore(0);
+    setFinished(false);
+  };
+
+  if (finished) {
+    return (
+      <div className="max-w-xl mx-auto py-16 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="w-20 h-20 mx-auto rounded-full bg-indigo-50 flex items-center justify-center">
+          <Trophy className="w-10 h-10 text-indigo-600" />
+        </div>
+        <h2 className="text-2xl font-extrabold text-slate-900">Quiz complete!</h2>
+        <p className="text-slate-500 font-medium">
+          You scored <span className="font-bold text-slate-900">{score}</span> out of <span className="font-bold text-slate-900">{questions.length}</span> on {deck.name}.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={handleRestart}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 transition-all"
+          >
+            <RotateCcw className="w-4 h-4" /> Play again
+          </button>
+          <button
+            onClick={onExit}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all"
+          >
+            Back to decks
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Top bar */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={onExit}
+          className="flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-indigo-700 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to decks
+        </button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-slate-400">Question {index + 1} of {questions.length}</span>
+          <span className="text-xs font-bold text-indigo-600">Score: {score}</span>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className={`h-full bg-gradient-to-r ${deck.accent} transition-all duration-500`}
+          style={{ width: `${((index + (answered ? 1 : 0)) / questions.length) * 100}%` }}
+        />
+      </div>
+
+      {/* Question card */}
+      <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+        <div className="p-6 md:p-8 space-y-6">
+          {/* Banner */}
+          <div className={`${deck.banner} rounded-xl px-6 py-4 text-center font-extrabold text-lg md:text-xl`}>
+            {q.question}
+          </div>
+
+          {/* Options */}
+          <div className={`grid gap-3 ${q.options.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+            {q.options.map((opt, i) => {
+              let cls = deck.option;
+              if (answered) {
+                if (i === q.correctIndex) cls = 'bg-green-600 text-white';
+                else if (i === selected) cls = 'bg-red-600 text-white';
+                else cls = 'bg-slate-100 text-slate-400';
+              }
+              return (
+                <button
+                  key={i}
+                  onClick={() => handleSelect(i)}
+                  disabled={answered}
+                  className={`${cls} rounded-xl px-4 py-3.5 font-bold text-sm md:text-base text-center transition-all ${!answered ? 'hover:-translate-y-0.5 hover:shadow-md cursor-pointer' : 'cursor-default'}`}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Image */}
+          {q.image && (
+            <div className="flex justify-center">
+              <img
+                src={q.image}
+                alt=""
+                className="max-h-72 w-auto rounded-xl border border-slate-200 shadow-sm object-contain"
+              />
+            </div>
+          )}
+
+          {/* Prompt / Explanation */}
+          {!answered ? (
+            <div className="bg-yellow-100 text-slate-800 text-center font-bold text-sm rounded-xl px-4 py-3">
+              Click the box with the correct answer choice
+            </div>
+          ) : (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4 animate-in fade-in duration-300">
+              {q.explainImage && (
+                <div className="flex justify-center">
+                  <img
+                    src={q.explainImage}
+                    alt=""
+                    className="max-h-56 w-auto rounded-lg border border-slate-200 object-contain"
+                  />
+                </div>
+              )}
+              {q.explanation && (
+                <p className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-line text-center">
+                  {q.explanation}
+                </p>
+              )}
+              {q.videoUrl && (
+                <div className="flex justify-center">
+                  <a
+                    href={q.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 hover:underline"
+                  >
+                    <ExternalLink className="w-4 h-4" /> Click to view
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer nav */}
+        {answered && (
+          <div className="border-t border-slate-100 px-6 md:px-8 py-4 flex justify-end">
+            <button
+              onClick={handleNext}
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r ${deck.accent} hover:-translate-y-0.5 transition-all`}
+            >
+              {index + 1 >= questions.length ? 'See results' : 'Next question'} <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Quiz() {
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
 
   // --------------------------------------------------------
   // GENERATION FORM STATE
   // --------------------------------------------------------
 
-  const [view, setView] = useState('setup'); // 'setup' | 'bank'
-  const [inputMode, setInputMode] = useState('topic'); // 'topic' | 'category' | 'material'
+  const [view, setView] = useState('setup'); // 'setup' | 'bank' | 'decks'
+  const [activeDeck, setActiveDeck] = useState(null); // picture-quiz deck currently being played
+  const [inputMode, setInputMode] = useState('topic'); // 'topic' | 'material'
   const [topic, setTopic] = useState('');
   const [materialText, setMaterialText] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState(null); // category key, e.g. 'india'
   const [numQuestions, setNumQuestions] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
@@ -259,81 +510,8 @@ export default function Quiz() {
       return;
     }
 
-    if (inputMode === 'category' && !selectedCategory) {
-      setGenError(t('Please choose a category.'));
-      return;
-    }
-
     if (inputMode === 'material' && !materialText.trim() && !uploadedFile) {
       setGenError(t('Please paste or upload some material.'));
-      return;
-    }
-
-    // A category quiz uses the exact questions from the source PDF —
-    // no AI rewriting, no wait for the questions themselves. Each
-    // question still gets its own AI-generated illustration (fetched
-    // in parallel, same as a fully AI-generated quiz), so the look
-    // matches. A fresh random subset is sampled every time, so
-    // retaking the same category surfaces different questions.
-    // (No auto-save to the Library here, since this never creates a
-    // project — that's AI-generation-only.)
-    if (inputMode === 'category') {
-      const category = QUIZ_CATEGORIES.find((c) => c.key === selectedCategory);
-      const builtQuiz = buildCategoryQuiz(category, numQuestions);
-
-      setIsGenerating(true);
-
-      try {
-        const illustratedQuestions = await Promise.all(
-          builtQuiz.questions.map(async (q) => {
-            // Prefer the real photo/graphic lifted from the source PDF
-            // over an AI-generated illustration — asking the AI to draw
-            // a specific fact (a person, an event, a diagram) tends to
-            // come out distorted or nonsensical, which is worse than no
-            // picture at all.
-            if (q.curatedImage) {
-              return {
-                ...q,
-                image_url: q.curatedImage,
-                explain_image_url: q.curatedExplainImage,
-              };
-            }
-
-            try {
-              const img = await generateQuizQuestionImage(q.q, q.explanation, language);
-              return {
-                ...q,
-                image_id: img.image_id,
-                image_url: img.image_url,
-                video_id: img.video_id,
-                video_url: img.video_url,
-              };
-            } catch (imgErr) {
-              // A missing illustration shouldn't block the quiz —
-              // the question still works fine without a picture.
-              console.error('Question image generation failed:', imgErr);
-              return q;
-            }
-          })
-        );
-
-        setQuiz({ ...builtQuiz, questions: illustratedQuestions, quizId: null });
-        setIsRetake(false);
-        setIsBankSession(false);
-        setMasteredBankIds([]);
-        setStarted(false);
-        setCurrentQuestion(0);
-        setSelectedAnswer(null);
-        setScore(0);
-        setFinished(false);
-        setWrongQuestions([]);
-      } catch (err) {
-        console.error('Category quiz generation error:', err);
-        setGenError(err?.message || t('Failed to generate quiz.'));
-      } finally {
-        setIsGenerating(false);
-      }
-
       return;
     }
 
@@ -486,6 +664,15 @@ export default function Quiz() {
   }
 
   // ============================================================
+  // RENDER: QUIZ DECKS PLAYER (picture quiz, takes over the whole page
+  // the same way an AI-generated quiz in progress does)
+  // ============================================================
+
+  if (activeDeck) {
+    return <DeckQuizPlayer deck={activeDeck} onExit={() => setActiveDeck(null)} />;
+  }
+
+  // ============================================================
   // RENDER: GENERATION FORM
   // ============================================================
 
@@ -518,12 +705,12 @@ export default function Quiz() {
           </div>
         </div>
 
-        {/* SECTION TABS: New Quiz / Wrong Answers Bank */}
-        <div className="flex gap-3">
+        {/* SECTION TABS: New Quiz / Wrong Answers Bank / Quiz Decks */}
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => setView('setup')}
-            className={`flex-1 py-4 rounded-3xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
+            className={`flex-1 min-w-[150px] py-4 rounded-3xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
               view === 'setup'
                 ? 'bg-purple-600 text-white'
                 : 'bg-white text-purple-600 border-2 border-purple-100 hover:bg-purple-50'
@@ -535,7 +722,7 @@ export default function Quiz() {
           <button
             type="button"
             onClick={() => setView('bank')}
-            className={`flex-1 py-4 rounded-3xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
+            className={`flex-1 min-w-[150px] py-4 rounded-3xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
               view === 'bank'
                 ? 'bg-orange-500 text-white'
                 : 'bg-white text-orange-600 border-2 border-orange-100 hover:bg-orange-50'
@@ -552,6 +739,18 @@ export default function Quiz() {
                 {wrongBank.length}
               </span>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('decks')}
+            className={`flex-1 min-w-[150px] py-4 rounded-3xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
+              view === 'decks'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-indigo-600 border-2 border-indigo-100 hover:bg-indigo-50'
+            }`}
+          >
+            <Layers size={20} />
+            {t('Quiz Decks')}
           </button>
         </div>
 
@@ -629,6 +828,8 @@ export default function Quiz() {
               </>
             )}
           </div>
+        ) : view === 'decks' ? (
+          <DeckPicker onSelect={setActiveDeck} />
         ) : (
         <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-8">
           {/* TABS */}
@@ -644,18 +845,6 @@ export default function Quiz() {
             >
               <Sparkles size={20} />
               {t('Topic')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setInputMode('category')}
-              className={`flex-1 py-3.5 px-2 rounded-2xl font-bold text-sm sm:text-base flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-center transition-all ${
-                inputMode === 'category'
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
-              }`}
-            >
-              <Archive size={20} />
-              {t('Category')}
             </button>
             <button
               type="button"
@@ -685,32 +874,6 @@ export default function Quiz() {
                 )}
                 className="w-full p-5 bg-purple-50 border-2 border-purple-200 rounded-2xl text-gray-700 font-semibold focus:ring-4 focus:ring-purple-300 focus:border-purple-400 focus:outline-none text-lg transition-all"
               />
-            </div>
-          ) : inputMode === 'category' ? (
-            <div className="space-y-2 mb-6">
-              <label className="block text-sm font-bold text-gray-700">
-                {t('Category')}
-              </label>
-              <p className="text-sm text-gray-500 font-semibold -mt-1 mb-1">
-                {t('Pick a ready-made topic — every attempt draws a fresh set of questions.')}
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {QUIZ_CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.key}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat.key)}
-                    className={`flex flex-col items-center justify-center gap-1.5 py-5 rounded-2xl font-bold text-base border-2 transition-all ${
-                      selectedCategory === cat.key
-                        ? 'bg-purple-600 text-white border-purple-600 shadow-lg'
-                        : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100'
-                    }`}
-                  >
-                    <span className="text-2xl">{cat.emoji}</span>
-                    {t(cat.label)}
-                  </button>
-                ))}
-              </div>
             </div>
           ) : (
             <div className="space-y-5 mb-6">
