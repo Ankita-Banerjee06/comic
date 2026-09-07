@@ -11,6 +11,10 @@ import LandingLayout from './layouts/LandingLayout';
 // Pages
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
+import Introduction from './pages/Introduction';
+import Explore from './pages/Explore';
+import HowWeDoIt from './pages/HowWeDoIt';
+import Plans from './pages/Plans';
 import Amivi from './pages/Amivi';
 import Amico from './pages/Amico';
 import Quiz from './pages/Quiz';
@@ -80,6 +84,10 @@ function App() {
         {/* Main Application — requires a signed-in account */}
         <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/introduction" element={<Introduction />} />
+          <Route path="/explore" element={<Explore />} />
+          <Route path="/how-we-do-it" element={<HowWeDoIt />} />
+          <Route path="/plans" element={<Plans />} />
           <Route path="/amivi" element={<Amivi />} />
           <Route path="/amivi/:projectId" element={<Amivi />} />
           <Route path="/amico" element={<Amico />} />

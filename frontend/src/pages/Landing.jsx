@@ -120,40 +120,6 @@ export default function Landing() {
       </section>
 
       {/* ════════════════════════════════════════════════════════════
-          FIVE STEPS TO SUCCESS — the VLQ method
-      ═══════════════════════════════════════════════════════════ */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-10 bg-white">
-        <div className="max-w-[100rem] mx-auto">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
-              style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #e0e7ff' }}>
-              The VLQ Method
-            </div>
-            <h2 className="font-extrabold leading-tight" style={{ fontSize: 'clamp(28px,3.4vw,42px)', color: '#0f172a' }}>
-              Five Steps to Success
-            </h2>
-            <p className="mt-3 text-lg font-semibold max-w-2xl mx-auto" style={{ color: '#1e293b' }}>
-              Whether you're a student, a teacher, or learning something new for work — the same five steps help you see, understand, and master any subject.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-            {[
-              { src: '/vlq-step-1-see.png', alt: 'Step 1: See it. Quick visuals grab your attention and spark curiosity.' },
-              { src: '/vlq-step-2-understand.png', alt: 'Step 2: Understand it. Clear visuals simplify complex ideas in seconds.' },
-              { src: '/vlq-step-3-remember.png', alt: 'Step 3: Remember it. Visual patterns lock in knowledge for the long term.' },
-              { src: '/vlq-step-4-apply.png', alt: 'Step 4: Apply it. Use what you learn with confidence in real life.' },
-              { src: '/vlq-step-5-master.png', alt: 'Step 5: Master it. Reinforce, revisit, and level up every day.' },
-            ].map((step) => (
-              <div key={step.src} className="rounded-2xl overflow-hidden shadow-md border border-slate-100 transition-transform hover:-translate-y-1 hover:shadow-lg">
-                <img src={step.src} alt={step.alt} className="w-full h-auto block" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════════
           FEATURES — AMIVI / AMICO / QUIZ
       ═══════════════════════════════════════════════════════════ */}
       <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-white overflow-hidden">
