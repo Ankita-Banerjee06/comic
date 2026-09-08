@@ -280,7 +280,10 @@ export default function Explore() {
         </div>
 
         {/* Analytics banner */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 flex items-center justify-between gap-4 max-w-xl">
+        <Link
+          to="/analytics"
+          className="group rounded-2xl border border-slate-200 bg-white p-5 flex items-center justify-between gap-4 max-w-xl hover:shadow-md hover:-translate-y-0.5 transition-all"
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
               <BarChart3 className="w-5 h-5 text-blue-600" />
@@ -297,11 +300,11 @@ export default function Explore() {
               className="h-14 w-auto object-contain"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
-            <span className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-indigo-600">
+            <span className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-50 transition-colors">
               <ArrowRight className="w-4 h-4" />
             </span>
           </div>
-        </div>
+        </Link>
       </div>
     </div>
   );

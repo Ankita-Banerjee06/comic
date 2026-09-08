@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 import Introduction from './pages/Introduction';
 import Explore from './pages/Explore';
 import HowWeDoIt from './pages/HowWeDoIt';
+import Analytics from './pages/Analytics';
 import Plans from './pages/Plans';
 import Amivi from './pages/Amivi';
 import Amico from './pages/Amico';
@@ -87,6 +88,7 @@ function App() {
           <Route path="/introduction" element={<Introduction />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/how-we-do-it" element={<HowWeDoIt />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/plans" element={<Plans />} />
           <Route path="/amivi" element={<Amivi />} />
           <Route path="/amivi/:projectId" element={<Amivi />} />
