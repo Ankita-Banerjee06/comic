@@ -225,7 +225,7 @@ export default function CollaborativeLearning() {
 function Header({ screen, room, onLeaveClick }) {
   return (
     <div
-      className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8 text-white"
+      className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8 text-white"
       style={{ minHeight: 180, background: '#1e1b4b' }}
     >
       <img
@@ -273,7 +273,7 @@ function RoomHub({ onGoCreate, onGoJoin }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <button
         onClick={onGoCreate}
-        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
       >
         <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <Plus className="w-6 h-6 text-indigo-600" />
@@ -289,7 +289,7 @@ function RoomHub({ onGoCreate, onGoJoin }) {
 
       <button
         onClick={onGoJoin}
-        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
       >
         <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <Users className="w-6 h-6 text-pink-600" />
@@ -346,7 +346,7 @@ function CreateRoomForm({ onCancel, onCreated }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-5"
+      className="max-w-xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5"
     >
       <h2 className="text-xl font-bold text-slate-800">Create a learning room</h2>
 
@@ -448,7 +448,7 @@ function JoinRoomForm({ onCancel, onJoined }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-5"
+      className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5"
     >
       <h2 className="text-xl font-bold text-slate-800">Join a learning room</h2>
 
@@ -596,7 +596,7 @@ function RoomCodeCard({ room }) {
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Room code</p>
-        <p className="text-2xl font-extrabold text-slate-900 tracking-[0.2em]">{room.room_code}</p>
+        <p className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-[0.15em] sm:tracking-[0.2em] break-all">{room.room_code}</p>
         {room.description && (
           <p className="text-sm text-slate-500 font-medium mt-2 max-w-md">{room.description}</p>
         )}

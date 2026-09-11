@@ -64,7 +64,7 @@ export default function Courses() {
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Header */}
-      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8" style={{ minHeight: 200, background: '#ecfdf5' }}>
+      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8" style={{ minHeight: 200, background: '#ecfdf5' }}>
         <img
           src="/vlq-classroom-hero.jpg"
           alt=""

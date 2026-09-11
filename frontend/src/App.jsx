@@ -15,6 +15,7 @@ import Introduction from './pages/Introduction';
 import Explore from './pages/Explore';
 import HowWeDoIt from './pages/HowWeDoIt';
 import Analytics from './pages/Analytics';
+import Gamification from './pages/Gamification';
 import Plans from './pages/Plans';
 import Amivi from './pages/Amivi';
 import Amico from './pages/Amico';
@@ -89,6 +90,7 @@ function App() {
           <Route path="/explore" element={<Explore />} />
           <Route path="/how-we-do-it" element={<HowWeDoIt />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/gamification" element={<Gamification />} />
           <Route path="/plans" element={<Plans />} />
           <Route path="/amivi" element={<Amivi />} />
           <Route path="/amivi/:projectId" element={<Amivi />} />

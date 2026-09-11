@@ -97,16 +97,16 @@ export default function Landing() {
           BUILT FOR EVERY LEARNER — audience trust strip
       ═══════════════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden" style={{ background: 'linear-gradient(90deg, #dbeafe 0%, #dcfce7 33%, #fce7f3 66%, #ede9fe 100%)' }}>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <p className="text-center text-xs font-bold uppercase tracking-widest mb-7" style={{ color: '#475569' }}>
             Built for every kind of learner
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-5">
             {audiences.map((a) => {
               const Icon = a.Icon;
               return (
                 <div key={a.label}
-                  className="flex flex-col items-center text-center gap-2.5 rounded-2xl p-5 bg-white shadow-sm transition-transform hover:-translate-y-0.5">
+                  className="flex flex-col items-center text-center gap-2.5 rounded-2xl p-3 sm:p-5 bg-white shadow-sm transition-transform hover:-translate-y-0.5">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: a.tint }}>
                     <Icon className="w-5 h-5" style={{ color: a.color }} strokeWidth={2} />
                   </div>
@@ -122,11 +122,11 @@ export default function Landing() {
       {/* ════════════════════════════════════════════════════════════
           FEATURES — AMIVI / AMICO / QUIZ
       ═══════════════════════════════════════════════════════════ */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-white overflow-hidden">
+      <section className="relative py-12 md:py-20 px-4 sm:px-6 lg:px-8 bg-white overflow-hidden">
         <div aria-hidden className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full opacity-60" style={{ background: 'radial-gradient(circle,#dbeafe 0%,transparent 70%)' }} />
-          <div className="absolute top-1/3 -right-24 w-[420px] h-[420px] rounded-full opacity-60" style={{ background: 'radial-gradient(circle,#fce7f3 0%,transparent 70%)' }} />
-          <div className="absolute bottom-0 left-1/3 w-[420px] h-[420px] rounded-full opacity-50" style={{ background: 'radial-gradient(circle,#ede9fe 0%,transparent 70%)' }} />
+          <div className="absolute -top-24 -left-24 w-[220px] h-[220px] sm:w-[420px] sm:h-[420px] rounded-full opacity-60" style={{ background: 'radial-gradient(circle,#dbeafe 0%,transparent 70%)' }} />
+          <div className="absolute top-1/3 -right-24 w-[220px] h-[220px] sm:w-[420px] sm:h-[420px] rounded-full opacity-60" style={{ background: 'radial-gradient(circle,#fce7f3 0%,transparent 70%)' }} />
+          <div className="absolute bottom-0 left-1/3 w-[220px] h-[220px] sm:w-[420px] sm:h-[420px] rounded-full opacity-50" style={{ background: 'radial-gradient(circle,#ede9fe 0%,transparent 70%)' }} />
         </div>
         <div className="relative max-w-7xl mx-auto">
 
@@ -177,10 +177,10 @@ export default function Landing() {
       {/* ════════════════════════════════════════════════════════════
           CTA BANNER
       ═══════════════════════════════════════════════════════════ */}
-      <section className="relative py-16 px-4 sm:px-6 lg:px-8">
+      <section className="relative py-10 md:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto rounded-2xl text-center text-white relative overflow-hidden" style={{ minHeight: 280, background: 'linear-gradient(135deg,#0f0a3d 0%,#4a1041 55%,#7a2a09 100%)' }}>
           <div aria-hidden className="absolute inset-0 opacity-15" style={{ background: 'radial-gradient(circle at 20% 30%, white 0%, transparent 35%), radial-gradient(circle at 80% 70%, white 0%, transparent 30%)' }} />
-          <div className="relative z-10 p-10 sm:p-14 flex flex-col items-center justify-center h-full" style={{ minHeight: 280 }}>
+          <div className="relative z-10 p-6 sm:p-14 flex flex-col items-center justify-center h-full" style={{ minHeight: 280 }}>
             <h2 className="font-extrabold mb-7 leading-tight" style={{ fontSize: 'clamp(30px,3.8vw,46px)' }}>
               Ready to learn at the speed of sight?
             </h2>

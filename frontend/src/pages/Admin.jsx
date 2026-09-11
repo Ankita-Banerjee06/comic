@@ -37,7 +37,7 @@ export default function Admin() {
         </div>
       </div>
       
-      <div className="bg-gray-900/50 border border-gray-800 rounded-3xl p-8">
+      <div className="bg-gray-900/50 border border-gray-800 rounded-3xl p-5 md:p-8">
         <h2 className="text-xl font-bold text-white mb-6">Recent User Activity</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-400">

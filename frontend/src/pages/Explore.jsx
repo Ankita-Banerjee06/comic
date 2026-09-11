@@ -79,6 +79,7 @@ const ROW_CATEGORIES = [
     icon: Trophy,
     tint: 'bg-orange-50',
     iconColor: 'text-orange-600',
+    to: '/gamification',
     image: '/vlq-cat-gamification-logo.png',
   },
 ];

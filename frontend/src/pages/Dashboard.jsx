@@ -37,7 +37,7 @@ function DashboardHeader({ name, role }) {
   const isTeacher = role === 'teacher';
   return (
     <div
-      className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8 text-white"
+      className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8 text-white"
       style={{ minHeight: 160 }}
     >
       <div

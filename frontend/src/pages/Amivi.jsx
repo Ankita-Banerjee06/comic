@@ -383,7 +383,7 @@ export default function Amivi() {
           />
         </div>
 
-        <div className="p-8 sm:p-10 max-w-2xl">
+        <div className="p-6 sm:p-10 max-w-2xl">
 
           <div
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-blue-700"
@@ -538,7 +538,7 @@ export default function Amivi() {
 
       {isProcessing && (
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-12">
 
           <ProcessingAnimation
             title={`✨ ${t(
@@ -590,7 +590,7 @@ export default function Amivi() {
 
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-4">
 
               <button
                 onClick={() => navigate('/quiz')}
@@ -615,7 +615,7 @@ export default function Amivi() {
 
           {result.video_url && (
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-7">
 
               <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
                 <div className="flex items-center gap-3">
@@ -665,7 +665,7 @@ export default function Amivi() {
 
             <div>
 
-              <h3 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-2">
                 🧠 Visual Micro-Bits
               </h3>
 
@@ -928,7 +928,7 @@ export default function Amivi() {
 
           {/* PHOTO STORY */}
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-7">
 
             <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
 
@@ -1107,7 +1107,7 @@ export default function Amivi() {
 
             {/* INFO PANEL */}
 
-            <div className="w-full lg:w-[390px] max-h-[82vh] lg:max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-7 shadow-lg flex-shrink-0">
+            <div className="w-full lg:w-[390px] max-h-[82vh] lg:max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-5 sm:p-7 shadow-lg flex-shrink-0">
 
               <div className="flex items-center justify-between mb-4">
 

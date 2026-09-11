@@ -209,20 +209,30 @@ export default function Analytics() {
 
   return (
     <div className="py-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="text-center max-w-2xl mx-auto">
-        <div
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
-          style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #e0e7ff' }}
-        >
-          <BarChart3 className="w-3.5 h-3.5" /> Analytics
+      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6 max-w-5xl mx-auto items-center">
+        <div className="text-center lg:text-left">
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
+            style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #e0e7ff' }}
+          >
+            <BarChart3 className="w-3.5 h-3.5" /> Analytics
+          </div>
+          <h1 className="font-extrabold leading-tight text-slate-900" style={{ fontSize: 'clamp(28px,3.4vw,42px)' }}>
+            Track Your Progress
+          </h1>
+          <p className="mt-3 text-lg font-semibold text-slate-600">
+            A clear look at how you're learning — scores over time, where your hours go, and what to
+            focus on next.
+          </p>
         </div>
-        <h1 className="font-extrabold leading-tight text-slate-900" style={{ fontSize: 'clamp(28px,3.4vw,42px)' }}>
-          Track Your Progress
-        </h1>
-        <p className="mt-3 text-lg font-semibold text-slate-600">
-          A clear look at how you're learning — scores over time, where your hours go, and what to
-          focus on next.
-        </p>
+        <div className="rounded-2xl overflow-hidden">
+          <img
+            src="/vlq-analytics-hero.jpg"
+            alt="A student learning with VLQ — small steps, big progress"
+            className="w-full h-auto block"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        </div>
       </div>
 
       {/* Stat tiles */}

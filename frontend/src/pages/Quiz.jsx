@@ -188,7 +188,7 @@ function DeckQuizPlayer({ deck, onExit }) {
         <p className="text-slate-500 font-medium">
           You scored <span className="font-bold text-slate-900">{score}</span> out of <span className="font-bold text-slate-900">{questions.length}</span> on {deck.name}.
         </p>
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={handleRestart}
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 transition-all"
@@ -209,14 +209,14 @@ function DeckQuizPlayer({ deck, onExit }) {
   return (
     <div className="space-y-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Top bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           onClick={onExit}
           className="flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-indigo-700 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to decks
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-bold text-slate-400">Question {index + 1} of {questions.length}</span>
           <span className="text-xs font-bold text-indigo-600">Score: {score}</span>
         </div>
@@ -232,14 +232,14 @@ function DeckQuizPlayer({ deck, onExit }) {
 
       {/* Question card */}
       <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-        <div className="p-6 md:p-8 space-y-6">
+        <div className="p-4 sm:p-6 md:p-8 space-y-6">
           {/* Banner */}
-          <div className={`${deck.banner} rounded-xl px-6 py-4 text-center font-extrabold text-lg md:text-xl`}>
+          <div className={`${deck.banner} rounded-xl px-4 sm:px-6 py-3 sm:py-4 text-center font-extrabold text-base sm:text-lg md:text-xl`}>
             {q.question}
           </div>
 
           {/* Options */}
-          <div className={`grid gap-3 ${q.options.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+          <div className={`grid grid-cols-1 gap-3 ${q.options.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
             {q.options.map((opt, i) => {
               let cls = deck.option;
               if (answered) {
@@ -266,7 +266,7 @@ function DeckQuizPlayer({ deck, onExit }) {
               <img
                 src={q.image}
                 alt=""
-                className="max-h-72 w-auto rounded-xl border border-slate-200 shadow-sm object-contain"
+                className="max-h-72 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm object-contain"
               />
             </div>
           )}
@@ -277,13 +277,13 @@ function DeckQuizPlayer({ deck, onExit }) {
               Click the box with the correct answer choice
             </div>
           ) : (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4 animate-in fade-in duration-300">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 space-y-4 animate-in fade-in duration-300">
               {q.explainImage && (
                 <div className="flex justify-center">
                   <img
                     src={q.explainImage}
                     alt=""
-                    className="max-h-56 w-auto rounded-lg border border-slate-200 object-contain"
+                    className="max-h-56 w-auto max-w-full rounded-lg border border-slate-200 object-contain"
                   />
                 </div>
               )}
@@ -310,7 +310,7 @@ function DeckQuizPlayer({ deck, onExit }) {
 
         {/* Footer nav */}
         {answered && (
-          <div className="border-t border-slate-100 px-6 md:px-8 py-4 flex justify-end">
+          <div className="border-t border-slate-100 px-4 sm:px-6 md:px-8 py-4 flex justify-end">
             <button
               onClick={handleNext}
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r ${deck.accent} hover:-translate-y-0.5 transition-all`}
@@ -689,14 +689,14 @@ export default function Quiz() {
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
           </div>
-          <div className="p-8 sm:p-10 max-w-2xl">
+          <div className="p-5 sm:p-8 md:p-10 max-w-2xl">
             <div
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-purple-700"
               style={{ background: '#f5f3ff', border: '1px solid #ddd6fe' }}
             >
               QUIZ
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3">{t('Quiz')}</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 mb-3">{t('Quiz')}</h1>
             <p className="text-slate-600 font-medium max-w-xl">
               {t(
                 'Pick a topic, or upload / paste your own learning material, and generate a quiz with pictures and answer explanations.'
@@ -710,7 +710,7 @@ export default function Quiz() {
           <button
             type="button"
             onClick={() => setView('setup')}
-            className={`flex-1 min-w-[150px] py-4 rounded-3xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
+            className={`flex-1 min-w-[120px] sm:min-w-[150px] py-3 sm:py-4 rounded-3xl font-bold text-base sm:text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
               view === 'setup'
                 ? 'bg-purple-600 text-white'
                 : 'bg-white text-purple-600 border-2 border-purple-100 hover:bg-purple-50'
@@ -722,7 +722,7 @@ export default function Quiz() {
           <button
             type="button"
             onClick={() => setView('bank')}
-            className={`flex-1 min-w-[150px] py-4 rounded-3xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
+            className={`flex-1 min-w-[120px] sm:min-w-[150px] py-3 sm:py-4 rounded-3xl font-bold text-base sm:text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
               view === 'bank'
                 ? 'bg-orange-500 text-white'
                 : 'bg-white text-orange-600 border-2 border-orange-100 hover:bg-orange-50'
@@ -743,7 +743,7 @@ export default function Quiz() {
           <button
             type="button"
             onClick={() => setView('decks')}
-            className={`flex-1 min-w-[150px] py-4 rounded-3xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
+            className={`flex-1 min-w-[120px] sm:min-w-[150px] py-3 sm:py-4 rounded-3xl font-bold text-base sm:text-lg flex items-center justify-center gap-2 transition-all shadow-md ${
               view === 'decks'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white text-indigo-600 border-2 border-indigo-100 hover:bg-indigo-50'
@@ -755,8 +755,8 @@ export default function Quiz() {
         </div>
 
         {view === 'bank' ? (
-          <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+          <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5 sm:p-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
               📕 {t('Wrong Answers')}
             </h2>
             <p className="text-gray-500 font-bold mb-6">
@@ -831,7 +831,7 @@ export default function Quiz() {
         ) : view === 'decks' ? (
           <DeckPicker onSelect={setActiveDeck} />
         ) : (
-        <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-8">
+        <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-5 sm:p-8">
           {/* TABS */}
           <div className="flex gap-3 mb-6">
             <button
@@ -872,7 +872,7 @@ export default function Quiz() {
                 placeholder={t(
                   'e.g. World Geography, Photosynthesis, The Solar System...'
                 )}
-                className="w-full p-5 bg-purple-50 border-2 border-purple-200 rounded-2xl text-gray-700 font-semibold focus:ring-4 focus:ring-purple-300 focus:border-purple-400 focus:outline-none text-lg transition-all"
+                className="w-full p-4 sm:p-5 bg-purple-50 border-2 border-purple-200 rounded-2xl text-gray-700 font-semibold focus:ring-4 focus:ring-purple-300 focus:border-purple-400 focus:outline-none text-base sm:text-lg transition-all"
               />
             </div>
           ) : (
@@ -885,7 +885,7 @@ export default function Quiz() {
                   value={materialText}
                   onChange={(e) => setMaterialText(e.target.value)}
                   placeholder={t('Paste the material to quiz on...')}
-                  className="w-full min-h-[160px] p-5 bg-purple-50 border-2 border-purple-200 rounded-2xl text-gray-700 font-semibold resize-none focus:ring-4 focus:ring-purple-300 focus:border-purple-400 focus:outline-none text-lg transition-all"
+                  className="w-full min-h-[160px] p-4 sm:p-5 bg-purple-50 border-2 border-purple-200 rounded-2xl text-gray-700 font-semibold resize-none focus:ring-4 focus:ring-purple-300 focus:border-purple-400 focus:outline-none text-base sm:text-lg transition-all"
                 />
               </div>
 
@@ -903,7 +903,7 @@ export default function Quiz() {
           )}
 
           {/* QUESTION COUNT */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex flex-wrap items-center gap-3 mb-6">
             <span className="font-bold text-gray-700">{t('Questions')}:</span>
             {[5, 10].map((n) => (
               <button
@@ -948,18 +948,18 @@ export default function Quiz() {
   if (!started) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in zoom-in-95 duration-500 py-12">
-        <div className="w-28 h-28 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mb-8 shadow-lg shadow-purple-400/40 animate-float">
-          <span className="text-6xl">🧩</span>
+        <div className="w-20 h-20 sm:w-28 sm:h-28 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mb-8 shadow-lg shadow-purple-400/40 animate-float">
+          <span className="text-4xl sm:text-6xl">🧩</span>
         </div>
-        <h1 className="text-5xl font-bold text-purple-700 mb-4">{t('Quiz')} Time! 🎉</h1>
-        <p className="text-gray-600 font-bold text-xl max-w-md mb-8 leading-relaxed">
+        <h1 className="text-3xl sm:text-5xl font-bold text-purple-700 mb-4">{t('Quiz')} Time! 🎉</h1>
+        <p className="text-gray-600 font-bold text-base sm:text-xl max-w-md mb-8 leading-relaxed">
           {t('Test your knowledge on')} <strong className="text-purple-600">{quiz.title}</strong>.<br />
           {quiz.questions.length} {t('Question').toLowerCase()}s!
         </p>
-        <div className="flex gap-4 justify-center mb-8">
+        <div className="flex flex-wrap gap-4 justify-center mb-8">
           <button
             onClick={() => setStarted(true)}
-            className="px-10 py-5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl text-2xl hover:scale-105 transition-transform shadow-[0_12px_30px_rgba(124,58,237,0.4)]"
+            className="px-6 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl text-lg sm:text-2xl hover:scale-105 transition-transform shadow-[0_12px_30px_rgba(124,58,237,0.4)]"
           >
             🚀 {t('Start Quiz')}!
           </button>
@@ -983,17 +983,17 @@ export default function Quiz() {
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in zoom-in-95 duration-500 py-12">
-        <div className="text-8xl mb-8 animate-float">
+        <div className="text-6xl sm:text-8xl mb-8 animate-float">
           {percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '💪'}
         </div>
-        <h1 className="text-5xl font-bold text-purple-700 mb-4">
+        <h1 className="text-3xl sm:text-5xl font-bold text-purple-700 mb-4">
           {percentage >= 80 ? 'Amazing! 🎉' : percentage >= 60 ? 'Well Done! ⭐' : 'Keep Going! 💪'}
         </h1>
-        <div className="bg-white rounded-2xl border border-purple-200 shadow-sm p-8 mb-8 max-w-sm w-full">
-          <div className={`text-6xl font-bold mb-2 ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-orange-600'}`}>
+        <div className="bg-white rounded-2xl border border-purple-200 shadow-sm p-6 sm:p-8 mb-8 max-w-sm w-full">
+          <div className={`text-5xl sm:text-6xl font-bold mb-2 ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-orange-600'}`}>
             {score}/{quiz.questions.length}
           </div>
-          <div className="text-gray-600 font-bold text-xl">{percentage}% {t('Score')}</div>
+          <div className="text-gray-600 font-bold text-lg sm:text-xl">{percentage}% {t('Score')}</div>
           <div className="w-full h-4 bg-gray-100 rounded-full mt-4 overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-1000 ${percentage >= 80 ? 'bg-green-500' : percentage >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
@@ -1022,11 +1022,11 @@ export default function Quiz() {
           </div>
         )}
 
-        <div className="flex flex-wrap gap-4 justify-center">
+        <div className="flex flex-wrap gap-3 sm:gap-4 justify-center">
           {wrongQuestions.length > 0 && (
             <button
               onClick={retakeWrongAnswers}
-              className="px-8 py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-3xl text-lg hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
+              className="px-5 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-3xl text-base sm:text-lg hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
             >
               <Shuffle size={20} />
               {t('Retake Wrong Answers')}
@@ -1034,20 +1034,20 @@ export default function Quiz() {
           )}
           <button
             onClick={retakeFullQuiz}
-            className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl text-lg hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
+            className="px-5 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl text-base sm:text-lg hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
           >
             <RotateCcw size={20} />
             {t('Retake Quiz')}
           </button>
           <button
             onClick={startNewQuiz}
-            className="px-8 py-4 bg-white border-2 border-purple-300 text-purple-700 font-bold rounded-3xl text-lg hover:scale-105 transition-transform shadow-lg"
+            className="px-5 sm:px-8 py-3 sm:py-4 bg-white border-2 border-purple-300 text-purple-700 font-bold rounded-3xl text-base sm:text-lg hover:scale-105 transition-transform shadow-lg"
           >
             {t('New Quiz')}
           </button>
           <button
             onClick={() => navigate('/dashboard')}
-            className="px-8 py-4 bg-white border-2 border-gray-200 text-gray-600 font-bold rounded-3xl text-lg hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
+            className="px-5 sm:px-8 py-3 sm:py-4 bg-white border-2 border-gray-200 text-gray-600 font-bold rounded-3xl text-base sm:text-lg hover:scale-105 transition-transform shadow-lg flex items-center gap-2"
           >
             <HomeIcon size={18} />
             {t('Home')}
@@ -1064,12 +1064,12 @@ export default function Quiz() {
   return (
     <div className="max-w-2xl mx-auto py-8 animate-in fade-in slide-in-from-right-8 duration-500">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="bg-purple-100 text-purple-700 rounded-2xl px-5 py-2.5 font-bold text-lg">
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
+        <div className="bg-purple-100 text-purple-700 rounded-2xl px-3 sm:px-5 py-2 sm:py-2.5 font-bold text-sm sm:text-lg">
           {isRetake && `🔀 ${t('Retake')} · `}
           {t('Question')} {currentQuestion + 1}/{quiz.questions.length}
         </div>
-        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 rounded-2xl px-5 py-2.5 font-bold text-lg shadow-lg">
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 rounded-2xl px-3 sm:px-5 py-2 sm:py-2.5 font-bold text-sm sm:text-lg shadow-lg">
           ⭐ {t('Score')}: {score}
         </div>
       </div>
@@ -1083,8 +1083,8 @@ export default function Quiz() {
       </div>
 
       {/* Question card */}
-      <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-8 mb-6">
-        <h3 className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight mb-5">
+      <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-5 sm:p-8 mb-6">
+        <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 leading-tight mb-5">
           {q.q}
         </h3>
 
@@ -1114,11 +1114,11 @@ export default function Quiz() {
               key={idx}
               disabled={isAnswered}
               onClick={() => handleSelect(idx)}
-              className={`w-full text-left px-6 py-4 rounded-3xl transition-all duration-200 flex justify-between items-center ${cls} font-bold text-lg shadow-sm hover:shadow-md`}
+              className={`w-full text-left px-4 sm:px-6 py-3 sm:py-4 rounded-3xl transition-all duration-200 flex justify-between items-center gap-3 ${cls} font-bold text-base sm:text-lg shadow-sm hover:shadow-md`}
             >
-              <span className="flex items-center gap-4">
+              <span className="flex items-center gap-3 sm:gap-4 min-w-0">
                 <span
-                  className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-base shrink-0"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-bold text-sm sm:text-base shrink-0"
                   style={{
                     backgroundColor:
                       isAnswered && idx === q.correct
@@ -1142,16 +1142,16 @@ export default function Quiz() {
       {/* Explanation + Video + Next */}
       {isAnswered && (
         <div className="animate-in fade-in slide-in-from-bottom-4 space-y-4">
-          <div className="p-6 bg-blue-50 rounded-3xl border-2 border-blue-200">
+          <div className="p-4 sm:p-6 bg-blue-50 rounded-3xl border-2 border-blue-200">
             <div className="flex items-start space-x-3">
               <span className="text-2xl">💡</span>
-              <div className="flex-1">
-                <h4 className="text-blue-800 font-bold mb-2 text-lg">{t('Explanation')}</h4>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-blue-800 font-bold mb-2 text-base sm:text-lg">{t('Explanation')}</h4>
                 {q.explain_image_url && (
                   <img
                     src={q.explain_image_url}
                     alt=""
-                    className="max-h-56 w-auto rounded-2xl border-2 border-blue-200 mb-3 object-contain"
+                    className="max-h-56 w-auto max-w-full rounded-2xl border-2 border-blue-200 mb-3 object-contain"
                   />
                 )}
                 <p className="text-blue-700 font-semibold leading-relaxed">{q.explanation}</p>
@@ -1169,12 +1169,12 @@ export default function Quiz() {
             </div>
           </div>
           <div className="flex justify-between items-center flex-wrap gap-3">
-            <span className={`font-bold px-4 py-2 rounded-2xl ${selectedAnswer === q.correct ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+            <span className={`font-bold px-4 py-2 rounded-2xl text-sm sm:text-base ${selectedAnswer === q.correct ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
               {selectedAnswer === q.correct ? '✅ ' + t('Correct Answer') : '❌ ' + t('Wrong Answer')}
             </span>
             <button
               onClick={handleNext}
-              className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl hover:scale-105 transition-transform shadow-lg flex items-center gap-2 text-lg"
+              className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl hover:scale-105 transition-transform shadow-lg flex items-center gap-2 text-base sm:text-lg"
             >
               {currentQuestion === quiz.questions.length - 1 ? '🏆 ' + t('Final Score') : t('Next') + ' →'}
             </button>

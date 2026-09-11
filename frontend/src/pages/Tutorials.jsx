@@ -84,7 +84,7 @@ export default function Tutorials() {
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Header */}
-      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8" style={{ minHeight: 190, background: '#eef2ff' }}>
+      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8" style={{ minHeight: 190, background: '#eef2ff' }}>
         <img
           src="/vlq-see-tool.png"
           alt=""
@@ -152,7 +152,7 @@ export default function Tutorials() {
             </div>
           )}
           {/* Info */}
-          <div className="lg:w-1/2 p-7 flex flex-col justify-center">
+          <div className="lg:w-1/2 p-5 sm:p-7 flex flex-col justify-center">
             <div className="flex gap-2 mb-3">
               <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${levelBadge[featured.level]}`}>{featured.level}</span>
               <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">{featured.category}</span>
@@ -262,7 +262,7 @@ export default function Tutorials() {
       </div>
 
       {/* CTA Banner */}
-      <div className="bg-indigo-900 rounded-2xl p-9 text-white text-center relative overflow-hidden">
+      <div className="bg-indigo-900 rounded-2xl p-6 sm:p-9 text-white text-center relative overflow-hidden">
         <div className="relative z-10">
           <h2 className="text-xl md:text-2xl font-extrabold mb-2.5">Ready to start learning visually?</h2>
           <p className="text-indigo-200 font-medium mb-6 max-w-lg mx-auto text-sm">

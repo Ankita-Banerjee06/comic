@@ -59,7 +59,7 @@ export default function FileUpload({ accept = "*", label = "Upload a file", onUp
     <div className="w-full">
       {!file ? (
         <div
-          className={`relative border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center transition-all duration-300 ease-in-out ${
+          className={`relative border-2 border-dashed rounded-2xl p-6 sm:p-10 flex flex-col items-center justify-center transition-all duration-300 ease-in-out ${
             isDragging
               ? 'border-blue-400 bg-blue-100/60'
               : 'border-blue-200 hover:border-blue-300 hover:bg-blue-100/40 bg-blue-50/60'
@@ -97,7 +97,7 @@ export default function FileUpload({ accept = "*", label = "Upload a file", onUp
               <FileIcon className="w-8 h-8" />
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-bold text-slate-700 truncate max-w-[200px] sm:max-w-md">
+              <h4 className="text-sm font-bold text-slate-700 truncate max-w-[55vw] sm:max-w-md">
                 {file.name}
               </h4>
               <p className="text-xs text-slate-400 font-medium mt-1">

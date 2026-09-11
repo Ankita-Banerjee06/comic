@@ -77,7 +77,7 @@ function SimplePlanCard({ plan }) {
   const Icon = plan.icon;
 
   return (
-    <div className={`relative rounded-2xl bg-white border-2 ${plan.border} shadow-sm p-8 flex flex-col`}>
+    <div className={`relative rounded-2xl bg-white border-2 ${plan.border} shadow-sm p-6 sm:p-8 flex flex-col`}>
       <div className={`w-12 h-12 rounded-xl ${plan.tint} flex items-center justify-center mb-5`}>
         <Icon className={`w-6 h-6 ${plan.iconColor}`} />
       </div>

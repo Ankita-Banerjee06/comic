@@ -9,7 +9,7 @@ export default function Profile() {
         <p className="text-gray-400 mt-2">Manage your personal information and subscription.</p>
       </div>
 
-      <div className="bg-gray-900/50 border border-gray-800 rounded-3xl p-8">
+      <div className="bg-gray-900/50 border border-gray-800 rounded-3xl p-5 sm:p-8">
         <div className="flex flex-col md:flex-row gap-8 items-start">
           <div className="flex-shrink-0">
             <div className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-500 to-fuchsia-500 p-1">

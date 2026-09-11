@@ -10,7 +10,7 @@ export default function LandingLayout() {
       </main>
 
       {/* Footer */}
-      <footer className="relative pt-14 pb-8 overflow-hidden" style={{ background: 'linear-gradient(180deg, #eff6ff 0%, #faf5ff 100%)' }}>
+      <footer className="relative pt-10 pb-6 md:pt-14 md:pb-8 overflow-hidden" style={{ background: 'linear-gradient(180deg, #eff6ff 0%, #faf5ff 100%)' }}>
         <div aria-hidden className="absolute top-0 inset-x-0 h-1.5" style={{ background: 'linear-gradient(90deg, #2563eb 0%, #7c3aed 33%, #db2777 66%, #16a34a 100%)' }} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">

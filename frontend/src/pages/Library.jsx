@@ -208,7 +208,7 @@ export default function Library() {
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div
-        className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8"
+        className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8"
         style={{
           background:
             'linear-gradient(120deg, #4338ca 0%, #7c3aed 45%, #db2777 100%)',
@@ -375,9 +375,9 @@ export default function Library() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-50">
           <div
-            className={`flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border font-semibold text-sm ${
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border font-semibold text-sm sm:max-w-sm ${
               toast.tone === 'error'
                 ? 'bg-red-600 border-red-700 text-white'
                 : 'bg-slate-900 border-slate-800 text-white'

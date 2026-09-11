@@ -475,7 +475,7 @@ export default function Amico() {
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
         </div>
-        <div className="p-8 sm:p-10 max-w-2xl">
+        <div className="p-6 sm:p-10 max-w-2xl">
           <div
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-pink-700"
             style={{ background: '#fdf2f8', border: '1px solid #fbcfe8' }}
@@ -513,7 +513,7 @@ export default function Amico() {
 
       {mode === 'comic' && !isProcessing && !result && (
         <div className="max-w-3xl mx-auto space-y-6">
-          <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-8 flex flex-col">
+          <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-8 flex flex-col">
             {/* Source tabs */}
             <div className="flex gap-2 mb-6">
               <button
@@ -581,7 +581,7 @@ export default function Amico() {
             )}
 
             {/* Comic layout settings */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6 mb-6">
               <div>
                 <label className="text-sm font-bold text-gray-600 block mb-1">{t('Panels per page')}</label>
                 <select
@@ -717,7 +717,7 @@ export default function Amico() {
             <button
               onClick={handleGenerate}
               disabled={!canGenerate}
-              className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-xl hover:scale-105 hover:shadow-[0_10px_25px_rgba(236,72,153,0.4)] flex items-center justify-center gap-3 shadow-lg"
+              className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-lg sm:text-xl hover:scale-105 hover:shadow-[0_10px_25px_rgba(236,72,153,0.4)] flex items-center justify-center gap-3 shadow-lg"
             >
               <Sparkles className="w-6 h-6" />
               {t('Generate Comic')} 🦸‍♂️
@@ -728,7 +728,7 @@ export default function Amico() {
       )}
 
       {mode === 'comic' && isProcessing && (
-        <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-12">
+        <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-12">
           <ProcessingAnimation title={`📚 ${t('Drawing Your Comic')}...`} subtitle={t('Writing the script, drawing the panels, and laying out your pages!')} />
         </div>
       )}
@@ -740,7 +740,7 @@ export default function Amico() {
               <span className="text-4xl">🎉</span>
               <div>
                 <p className="font-bold text-xl">{t('Comic Generated!')}</p>
-                <p className="text-pink-100 font-bold flex items-center gap-2">
+                <p className="text-pink-100 font-bold flex flex-wrap items-center gap-2">
                   {t('Your comic strip is ready to read!')}
                   {savedNotice && (
                     <span className="inline-flex items-center gap-1 text-xs bg-white/20 px-2 py-1 rounded-full">
@@ -758,7 +758,7 @@ export default function Amico() {
           {/* Complete comic page preview */}
           {pages.length > 0 && (
             <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <h3 className="text-xl font-bold text-gray-800">
                   📖 {t('Page')} {currentPage?.page_number} {t('of')} {pages.length}
                 </h3>
@@ -889,7 +889,7 @@ export default function Amico() {
 
       {mode === 'photostory' && !psProcessing && !psResult && (
         <div className="max-w-3xl mx-auto space-y-6">
-          <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-8 flex flex-col">
+          <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-8 flex flex-col">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">📷 {t('Upload a Photo')}</h2>
             <p className="text-gray-500 font-bold mb-6">
               {t('Upload one photo and AMICO will turn it into a labeled diagram story — no characters, just clear step-by-step visuals, like a real science poster.')}
@@ -935,7 +935,7 @@ export default function Amico() {
             <button
               onClick={handleGeneratePhotoStory}
               disabled={!psFile}
-              className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-xl hover:scale-105 hover:shadow-[0_10px_25px_rgba(236,72,153,0.4)] flex items-center justify-center gap-3 shadow-lg"
+              className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-lg sm:text-xl hover:scale-105 hover:shadow-[0_10px_25px_rgba(236,72,153,0.4)] flex items-center justify-center gap-3 shadow-lg"
             >
               <Camera className="w-6 h-6" />
               {t('Generate Photo Story')} 📷
@@ -946,7 +946,7 @@ export default function Amico() {
       )}
 
       {mode === 'photostory' && psProcessing && (
-        <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-12">
+        <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-12">
           <ProcessingAnimation title={`📷 ${t('Building Your Photo Story')}...`} subtitle={t('Studying your photo, writing the stages, and drawing the diagram!')} />
         </div>
       )}
@@ -968,7 +968,7 @@ export default function Amico() {
 
           {psPages.length > 0 && (
             <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <h3 className="text-xl font-bold text-gray-800">
                   📖 {t('Page')} {psCurrentPage?.page_number} {t('of')} {psPages.length}
                 </h3>

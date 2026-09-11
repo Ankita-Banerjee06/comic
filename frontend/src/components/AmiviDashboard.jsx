@@ -34,8 +34,8 @@ export default function AmiviDashboard() {
   };
 
   return (
-    <div className="p-6 bg-gray-800 rounded-xl shadow-2xl max-w-4xl mx-auto my-8 border border-gray-700 transition-all duration-300 hover:shadow-cyan-500/20">
-      <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-6">AMIVI - Visual Synthesis</h2>
+    <div className="p-4 sm:p-6 bg-gray-800 rounded-xl shadow-2xl max-w-4xl mx-auto my-8 border border-gray-700 transition-all duration-300 hover:shadow-cyan-500/20">
+      <h2 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-6">AMIVI - Visual Synthesis</h2>
       <p className="text-gray-400 mb-4">Transform lengthy texts into engaging visual micro-bits and videos instantly.</p>
 
       <div className="mb-6">

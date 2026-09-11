@@ -10,19 +10,19 @@ export default function Video() {
 
       <VideoPlayer />
       
-      <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8">
+      <div className="bg-gray-900 border border-gray-800 rounded-3xl p-5 sm:p-8">
         <h2 className="text-xl font-bold text-white mb-4">Video Details</h2>
         <div className="space-y-4 text-sm text-gray-400">
-          <div className="flex border-b border-gray-800 pb-4">
-            <span className="w-32 font-medium text-gray-500">Source Text</span>
+          <div className="flex flex-col sm:flex-row border-b border-gray-800 pb-4">
+            <span className="w-32 shrink-0 font-medium text-gray-500 mb-1 sm:mb-0">Source Text</span>
             <span className="flex-1">Chapter 4: The principles of Quantum Mechanics...</span>
           </div>
-          <div className="flex border-b border-gray-800 pb-4">
-            <span className="w-32 font-medium text-gray-500">Generated On</span>
+          <div className="flex flex-col sm:flex-row border-b border-gray-800 pb-4">
+            <span className="w-32 shrink-0 font-medium text-gray-500 mb-1 sm:mb-0">Generated On</span>
             <span className="flex-1">August 3, 2026</span>
           </div>
-          <div className="flex border-b border-gray-800 pb-4">
-            <span className="w-32 font-medium text-gray-500">Voice Profile</span>
+          <div className="flex flex-col sm:flex-row border-b border-gray-800 pb-4">
+            <span className="w-32 shrink-0 font-medium text-gray-500 mb-1 sm:mb-0">Voice Profile</span>
             <span className="flex-1">Piper TTS (English - Default)</span>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 export default function ProcessingAnimation({ title = "AI is thinking...", subtitle = "Generating your content" }) {
   return (
-    <div className="flex flex-col items-center justify-center p-12 bg-gray-900/50 border border-gray-800 rounded-3xl overflow-hidden relative">
+    <div className="flex flex-col items-center justify-center p-6 sm:p-12 bg-gray-900/50 border border-gray-800 rounded-3xl overflow-hidden relative">
       {/* Background glowing effects */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-cyan-500/10 blur-3xl rounded-full"></div>
       <div className="absolute top-1/2 left-1/2 -translate-x-1/4 -translate-y-1/4 w-64 h-64 bg-fuchsia-500/10 blur-3xl rounded-full"></div>

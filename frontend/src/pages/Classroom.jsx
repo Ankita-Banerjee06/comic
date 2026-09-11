@@ -424,7 +424,7 @@ function Header({ screen, classroom, role, onLeaveClick, parentData, onParentLog
 
   return (
     <div
-      className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8 text-white"
+      className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8 text-white"
       style={{ minHeight: 180, background: '#0f2e2a' }}
     >
       <div className="absolute inset-0" style={{ background: 'linear-gradient(120deg, #0f2e2a 0%, #0e4f45 60%, #0d9488 130%)' }} />
@@ -438,7 +438,7 @@ function Header({ screen, classroom, role, onLeaveClick, parentData, onParentLog
         </div>
 
         {showBadge && (
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-white/15 border border-white/25">
               {isParent ? '👪 Parent' : role === 'teacher' ? '👩‍🏫 Teacher' : '🎓 Student'}
             </span>
@@ -474,7 +474,7 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <button
         onClick={onGoTeacher}
-        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
       >
         <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <Plus className="w-6 h-6 text-teal-600" />
@@ -490,7 +490,7 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
 
       <button
         onClick={onGoStudent}
-        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
       >
         <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <GraduationCap className="w-6 h-6 text-indigo-600" />
@@ -506,7 +506,7 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
 
       <button
         onClick={onGoParent}
-        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
       >
         <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <Heart className="w-6 h-6 text-rose-500" />
@@ -620,7 +620,7 @@ function CreateClassroomForm({ onCancel, onCreated }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-5">
+    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
       <h2 className="text-xl font-bold text-slate-800">Create a classroom</h2>
 
       <Field label="Classroom name">
@@ -683,7 +683,7 @@ function TeacherLoginForm({ onCancel, onLoggedIn }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-5">
+    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
       <h2 className="text-xl font-bold text-slate-800">Teacher log in</h2>
       <p className="text-sm text-slate-500 font-medium -mt-3">
         Use the class code and the private teacher code you saved when you created this classroom.
@@ -753,7 +753,7 @@ function JoinClassroomForm({ onCancel, onJoined }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-5">
+    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
       <h2 className="text-xl font-bold text-slate-800">Join a classroom</h2>
 
       <Field label="Class code">
@@ -814,7 +814,7 @@ function StudentLoginForm({ onCancel, onLoggedIn }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-5">
+    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
       <h2 className="text-xl font-bold text-slate-800">Student log in</h2>
       <p className="text-sm text-slate-500 font-medium -mt-3">
         Use the class code and the private login code you saved when you registered.
@@ -883,7 +883,7 @@ function ParentLoginForm({ onCancel, onLoggedIn }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-5">
+    <form onSubmit={handleSubmit} className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
       <h2 className="text-xl font-bold text-slate-800">Parent access</h2>
       <p className="text-sm text-slate-500 font-medium -mt-3">
         Enter the code your student gave you to see their assignments and scores.
@@ -1009,7 +1009,7 @@ function ClassCodeCard({ classroom }) {
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Class code</p>
-        <p className="text-2xl font-extrabold text-slate-900 tracking-[0.2em]">{classroom.class_code}</p>
+        <p className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-[0.15em] sm:tracking-[0.2em] break-all">{classroom.class_code}</p>
         {classroom.description && <p className="text-sm text-slate-500 font-medium mt-2 max-w-md">{classroom.description}</p>}
       </div>
       <button onClick={handleCopy} className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl font-bold text-sm bg-slate-900 text-white hover:bg-slate-800 transition-colors shrink-0">
@@ -1529,7 +1529,7 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate }) {
       <div className="flex-1 min-w-0">
         <p className="font-bold text-slate-800 truncate">{assignment.title}</p>
         {assignment.instructions && <p className="text-xs text-slate-400 font-medium mt-0.5 line-clamp-1">{assignment.instructions}</p>}
-        <div className="flex items-center gap-3 mt-1.5 text-xs font-semibold text-slate-400">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs font-semibold text-slate-400">
           {due && (
             <span className="inline-flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" /> Due {due}

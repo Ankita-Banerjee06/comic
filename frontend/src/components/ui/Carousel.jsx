@@ -25,8 +25,8 @@ export default function Carousel({ items = [] }) {
         />
       </AnimatePresence>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-6 pb-12 pointer-events-none">
-        <h4 className="text-white font-bold text-xl drop-shadow-md">{items[currentIndex]?.title || 'Generated Visual'}</h4>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4 sm:p-6 pb-8 sm:pb-12 pointer-events-none">
+        <h4 className="text-white font-bold text-lg sm:text-xl drop-shadow-md">{items[currentIndex]?.title || 'Generated Visual'}</h4>
         <p className="text-gray-200 text-sm mt-2 drop-shadow-md max-w-2xl">{items[currentIndex]?.description || 'AI Generated Content'}</p>
       </div>
 

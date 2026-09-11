@@ -33,7 +33,7 @@ const DECKS = [
 function DeckPicker({ onSelect }) {
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-8" style={{ minHeight: 160, background: '#eef2ff' }}>
+      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8" style={{ minHeight: 160, background: '#eef2ff' }}>
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 bg-indigo-600/10 border border-indigo-200 rounded-full px-4 py-1.5 text-xs font-bold mb-4 text-indigo-700">
             <Layers className="w-3.5 h-3.5" /> {DECKS.length} quiz decks
@@ -119,7 +119,7 @@ function QuizPlayer({ deck, onExit }) {
         <p className="text-slate-500 font-medium">
           You scored <span className="font-bold text-slate-900">{score}</span> out of <span className="font-bold text-slate-900">{questions.length}</span> on {deck.name}.
         </p>
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={handleRestart}
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 transition-all"
@@ -140,7 +140,7 @@ function QuizPlayer({ deck, onExit }) {
   return (
     <div className="space-y-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Top bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={onExit}
           className="flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-indigo-700 transition-colors"
