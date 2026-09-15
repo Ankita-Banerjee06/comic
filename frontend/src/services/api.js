@@ -180,6 +180,31 @@ export async function editAmiviChunk(
   return response.json();
 }
 
+export async function generateAmiviPhotoStory(projectId) {
+  const response = await fetch(
+    `${API_URL}/api/amivi/generate_photo_story`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(),
+      },
+      body: JSON.stringify({
+        project_id: projectId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      errorText || 'Failed to generate Photo Story.'
+    );
+  }
+
+  return response.json();
+}
+
 
 // ============================================================
 // QUIZ (standalone — generates from a Topic, or from
