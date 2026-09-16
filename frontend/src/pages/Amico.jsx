@@ -729,7 +729,7 @@ export default function Amico() {
 
       {mode === 'comic' && isProcessing && (
         <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-12">
-          <ProcessingAnimation title={`📚 ${t('Drawing Your Comic')}...`} subtitle={t('Writing the script, drawing the panels, and laying out your pages!')} />
+          <ProcessingAnimation title={`📚 ${t('Drawing Your Comic')}...`} />
         </div>
       )}
 
@@ -947,7 +947,7 @@ export default function Amico() {
 
       {mode === 'photostory' && psProcessing && (
         <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-12">
-          <ProcessingAnimation title={`📷 ${t('Building Your Photo Story')}...`} subtitle={t('Studying your photo, writing the stages, and drawing the diagram!')} />
+          <ProcessingAnimation title={`📷 ${t('Building Your Photo Story')}...`} />
         </div>
       )}
 

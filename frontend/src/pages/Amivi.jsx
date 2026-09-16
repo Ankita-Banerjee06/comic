@@ -371,9 +371,9 @@ export default function Amivi() {
           HEADER
       ======================================================= */}
 
-      <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+      <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-gradient-to-br from-blue-50 via-white to-purple-50">
 
-        <div className="w-full h-44 sm:h-56" style={{ background: '#eff6ff' }}>
+        <div className="w-full h-44 sm:h-56" style={{ background: 'linear-gradient(135deg, #dbeafe 0%, #ede9fe 100%)' }}>
           <img
             src="/vlq-amivi-card.jpg"
             alt=""
@@ -407,151 +407,209 @@ export default function Amivi() {
       </div>
 
       {/* ======================================================
-          INPUT
+          INPUT + VIDEO OUTPUT
       ======================================================= */}
 
-      {!isProcessing && !result && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* LEARNING MATERIAL — paste text OR upload a document */}
 
-          {/* TEXT INPUT */}
+        <div className="bg-gradient-to-br from-blue-50/70 via-white to-white rounded-2xl border border-blue-100 border-t-4 border-t-blue-400 shadow-sm p-6 sm:p-8 flex flex-col">
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 flex flex-col">
-
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                <FileText className="w-5 h-5 text-blue-600" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-800">
-                {t('Your Learning Material')}
-              </h2>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <FileText className="w-5 h-5 text-white" />
             </div>
-
-            <p className="text-slate-500 font-medium mb-6">
-              Paste a large educational paragraph,
-              or use the video input on the right.
-            </p>
-
-            <textarea
-              value={textInput}
-              onChange={(e) =>
-                setTextInput(e.target.value)
-              }
-              placeholder={t(
-                'Paste your educational text here... e.g. Photosynthesis is the process by which plants convert sunlight into food...'
-              )}
-              className="w-full flex-1 min-h-[260px] p-5 bg-blue-50/60 border border-blue-200 rounded-2xl text-slate-700 font-medium resize-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none mb-6 text-lg transition-all"
-            />
-
-            {/* VIDEO OPTION */}
-
-            <div className="flex items-center gap-3 mb-5">
-
-              <input
-                id="generate-video"
-                type="checkbox"
-                checked={generateVideo}
-                onChange={(e) =>
-                  setGenerateVideo(
-                    e.target.checked
-                  )
-                }
-                className="w-5 h-5 accent-blue-600"
-              />
-
-              <label
-                htmlFor="generate-video"
-                className="font-bold text-slate-700 flex items-center gap-2 cursor-pointer"
-              >
-                <Video className="w-5 h-5 text-slate-400" />
-                Generate educational video
-              </label>
-
-            </div>
-
-            <button
-              onClick={handleGenerate}
-              disabled={
-                !textInput.trim() &&
-                !videoUrl.trim()
-              }
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-lg hover:-translate-y-0.5 flex items-center justify-center gap-3 shadow-sm"
-            >
-
-              <Sparkles className="w-5 h-5" />
-
-              {t('Generate AMIVI')}
-
-            </button>
-
-            {error && (
-              <p className="text-red-500 mt-4 font-bold text-center whitespace-pre-wrap">
-                {error}
-              </p>
-            )}
-
+            <h2 className="text-xl font-bold text-slate-800">
+              {t('Your Learning Material')}
+            </h2>
           </div>
 
+          <p className="text-slate-500 font-medium mb-6">
+            Paste your educational text below, or upload a PDF, Word document or TXT file to fill it in for you.
+          </p>
 
-          {/* UPLOAD / VIDEO LINK */}
-
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 flex flex-col">
-
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                <UploadCloud className="w-5 h-5 text-blue-600" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-800">
-                {t('Upload or Learn from Video')}
-              </h2>
-            </div>
-
-            <p className="text-slate-500 font-medium mb-6">
-              Upload a PDF, Word document or TXT file.
-            </p>
-
-            {/* FILE UPLOAD */}
-
-            <div className="flex-1 flex items-center justify-center">
-
-              <FileUpload
-                accept=".pdf,.docx,.txt"
-                onUpload={handleUpload}
-              />
-
-            </div>
-
-            <p className="text-xs text-slate-400 font-semibold text-center mt-4">
-              Supported formats: PDF · DOCX · TXT
-            </p>
-
-          </div>
-
-        </div>
-
-      )}
-
-
-      {/* ======================================================
-          PROCESSING
-      ======================================================= */}
-
-      {isProcessing && (
-
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-12">
-
-          <ProcessingAnimation
-            title={`✨ ${t(
-              'Creating Your Visuals'
-            )}...`}
-            subtitle={t(
-              'OpenAI is breaking the material into learning chunks, generating supporting visuals, Piper is synthesizing voice, and MoviePy is rendering your video!'
+          <textarea
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            readOnly={isProcessing || !!result}
+            placeholder={t(
+              'Paste your educational text here... e.g. Photosynthesis is the process by which plants convert sunlight into food...'
             )}
+            className={`w-full flex-1 min-h-[220px] p-5 bg-blue-50/60 border border-blue-200 rounded-2xl text-slate-700 font-medium resize-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none mb-5 text-lg transition-all ${(isProcessing || !!result) ? 'opacity-60 cursor-not-allowed' : ''}`}
           />
 
+          {!isProcessing && !result && (
+            <>
+
+              {/* FILE UPLOAD */}
+
+              <div className="bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-4 mb-5">
+
+                <div className="flex items-center gap-2 mb-3">
+                  <UploadCloud className="w-4 h-4 text-cyan-600" />
+                  <p className="text-sm text-cyan-700 font-bold">
+                    Or upload a document to fill in the text above
+                  </p>
+                </div>
+
+                <FileUpload
+                  accept=".pdf,.docx,.txt"
+                  onUpload={handleUpload}
+                />
+
+                <p className="text-xs text-cyan-600/70 font-semibold mt-3">
+                  Supported formats: PDF · DOCX · TXT
+                </p>
+
+              </div>
+
+              {/* VIDEO OPTION */}
+
+              <div className="flex items-center gap-3 mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+
+                <input
+                  id="generate-video"
+                  type="checkbox"
+                  checked={generateVideo}
+                  onChange={(e) =>
+                    setGenerateVideo(
+                      e.target.checked
+                    )
+                  }
+                  className="w-5 h-5 accent-amber-600"
+                />
+
+                <label
+                  htmlFor="generate-video"
+                  className="font-bold text-amber-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <Video className="w-5 h-5 text-amber-500" />
+                  Generate educational video
+                </label>
+
+              </div>
+
+              <button
+                onClick={handleGenerate}
+                disabled={
+                  !textInput.trim() &&
+                  !videoUrl.trim()
+                }
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-lg hover:-translate-y-0.5 flex items-center justify-center gap-3 shadow-sm"
+              >
+
+                <Sparkles className="w-5 h-5" />
+
+                {t('Generate AMIVI')}
+
+              </button>
+
+              {error && (
+                <p className="text-red-500 mt-4 font-bold text-center whitespace-pre-wrap">
+                  {error}
+                </p>
+              )}
+
+            </>
+          )}
+
+          {result && !isProcessing && (
+            <p className="text-sm text-slate-500 font-bold text-center mt-auto pt-2">
+              ✅ Done! Click "Start Over" above to create another.
+            </p>
+          )}
+
         </div>
 
-      )}
+
+        {/* VIDEO OUTPUT */}
+
+        <div className="bg-gradient-to-br from-indigo-50/70 via-white to-white rounded-2xl border border-indigo-100 border-t-4 border-t-indigo-400 shadow-sm p-6 sm:p-8 flex flex-col">
+
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Video className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-800">
+              {t('Your Video')}
+            </h2>
+          </div>
+
+          <p className="text-slate-500 font-medium mb-6">
+            {isProcessing
+              ? 'Sit tight — your video is being generated.'
+              : result
+              ? (result.video_url ? 'Your educational video is ready!' : 'No video was generated for this project.')
+              : 'Your generated video will appear here once you click Generate AMIVI.'}
+          </p>
+
+          <div className="flex-1 flex items-center justify-center">
+
+            {isProcessing ? (
+
+              <ProcessingAnimation
+                title={`✨ ${t(
+                  'Creating Your Visuals'
+                )}...`}
+              />
+
+            ) : result && result.video_url ? (
+
+              <div className="w-full">
+
+                <div className="rounded-3xl overflow-hidden border-4 border-blue-200 shadow-lg bg-black aspect-video mb-4">
+
+                  <video
+                    controls
+                    className="w-full h-full object-contain"
+                    src={getMediaUrl(
+                      result.video_url
+                    )}
+                  >
+                    Your browser does not support
+                    the video element.
+                  </video>
+
+                </div>
+
+                <button
+                  onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
+                  className="w-full px-4 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Download size={18} />
+                  Download
+                </button>
+
+              </div>
+
+            ) : result ? (
+
+              <div className="text-center text-slate-500 font-bold py-8 px-4">
+                <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-4">
+                  <Video className="w-8 h-8 text-indigo-400" />
+                </div>
+                {generateVideo
+                  ? 'Video generation was unavailable for this run.'
+                  : 'Enable "Generate educational video" on the left to also get a video next time.'}
+              </div>
+
+            ) : (
+
+              <div className="text-center py-8">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
+                  <Video className="w-9 h-9 text-indigo-400" />
+                </div>
+                <p className="text-indigo-400 font-bold">No video yet</p>
+              </div>
+
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
 
 
       {/* ======================================================
@@ -610,60 +668,18 @@ export default function Amivi() {
 
           </div>
 
-
-          {/* VIDEO */}
-
-          {result.video_url && (
-
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-7">
-
-              <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
-                <div className="flex items-center gap-3">
-                  <Video className="text-blue-600" />
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-800">
-                      🎬 Educational Video
-                    </h3>
-                    <p className="text-sm text-gray-500 font-semibold">
-                      Generated from the same visual micro-bits shown below.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
-                  className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-xl flex items-center gap-2 transition-colors"
-                >
-                  <Download size={18} />
-                  Download
-                </button>
-              </div>
-
-              <div className="rounded-3xl overflow-hidden border-4 border-blue-200 shadow-lg bg-black aspect-video">
-
-                <video
-                  controls
-                  className="w-full h-full object-contain"
-                  src={getMediaUrl(
-                    result.video_url
-                  )}
-                >
-                  Your browser does not support
-                  the video element.
-                </video>
-
-              </div>
-
-            </div>
-
-          )}
-
-
           {/* VISUAL MICRO BITS */}
 
-          <div className="space-y-6">
+          <div className="space-y-6 bg-gradient-to-br from-teal-50/50 via-white to-white rounded-3xl border border-teal-100 p-5 sm:p-7">
 
             <div>
+
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-2 text-teal-700"
+                style={{ background: '#f0fdfa', border: '1px solid #ccfbf1' }}
+              >
+                Your Results
+              </span>
 
               <h3 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-2">
                 🧠 Visual Micro-Bits
@@ -687,7 +703,7 @@ export default function Amivi() {
                       chunk.chunk_id ||
                       index
                     }
-                    className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all"
+                    className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden hover:shadow-md hover:border-blue-300 transition-all"
                   >
 
                     {/* IMAGES (primary + optional second angle) */}
@@ -764,13 +780,13 @@ export default function Amivi() {
 
                     {/* PER-IMAGE ACTIONS */}
 
-                    <div className={`grid ${chunk.image2_url ? 'grid-cols-2' : 'grid-cols-1'} gap-0.5 bg-gray-100 border-t border-gray-200`}>
+                    <div className={`grid ${chunk.image2_url ? 'grid-cols-2' : 'grid-cols-1'} gap-0.5 bg-blue-50 border-t border-blue-100`}>
 
                       <button
                         type="button"
                         onClick={() => handleRegenerate(chunk, 1)}
                         disabled={regeneratingKey === `${chunk.chunk_id}:1`}
-                        className="py-2 text-xs font-bold text-blue-700 hover:bg-blue-50 flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
+                        className="py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
                         title="Regenerate this image"
                       >
                         <RefreshCw size={13} className={regeneratingKey === `${chunk.chunk_id}:1` ? 'animate-spin' : ''} />
@@ -782,7 +798,7 @@ export default function Amivi() {
                           type="button"
                           onClick={() => handleRegenerate(chunk, 2)}
                           disabled={regeneratingKey === `${chunk.chunk_id}:2`}
-                          className="py-2 text-xs font-bold text-blue-700 hover:bg-blue-50 flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
+                          className="py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
                           title="Regenerate this image"
                         >
                           <RefreshCw size={13} className={regeneratingKey === `${chunk.chunk_id}:2` ? 'animate-spin' : ''} />
@@ -928,7 +944,7 @@ export default function Amivi() {
 
           {/* PHOTO STORY */}
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-7">
+          <div className="bg-gradient-to-br from-purple-50/60 via-white to-white rounded-2xl border border-purple-100 border-t-4 border-t-purple-300 shadow-sm p-5 sm:p-7">
 
             <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
 
@@ -1009,7 +1025,7 @@ export default function Amivi() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             <div
-              className="py-4 bg-gray-50 border-2 border-gray-100 text-gray-600 rounded-2xl font-bold text-lg flex items-center justify-center gap-3"
+              className="py-4 bg-green-50 border-2 border-green-100 text-green-700 rounded-2xl font-bold text-lg flex items-center justify-center gap-3"
             >
               <CheckCircle2 size={20} className="text-green-500" />
               {t('Saved to Library')}
@@ -1032,7 +1048,7 @@ export default function Amivi() {
             <button
               type="button"
               onClick={resetAmivi}
-              className="py-4 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl font-bold text-lg hover:bg-blue-50 transition"
+              className="py-4 bg-blue-50 border-2 border-blue-200 text-blue-700 rounded-2xl font-bold text-lg hover:bg-blue-100 transition"
             >
               Start New AMIVI
             </button>

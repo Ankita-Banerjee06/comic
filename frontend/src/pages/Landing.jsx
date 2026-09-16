@@ -82,10 +82,10 @@ export default function Landing() {
       <section className="relative overflow-hidden">
 
         <img
-          src="/heropic.png"
-          alt="A teacher and students in a digital classroom, with a smart board showing lessons and live quiz results, and students following along on tablets"
+          src="/vlq-hero-classroom.jpg"
+          alt="A teacher and students in a digital classroom, with a smart board showing a Solar System lesson, fun facts and live quiz results, and students following along on tablets"
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ objectPosition: 'center 30%' }}
+          style={{ objectPosition: 'center 25%' }}
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
         <div aria-hidden className="absolute inset-x-0 bottom-0 h-10 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(15,23,42,0.28), transparent)' }} />
