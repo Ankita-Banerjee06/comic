@@ -63,6 +63,14 @@ const tutorials = [
     steps: ['Cut lesson prep time with ready-made visuals', 'Reinforce learning with spaced-repetition quizzes', 'Auto-generate homework from any lesson', 'Track teacher-learner success with VLQ analytics'],
     description: 'See how VLQ helps teachers save prep time, reinforce learning through visuals and quizzes, and track student progress with built-in analytics.'
   },
+  {
+    id: 9, icon: Palette, title: 'Introduction to AMIVI',
+    category: 'AMIVI', duration: '0:53', level: 'All Levels',
+    tint: 'bg-blue-50', iconColor: 'text-blue-600',
+    videoUrl: '/videos/vlq-amivi-intro.mp4', thumbnail: '/videos/vlq-amivi-intro-thumb.jpg',
+    steps: ['Feed in your source material', 'AMIVI extracts key ideas, concepts and relationships', 'Get back visual summaries and learning chunks', 'Carry that content straight into AMICO for comics, quizzes and activities'],
+    description: 'A quick look at AMIVI, the Visual Engine Synthesizer that turns any source material into key ideas, visual summaries and learning chunks — ready to flow into AMICO.'
+  },
 ];
 
 const levelBadge = {
