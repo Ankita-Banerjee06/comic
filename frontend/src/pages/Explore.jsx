@@ -11,6 +11,7 @@ import {
   FileText,
   BookOpen,
   ArrowRight,
+  ArrowDown,
 } from 'lucide-react';
 
 // ============================================================
@@ -177,12 +178,21 @@ export default function Explore() {
             <button
               type="button"
               onClick={() => setShowEcosystems(true)}
-              className="group w-full flex justify-center bg-white rounded-2xl overflow-hidden shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all"
+              className="group w-full flex flex-col md:flex-row items-center bg-white rounded-2xl overflow-hidden shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all"
             >
               <img
-                src="/vlq-ecosystems-preview.png"
-                alt="Ecosystems — click to view AMIVI and AMICO"
-                className="w-full max-w-md h-auto block"
+                src="/vlq-amico-overview.png"
+                alt="AMICO"
+                className="w-full md:w-[48%] flex-shrink block object-contain"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <div className="w-12 h-12 my-4 md:my-0 md:mx-2 rounded-full flex items-center justify-center shadow-md flex-shrink-0" style={{ background: 'linear-gradient(135deg,#4338ca,#db2777)' }}>
+                <ArrowRight className="w-6 h-6 text-white rotate-90 md:rotate-0 transition-transform" />
+              </div>
+              <img
+                src="/vlq-amivi-overview.png"
+                alt="AMIVI"
+                className="w-full md:w-[48%] flex-shrink block object-contain"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             </button>

@@ -104,14 +104,16 @@ export default function HowWeDoIt() {
           HOW VLQ WORKS — designed 5-panel process graphic
       ======================================================= */}
 
-      <div className="w-full">
-        <div className="rounded-3xl overflow-hidden shadow-lg">
-          <img
-            src="/vlq-how-it-works-process.png"
-            alt="How VLQ works — 1. Feed It In: upload any text, video, PDF, or just a topic. 2. AI Structures It: AI breaks the material into clear, teachable chunks. 3. Visualize It: AMIVI and AMICO turn it into visuals and comic stories. 4. Practice It: interactive quizzes test understanding and lock it in. 5. Track It: progress and results feed back so learners keep moving."
-            className="w-full h-auto block"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
+      <div className="w-full max-w-[85rem] mx-auto rounded-[2.5rem] p-4 sm:p-8 md:p-12 shadow-xl" style={{ background: 'linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 50%, #fce7f3 100%)' }}>
+        <div className="w-full max-w-6xl mx-auto">
+          <div className="rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white/50">
+            <img
+              src="/vlq-how-we-do-it-graphic.jpg"
+              alt="The Complete Solution — Addressing the visual learning challenge with advanced tools. Enhancing Collaboration, Transforming Homework, Building a Successful Future."
+              className="w-full h-auto block"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          </div>
         </div>
       </div>
 

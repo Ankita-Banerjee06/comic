@@ -9,7 +9,7 @@ const navLinks = [
   { name: 'Introduction',  path: '/introduction',  icon: Info },
   { name: 'Explore',       path: '/explore',       icon: Compass },
   { name: 'How We Do It',  path: '/how-we-do-it',  icon: Lightbulb },
-  { name: 'Courses',       path: '/courses',       icon: GraduationCap },
+  { name: 'Essential Learning',       path: '/courses',       icon: GraduationCap },
   { name: 'Video Tutorials', path: '/tutorials',   icon: Video },
   { name: 'Plans',          path: '/plans',         icon: CreditCard },
 ];

@@ -1905,6 +1905,7 @@ def generate_amivi_content(
         "micro-bits or chunks.\n\n"
 
         "Rules:\n"
+        "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the material (for example: 'Water Cycle', 'Photosynthesis', or 'Biology').\n"
         "- Create 5 to 10 chunks depending on the length and complexity.\n"
         "- Do not split randomly.\n"
         "- Each chunk must represent ONE important learning idea.\n"
@@ -1930,8 +1931,8 @@ def generate_amivi_content(
         "Keep both options short.\n\n"
 
         "Return ONLY valid JSON in this exact structure:\n"
-
         "{\n"
+        '  "title": "...",\n'
         '  "chunks": [\n'
         "    {\n"
         '      "chunk_number": 1,\n'
@@ -2073,6 +2074,7 @@ def generate_amico_comic(
         "(following the structure below), not into extra lines "
         "inside the same panel.\n\n"
 
+        "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the comic (for example: 'Water Cycle' or 'Photosynthesis').\n\n"
         "The comic must follow this structure:\n"
 
         + build_amico_structure_hint(
@@ -2385,6 +2387,7 @@ def generate_amico_photostory(
         "flat illustration art style so the panels feel like one "
         "consistent diagram set.\n\n"
 
+        "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the story (for example: 'Water Cycle' or 'Photosynthesis').\n\n"
         "The story must follow this structure:\n"
 
         + build_photostory_structure_hint(
@@ -4574,9 +4577,11 @@ async def amivi_generate(
         # Project
         # -----------------------------------------------------
 
+        final_title = content.get("title") or source_title
+
         project_id = save_project(
             project_type="amivi",
-            title=source_title,
+            title=final_title,
             input_text=source_text,
             language=request.language,
             data={

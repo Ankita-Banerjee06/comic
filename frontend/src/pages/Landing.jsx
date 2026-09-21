@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
+  ArrowDown,
   GraduationCap,
   Building2,
   Group,
@@ -142,6 +143,8 @@ export default function Landing() {
               Whether you're a student, a teacher, or learning something new for work — the same method helps you see, understand, and master any subject.
             </p>
           </div>
+
+
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {features.map((card) => (

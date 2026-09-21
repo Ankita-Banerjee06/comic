@@ -445,20 +445,15 @@ function LibraryCard({ item, onPreview, onDelete }) {
         </div>
       </button>
 
+      <h3
+        className="bg-[#111] text-white text-center font-bold uppercase text-sm py-3 px-4 w-full cursor-pointer hover:bg-black transition-colors"
+        onClick={onPreview}
+      >
+        <span className="line-clamp-2">{item.title || `${meta.label} project`}</span>
+      </h3>
+
       {/* Content */}
       <div className="p-4 flex flex-col flex-1">
-        <h3
-          className="font-bold text-slate-800 mb-1 truncate cursor-pointer hover:text-indigo-700 transition-colors"
-          onClick={onPreview}
-        >
-          {item.title || `${meta.label} project`}
-        </h3>
-        <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold mb-4">
-          <span className="uppercase">{item.language || 'en'}</span>
-          <span>•</span>
-          <span>{date}</span>
-        </div>
-
         <div className="mt-auto flex items-center gap-2">
           <button
             onClick={onPreview}
