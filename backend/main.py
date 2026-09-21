@@ -8370,7 +8370,7 @@ def classroom_teacher_code(class_code: str, payload: TeacherCodeRequest):
         teacher_code = None
 
         for _ in range(10):
-
+                                         
             candidate = generate_room_code(length=10)
 
             clash = (
@@ -8657,7 +8657,7 @@ async def log_requests(
 if __name__ == "__main__":
 
     import uvicorn
-
+ 
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

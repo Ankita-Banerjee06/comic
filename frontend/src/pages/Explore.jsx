@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   LayoutGrid,
@@ -92,13 +93,15 @@ function CategoryTile({ category }) {
 }
 
 export default function Explore() {
+  const [showEcosystems, setShowEcosystems] = useState(false);
+
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="text-center max-w-2xl mx-auto">
-        <h1 className="text-4xl font-extrabold tracking-tight text-black mb-3">
+      <div className="text-center max-w-3xl mx-auto">
+        <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-black mb-4">
           Explore
         </h1>
-        <p className="text-lg font-medium text-black">
+        <p className="text-2xl font-semibold text-black">
           Discover everything VLQ has to offer — from visual learning ecosystems to interactive
           quizzes, homework, and more.
         </p>
@@ -127,48 +130,63 @@ export default function Explore() {
             title="Ecosystems" subtitle="Explore our AI-powered learning ecosystems."
             tagline="Two powerful ways to learn and grow"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <Link
-              to="/amivi"
-              className="group bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-0.5 hover:shadow-lg transition-all"
+          {showEcosystems ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-in fade-in zoom-in-95 duration-300">
+              <Link
+                to="/amivi"
+                className="group bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-0.5 hover:shadow-lg transition-all"
+              >
+                <div className="h-56 bg-blue-100 overflow-hidden flex items-center justify-center">
+                  <img
+                    src="/vlq-cat-amivi.jpg"
+                    alt="AMIVI"
+                    className="h-full w-auto object-contain mx-auto"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                </div>
+                <div className="p-5">
+                  <h3 className="font-extrabold text-xl text-black mb-1">AMIVI</h3>
+                  <p className="text-base font-semibold text-black mb-3">Interactive Visual Learning</p>
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-50 rounded-lg text-base font-bold text-black group-hover:gap-2.5 transition-all">
+                    Learn More <ArrowRight className="w-4 h-4" />
+                  </span>
+                </div>
+              </Link>
+              <Link
+                to="/amico"
+                className="group bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-0.5 hover:shadow-lg transition-all"
+              >
+                <div className="h-56 bg-purple-100 overflow-hidden flex items-center justify-center">
+                  <img
+                    src="/vlq-cat-amico.jpg"
+                    alt="AMICO"
+                    className="h-full w-auto object-contain mx-auto"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                </div>
+                <div className="p-5">
+                  <h3 className="font-extrabold text-xl text-black mb-1">AMICO</h3>
+                  <p className="text-base font-semibold text-black mb-3">AI Learning Companion</p>
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-50 rounded-lg text-base font-bold text-black group-hover:gap-2.5 transition-all">
+                    Learn More <ArrowRight className="w-4 h-4" />
+                  </span>
+                </div>
+              </Link>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowEcosystems(true)}
+              className="group w-full flex justify-center bg-white rounded-2xl overflow-hidden shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all"
             >
-              <div className="h-56 bg-blue-100 overflow-hidden flex items-center justify-center">
-                <img
-                  src="/vlq-cat-amivi.jpg"
-                  alt="AMIVI"
-                  className="h-full w-auto object-contain mx-auto"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-              </div>
-              <div className="p-5">
-                <h3 className="font-extrabold text-xl text-black mb-1">AMIVI</h3>
-                <p className="text-base font-semibold text-black mb-3">Interactive Visual Learning</p>
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-50 rounded-lg text-base font-bold text-black group-hover:gap-2.5 transition-all">
-                  Learn More <ArrowRight className="w-4 h-4" />
-                </span>
-              </div>
-            </Link>
-            <Link
-              to="/amico"
-              className="group bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-0.5 hover:shadow-lg transition-all"
-            >
-              <div className="h-56 bg-purple-100 overflow-hidden flex items-center justify-center">
-                <img
-                  src="/vlq-cat-amico.jpg"
-                  alt="AMICO"
-                  className="h-full w-auto object-contain mx-auto"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-              </div>
-              <div className="p-5">
-                <h3 className="font-extrabold text-xl text-black mb-1">AMICO</h3>
-                <p className="text-base font-semibold text-black mb-3">AI Learning Companion</p>
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-50 rounded-lg text-base font-bold text-black group-hover:gap-2.5 transition-all">
-                  Learn More <ArrowRight className="w-4 h-4" />
-                </span>
-              </div>
-            </Link>
-          </div>
+              <img
+                src="/vlq-ecosystems-preview.png"
+                alt="Ecosystems — click to view AMIVI and AMICO"
+                className="w-full max-w-md h-auto block"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            </button>
+          )}
         </div>
 
         {/* Quizzes */}
