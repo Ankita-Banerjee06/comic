@@ -96,7 +96,7 @@ export default function HowWeDoIt() {
           How VLQ Works
         </h1>
         <p className="mt-3 text-xl font-bold text-black">
-          From any learning material to real mastery — here's the pipeline behind every VLQ session.
+          From learning material to lasting mastery — discover the journey behind every VLQ experience.
         </p>
       </div>
 
@@ -108,8 +108,8 @@ export default function HowWeDoIt() {
         <div className="w-full max-w-6xl mx-auto">
           <div className="rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white/50">
             <img
-              src="/vlq-how-we-do-it-graphic.jpg"
-              alt="The Complete Solution — Addressing the visual learning challenge with advanced tools. Enhancing Collaboration, Transforming Homework, Building a Successful Future."
+              src="/vlq-how-we-do-it-graphic-v2.jpg"
+              alt="THE VLQ PLATFORM: AMIVI, AMICO, Essential Learning, and Mastery"
               className="w-full h-auto block"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />

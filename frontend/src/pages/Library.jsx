@@ -537,7 +537,7 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
             </div>
           )}
 
-          {!loading && !error && data && item.type === 'amivi' && <AmiviPreview data={data} />}
+          {!loading && !error && data && item.type === 'amivi' && <AmiviPreview item={item} data={data} />}
           {!loading && !error && data && item.type === 'amico' && <AmicoPreview data={data} />}
           {!loading && !error && data && item.type === 'quiz' && <QuizPreview data={data} />}
         </div>
@@ -563,12 +563,23 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
   );
 }
 
-function AmiviPreview({ data }) {
+function AmiviPreview({ item, data }) {
   const project = data.data || {};
   const chunks = project.chunks || [];
+  const [imgFailed, setImgFailed] = useState(false);
+  const hasThumbnail = item?.thumbnail_url && !imgFailed;
 
   return (
     <div className="space-y-5">
+      {hasThumbnail && (
+        <img
+          src={mediaUrl(item.thumbnail_url)}
+          alt={item.title || 'AMIVI Preview'}
+          onError={() => setImgFailed(true)}
+          className="w-full rounded-2xl border border-slate-200 object-cover aspect-video bg-slate-50"
+        />
+      )}
+      
       {project.video_url && (
         <video
           controls

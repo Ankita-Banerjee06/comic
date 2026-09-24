@@ -16,9 +16,9 @@ import {
 // ============================================================
 
 const NEXT_STEPS = [
-  { label: 'Explore', desc: 'Browse every VLQ category', linkLabel: 'Explore Now', to: '/explore', icon: Compass, color: '#2563eb', tint: '#eff6ff' },
-  { label: 'How We Do It', desc: 'See the complete solution', linkLabel: 'Learn More', to: '/how-we-do-it', icon: Lightbulb, color: '#16a34a', tint: '#f0fdf4' },
-  { label: 'Plans', desc: 'Find the right plan for you', linkLabel: 'View Plans', to: '/plans', icon: Calendar, color: '#db2777', tint: '#fdf2f8' },
+  { label: 'Explore', desc: 'Discover VLQ’s visual learning experiences.', linkLabel: 'Explore Now', to: '/explore', icon: Compass, color: '#2563eb', tint: '#eff6ff' },
+  { label: 'How VLQ Works', desc: 'See how AMIVI, AMICO and Essential Learning work together.', linkLabel: 'Learn More', to: '/how-we-do-it', icon: Lightbulb, color: '#16a34a', tint: '#f0fdf4' },
+  { label: 'Plans', desc: 'Find the right plan for you', linkLabel: 'View Plans', to: '/plans', icon: Calendar, color: '#64748b', tint: '#f8fafc' },
 ];
 
 export default function Introduction() {
@@ -48,8 +48,8 @@ export default function Introduction() {
           {/* THE PROBLEM */}
           <div className="rounded-3xl overflow-hidden shadow-lg">
             <img
-              src="/vlq-the-problem-panel.png"
-              alt="THE PROBLEM: Why traditional learning is failing — long courses, high costs, heavy textbooks, low engagement, slow learning speed, one-size-fits-all teaching, poor retention, and taking notes lead to a skills gap and an unready future."
+              src="/vlq-the-problem-panel-v2.jpg"
+              alt="THE PROBLEM: Why traditional learning is failing"
               className="w-full h-auto"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
@@ -58,8 +58,8 @@ export default function Introduction() {
           {/* THE SOLUTION */}
           <div className="rounded-3xl overflow-hidden shadow-lg">
             <img
-              src="/vlq-the-solution-panel.png"
-              alt="THE SOLUTION: Why the VLQ platform succeeds — micro-learning courses, low accessibility costs, interactive learning, gamification of learning, accelerated learning speed, personalized teaching, visual learning ecosystems, and digital notes lead to a modern, ready future."
+              src="/vlq-the-solution-panel-v2.jpg"
+              alt="THE SOLUTION: Why the VLQ platform succeeds"
               className="w-full h-auto"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
@@ -73,7 +73,7 @@ export default function Introduction() {
         <div className="text-center max-w-2xl mx-auto mb-6">
           <h2 className="font-extrabold text-4xl sm:text-5xl text-black mb-3">See VLQ In Action</h2>
           <p className="text-2xl font-semibold text-black">
-            See how AI transforms teaching and learning.
+            See how VLQ turns complex information into clear visual learning.
           </p>
         </div>
 
@@ -81,8 +81,8 @@ export default function Introduction() {
           {/* The Impact of AI panel — decorative, not linked to tutorials */}
           <div className="relative w-full max-w-4xl rounded-3xl overflow-hidden shadow-lg">
             <img
-              src="/vlq-impact-of-ai-panel.png"
-              alt="The Impact of AI: The Super-Boon of Digitalisation + AI. Why it transforms humanity and EdTech — instant learning, cost reduction, global access, and rapid growth."
+              src="/vlq-impact-of-ai-panel-v2.jpg"
+              alt="The Impact of AI: From Information to Mastery with VLQ"
               className="w-full h-auto block"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
@@ -94,7 +94,7 @@ export default function Introduction() {
       <div className="w-full rounded-3xl p-6 md:p-9" style={{ background: 'linear-gradient(135deg,#faf5ff,#fdf4ff)' }}>
         <div className="text-center max-w-2xl mx-auto mb-6">
           <h2 className="font-extrabold text-4xl sm:text-5xl text-black mb-3">See It For Yourself</h2>
-          <p className="text-xl font-medium text-black">Explore everything VLQ has to offer</p>
+          <p className="text-xl font-medium text-black">Explore VLQ and see visual learning in action.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           {NEXT_STEPS.map((s) => {

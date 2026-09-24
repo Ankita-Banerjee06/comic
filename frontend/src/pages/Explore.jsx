@@ -94,8 +94,6 @@ function CategoryTile({ category }) {
 }
 
 export default function Explore() {
-  const [showEcosystems, setShowEcosystems] = useState(false);
-
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="text-center max-w-3xl mx-auto">
@@ -103,8 +101,7 @@ export default function Explore() {
           Explore
         </h1>
         <p className="text-2xl font-semibold text-black">
-          Discover everything VLQ has to offer — from visual learning ecosystems to interactive
-          quizzes, homework, and more.
+          Discover the VLQ learning journey — from visual understanding to lasting mastery.
         </p>
       </div>
 
@@ -124,79 +121,58 @@ export default function Explore() {
 
       <div className="space-y-6">
 
-        {/* Ecosystems */}
+        {/* THE VLQ ENGINES */}
         <div className="rounded-3xl p-6 md:p-9" style={{ background: 'linear-gradient(135deg,#eff6ff,#f0f9ff)' }}>
           <ZoneHeader
             icon={Box} iconColor="#1d4ed8" iconTint="#dbeafe"
-            title="Ecosystems" subtitle="Explore our AI-powered learning ecosystems."
+            title="THE VLQ ENGINES" subtitle="Explore our AI-powered learning ecosystems."
             tagline="Two powerful ways to learn and grow"
           />
-          {showEcosystems ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-in fade-in zoom-in-95 duration-300">
-              <Link
-                to="/amivi"
-                className="group bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-0.5 hover:shadow-lg transition-all"
-              >
-                <div className="h-56 bg-blue-100 overflow-hidden flex items-center justify-center">
-                  <img
-                    src="/vlq-cat-amivi.jpg"
-                    alt="AMIVI"
-                    className="h-full w-auto object-contain mx-auto"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                </div>
-                <div className="p-5">
-                  <h3 className="font-extrabold text-xl text-black mb-1">AMIVI</h3>
-                  <p className="text-base font-semibold text-black mb-3">Interactive Visual Learning</p>
-                  <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-50 rounded-lg text-base font-bold text-black group-hover:gap-2.5 transition-all">
-                    Learn More <ArrowRight className="w-4 h-4" />
-                  </span>
-                </div>
-              </Link>
-              <Link
-                to="/amico"
-                className="group bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-0.5 hover:shadow-lg transition-all"
-              >
-                <div className="h-56 bg-purple-100 overflow-hidden flex items-center justify-center">
-                  <img
-                    src="/vlq-cat-amico.jpg"
-                    alt="AMICO"
-                    className="h-full w-auto object-contain mx-auto"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                </div>
-                <div className="p-5">
-                  <h3 className="font-extrabold text-xl text-black mb-1">AMICO</h3>
-                  <p className="text-base font-semibold text-black mb-3">AI Learning Companion</p>
-                  <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-50 rounded-lg text-base font-bold text-black group-hover:gap-2.5 transition-all">
-                    Learn More <ArrowRight className="w-4 h-4" />
-                  </span>
-                </div>
-              </Link>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowEcosystems(true)}
-              className="group w-full flex flex-col md:flex-row items-center bg-white rounded-2xl overflow-hidden shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all"
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+            <Link
+              to="/amivi"
+              className="group bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-1 hover:shadow-xl transition-all border border-slate-100"
             >
-              <img
-                src="/vlq-amico-overview.png"
-                alt="AMICO"
-                className="w-full md:w-[48%] flex-shrink block object-contain"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-              <div className="w-12 h-12 my-4 md:my-0 md:mx-2 rounded-full flex items-center justify-center shadow-md flex-shrink-0" style={{ background: 'linear-gradient(135deg,#4338ca,#db2777)' }}>
-                <ArrowRight className="w-6 h-6 text-white rotate-90 md:rotate-0 transition-transform" />
+              <div className="h-80 sm:h-96 bg-blue-50 overflow-hidden flex items-center justify-center p-6">
+                <img
+                  src="/vlq-amivi-overview.png"
+                  alt="AMIVI"
+                  className="h-full w-full object-contain mx-auto group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
               </div>
-              <img
-                src="/vlq-amivi-overview.png"
-                alt="AMIVI"
-                className="w-full md:w-[48%] flex-shrink block object-contain"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-            </button>
-          )}
+              <div className="p-8">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-md font-bold text-sm mb-3 uppercase tracking-wider">AMIVI</div>
+                <h3 className="font-black text-2xl sm:text-3xl text-black mb-2">Turn Complexity into Clarity.</h3>
+                <p className="text-lg font-semibold text-black mb-6">Transforms complex information into clear, memorable visual learning.</p>
+                <span className="inline-flex items-center gap-1.5 px-5 py-3 bg-blue-600 text-white rounded-xl text-lg font-bold group-hover:bg-blue-700 transition-colors">
+                  Explore AMIVI <ArrowRight className="w-5 h-5" />
+                </span>
+              </div>
+            </Link>
+
+            <Link
+              to="/amico"
+              className="group bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-1 hover:shadow-xl transition-all border border-slate-100"
+            >
+              <div className="h-80 sm:h-96 bg-purple-50 overflow-hidden flex items-center justify-center p-6">
+                <img
+                  src="/vlq-amico-overview.png"
+                  alt="AMICO"
+                  className="h-full w-full object-contain mx-auto group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              </div>
+              <div className="p-8">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-md font-bold text-sm mb-3 uppercase tracking-wider">AMICO</div>
+                <h3 className="font-black text-2xl sm:text-3xl text-black mb-2">Turn Learning into Creativity.</h3>
+                <p className="text-lg font-semibold text-black mb-6">Transforms learning into visual stories learners create, explore and remember.</p>
+                <span className="inline-flex items-center gap-1.5 px-5 py-3 bg-purple-600 text-white rounded-xl text-lg font-bold group-hover:bg-purple-700 transition-colors">
+                  Explore AMICO <ArrowRight className="w-5 h-5" />
+                </span>
+              </div>
+            </Link>
+          </div>
         </div>
 
         {/* Quizzes */}
