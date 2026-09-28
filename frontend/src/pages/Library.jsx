@@ -68,9 +68,15 @@ export default function Library() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('newest');
+  const [librarySpace, setLibrarySpace] = useState('personal'); // personal | group | class
+  const [activeSubject, setActiveSubject] = useState(null); // for folder navigation demo
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // Share Modal State
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareSpace, setShareSpace] = useState('group');
 
   // Preview modal — shown before navigating into the full
   // AMIVI / AMICO / Quiz page.
@@ -123,6 +129,17 @@ export default function Library() {
     const query = search.trim().toLowerCase();
 
     let result = items.filter((item) => {
+      // Mock library space filtering for MVP demonstration.
+      // We'll deterministically assign items to spaces based on their ID.
+      const idStr = String(item.id || item.project_id || '');
+      const charCode = idStr.length > 0 ? idStr.charCodeAt(idStr.length - 1) : 0;
+      
+      let assignedSpace = 'personal';
+      if (charCode % 3 === 1) assignedSpace = 'group';
+      if (charCode % 3 === 2) assignedSpace = 'class';
+      
+      if (assignedSpace !== librarySpace) return false;
+
       if (filter !== 'all' && item.type !== filter) return false;
 
       if (!query) return true;
@@ -145,7 +162,7 @@ export default function Library() {
     });
 
     return result;
-  }, [items, filter, search, sort]);
+  }, [items, filter, search, sort, librarySpace]);
 
   // --------------------------------------------------------
   // PREVIEW (opens before navigating into the full page)
@@ -185,6 +202,10 @@ export default function Library() {
   const handleOpenFull = (item) => {
     closePreview();
     navigate(`/${item.type}/${item.id}`);
+  };
+
+  const handleShareClick = () => {
+    setShowShareModal(true);
   };
 
   const handleDeleteConfirm = async () => {
@@ -236,6 +257,41 @@ export default function Library() {
             />
           </div>
         </div>
+
+        {/* Spaces Tabs */}
+        <div className="flex gap-6 mt-8 border-b border-white/20">
+          {[
+            { id: 'personal', label: 'Personal Library' },
+            { id: 'group', label: 'Group Library' },
+            { id: 'class', label: 'Class Library' },
+          ].map(space => (
+            <button
+              key={space.id}
+              onClick={() => { setLibrarySpace(space.id); setActiveSubject(null); }}
+              className={`pb-3 font-bold text-sm transition-colors relative ${
+                librarySpace === space.id ? 'text-white' : 'text-white/60 hover:text-white/80'
+              }`}
+            >
+              {space.label}
+              {librarySpace === space.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white rounded-t-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Path / Breadcrumbs */}
+      <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
+        <button onClick={() => setActiveSubject(null)} className={`${!activeSubject ? 'text-slate-800' : 'hover:text-indigo-600'}`}>
+          {librarySpace === 'personal' ? 'My Library' : librarySpace === 'group' ? 'Group Space' : 'Classroom'}
+        </button>
+        {activeSubject && (
+          <>
+            <ChevronRight className="w-4 h-4" />
+            <span className="text-slate-800">{activeSubject}</span>
+          </>
+        )}
       </div>
 
       {/* Filters + sort */}
@@ -305,8 +361,31 @@ export default function Library() {
         </div>
       )}
 
+      {/* Mock Folders View for Library Demo */}
+      {status === 'ready' && !activeSubject && visibleItems.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {['Science', 'History', 'Geography', 'Uncategorized'].map(subject => (
+            <button
+              key={subject}
+              onClick={() => setActiveSubject(subject)}
+              className="p-5 bg-white border border-slate-200 rounded-2xl flex items-center gap-4 hover:border-indigo-300 hover:shadow-sm transition-all text-left"
+            >
+              <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500">
+                <LibraryIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-800">{subject}</h4>
+                <p className="text-xs text-slate-500 font-medium">{subject === 'Uncategorized' ? visibleItems.length : Math.floor(Math.random() * 5) + 1} items</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
       {status === 'ready' && visibleItems.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <>
+          {activeSubject && <h3 className="font-bold text-slate-800 text-lg mb-4">Saved Visual Learning Content</h3>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {visibleItems.map((item) => (
             <LibraryCard
               key={item.id}
@@ -316,6 +395,7 @@ export default function Library() {
             />
           ))}
         </div>
+        </>
       )}
 
       {/* Preview modal — shown before opening the full page */}
@@ -333,6 +413,7 @@ export default function Library() {
             closePreview();
             setDeleteTarget(target);
           }}
+          onShare={handleShareClick}
         />
       )}
 
@@ -367,6 +448,48 @@ export default function Library() {
                 className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-60"
               >
                 {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SHARE MODAL */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-extrabold text-slate-800">Share Material</h3>
+              <button onClick={() => setShowShareModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Choose Destination</label>
+                <div className="grid grid-cols-1 gap-2">
+                  <button onClick={() => setShareSpace('individual')} className={`py-3 rounded-xl text-sm font-bold border-2 transition-colors ${shareSpace === 'individual' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}>Individual Space</button>
+                  <button onClick={() => setShareSpace('group')} className={`py-3 rounded-xl text-sm font-bold border-2 transition-colors ${shareSpace === 'group' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}>Learning Group (Collab Room)</button>
+                  <button onClick={() => setShareSpace('class')} className={`py-3 rounded-xl text-sm font-bold border-2 transition-colors ${shareSpace === 'class' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}>Class Library</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button onClick={() => setShowShareModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors">Cancel</button>
+              <button
+                onClick={() => {
+                  setShowShareModal(false);
+                  if (shareSpace === 'group') {
+                    navigate('/collaborate');
+                  } else {
+                    showToast(`Material shared to ${shareSpace} destination!`);
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2 transition-colors"
+              >
+                Continue <ArrowUpRight size={18} />
               </button>
             </div>
           </div>
@@ -482,7 +605,7 @@ function LibraryCard({ item, onPreview, onDelete }) {
 // having to replay or regenerate anything.
 // ============================================================
 
-function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull, onDelete }) {
+function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull, onDelete, onShare }) {
   const meta = TYPE_META[item.type] || TYPE_META.amivi;
   const Icon = meta.icon;
 
@@ -542,20 +665,36 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
           {!loading && !error && data && item.type === 'quiz' && <QuizPreview data={data} />}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+        {/* Footer Quick Actions */}
+        <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
           <button
-            onClick={onDelete}
-            className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl font-bold text-sm text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+            onClick={onShare}
+            className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-slate-600 bg-white border border-slate-200 hover:border-slate-300 transition-colors"
           >
-            <Trash2 className="w-4 h-4" /> Delete
+            <ArrowUpRight className="w-4 h-4" /> Share
           </button>
+          
+          <button
+            onClick={() => { window.location.href = '/quiz'; }}
+            className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+          >
+            <Puzzle className="w-4 h-4" /> Quiz
+          </button>
+
+          <button
+            onClick={() => { window.location.href = '/amico'; }}
+            className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-pink-700 bg-pink-50 border border-pink-200 hover:bg-pink-100 transition-colors"
+          >
+            <BookOpen className="w-4 h-4" /> AMICO
+          </button>
+
           <div className="flex-1" />
+
           <button
             onClick={onOpenFull}
-            className="inline-flex items-center gap-2 py-2.5 px-5 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 py-2 px-4 rounded-lg font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
           >
-            {item.type === 'quiz' ? 'Open & Retake' : 'Open Full'} <ArrowUpRight className="w-4 h-4" />
+            {item.type === 'quiz' ? 'Retake Quiz' : 'Use Again'} <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>

@@ -33,6 +33,7 @@ export default function Amivi() {
 
   const [result, setResult] = useState(null);
   const [textInput, setTextInput] = useState('');
+  const [instructionInput, setInstructionInput] = useState('');
   const [error, setError] = useState(null);
 
   const [generateVideo, setGenerateVideo] = useState(true);
@@ -41,6 +42,12 @@ export default function Amivi() {
   const [fullscreenChunk, setFullscreenChunk] = useState(null);
   const [processingChunkId, setProcessingChunkId] = useState(null);
   const [editingChunk, setEditingChunk] = useState(null);
+  const [selectedChunks, setSelectedChunks] = useState(new Set());
+  
+  // Save Modal State
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveSpace, setSaveSpace] = useState('personal');
+  const [saveFolder, setSaveFolder] = useState('Science');
 
   // Per-slot regenerate tracking, e.g. "42:1" or "42:2"
   const [regeneratingKey, setRegeneratingKey] = useState(null);
@@ -144,6 +151,24 @@ export default function Amivi() {
 
   const closeFullscreen = () => {
     setFullscreenChunk(null);
+  };
+
+  const toggleChunkSelection = (chunkId) => {
+    setSelectedChunks(prev => {
+      const next = new Set(prev);
+      if (next.has(chunkId)) next.delete(chunkId);
+      else next.add(chunkId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!result?.chunks) return;
+    if (selectedChunks.size === result.chunks.length) {
+      setSelectedChunks(new Set());
+    } else {
+      setSelectedChunks(new Set(result.chunks.map(c => c.chunk_id)));
+    }
   };
 
   // Whichever image is showing in the fullscreen viewer right now.
@@ -434,13 +459,23 @@ export default function Amivi() {
             onChange={(e) => setTextInput(e.target.value)}
             readOnly={isProcessing || !!result}
             placeholder={t(
-              'Paste your educational text here... e.g. Photosynthesis is the process by which plants convert sunlight into food...'
+              'Paste your educational text here... e.g. Give this in 5 key points, and the pics should come with key points.'
             )}
             className={`w-full flex-1 min-h-[220px] p-5 bg-blue-50/60 border border-blue-200 rounded-2xl text-slate-700 font-medium resize-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none mb-5 text-lg transition-all ${(isProcessing || !!result) ? 'opacity-60 cursor-not-allowed' : ''}`}
           />
 
           {!isProcessing && !result && (
             <>
+              {/* EXTRACTION INSTRUCTION */}
+              <div className="mb-5">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Extraction Instruction</label>
+                <input
+                  value={instructionInput}
+                  onChange={(e) => setInstructionInput(e.target.value)}
+                  placeholder="e.g. Give this in 5 key points"
+                  className="w-full px-5 py-3 bg-white border border-blue-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all text-lg shadow-inner"
+                />
+              </div>
 
               {/* FILE UPLOAD */}
 
@@ -532,79 +567,118 @@ export default function Amivi() {
               <Video className="w-5 h-5 text-white" />
             </div>
             <h2 className="text-xl font-bold text-slate-800">
-              {t('Your Video')}
+              {t('Your Images')}
             </h2>
           </div>
 
           <p className="text-slate-500 font-medium mb-6">
             {isProcessing
-              ? 'Sit tight — your video is being generated.'
+              ? 'Sit tight — your images are being generated.'
               : result
-              ? (result.video_url ? 'Your educational video is ready!' : 'No video was generated for this project.')
-              : 'Your generated video will appear here once you click Generate AMIVI.'}
+              ? 'Your images are ready! Scroll down to see your visual cards.'
+              : 'Your generated images will appear here once you click Generate AMIVI.'}
           </p>
 
-          <div className="flex-1 flex items-center justify-center">
-
+          <div className="flex-1 flex flex-col w-full h-full mt-4">
             {isProcessing ? (
-
-              <ProcessingAnimation
-                title={`✨ ${t(
-                  'Creating Your Visuals'
-                )}...`}
-              />
-
-            ) : result && result.video_url ? (
-
-              <div className="w-full">
-
-                <div className="rounded-3xl overflow-hidden border-4 border-blue-200 shadow-lg bg-black aspect-video mb-4">
-
-                  <video
-                    controls
-                    className="w-full h-full object-contain"
-                    src={getMediaUrl(
-                      result.video_url
-                    )}
-                  >
-                    Your browser does not support
-                    the video element.
-                  </video>
-
-                </div>
-
-                <button
-                  onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
-                  className="w-full px-4 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Download size={18} />
-                  Download
-                </button>
-
+              <div className="flex-1 flex items-center justify-center">
+                <ProcessingAnimation title={`✨ ${t('Generating Images')}...`} />
               </div>
+            ) : result && (result.chunks?.length > 0 || result.video_url) ? (
+              <div className="flex flex-col flex-1 w-full">
+                
+                {result.chunks?.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between mb-4 px-2">
+                      <p className="text-slate-600 font-bold text-sm">Select cards to use below:</p>
+                      <button
+                        type="button"
+                        onClick={toggleSelectAll}
+                        className="px-3 py-1.5 bg-white border-2 border-indigo-200 text-indigo-600 text-sm font-bold rounded-lg hover:bg-indigo-50 transition-colors"
+                      >
+                        {selectedChunks.size === result.chunks.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
 
-            ) : result ? (
+                    <div className="flex flex-col gap-6 w-full max-h-[800px] overflow-y-auto pr-2 custom-scrollbar">
+                      {result.chunks.map((chunk, index) => (
+                        <div
+                          key={chunk.chunk_id || index}
+                          className={`bg-white rounded-2xl border-2 shadow-sm relative w-full flex flex-col shrink-0 ${
+                            selectedChunks.has(chunk.chunk_id) ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-indigo-300'
+                          }`}
+                        >
+                          <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
+                            <div 
+                              onClick={(e) => { e.stopPropagation(); toggleChunkSelection(chunk.chunk_id); }}
+                              className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center cursor-pointer shadow-sm transition-colors ${
+                                selectedChunks.has(chunk.chunk_id) ? 'bg-indigo-500 border-indigo-500' : 'bg-white border-gray-300'
+                              }`}
+                            >
+                              {selectedChunks.has(chunk.chunk_id) && <CheckCircle2 className="w-5 h-5 text-white" />}
+                            </div>
+                          </div>
 
-              <div className="text-center text-slate-500 font-bold py-8 px-4">
-                <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-4">
-                  <Video className="w-8 h-8 text-indigo-400" />
-                </div>
-                {generateVideo
-                  ? 'Video generation was unavailable for this run.'
-                  : 'Enable "Generate educational video" on the left to also get a video next time.'}
+                          <div className="relative bg-gray-100 rounded-t-2xl overflow-hidden shrink-0">
+                            <div 
+                              className="absolute -bottom-2 -left-2 z-20 w-10 h-10 bg-red-700 text-white font-extrabold flex items-center justify-center shadow-md drop-shadow-md"
+                              style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                            >
+                              {index + 1}
+                            </div>
+                            <img
+                              src={getMediaUrl(chunk.image_url)}
+                              alt={chunk.text || `Chunk ${index + 1}`}
+                              className="w-full aspect-[4/3] sm:aspect-video object-cover cursor-pointer"
+                              onClick={() => openFullscreen(chunk, 1)}
+                            />
+                          </div>
+                          <div className="p-4 sm:p-5 flex-1 flex items-center justify-center text-center">
+                            <p className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight tracking-tight">
+                              {chunk.text || chunk.key_point || `Chunk ${index + 1}`}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {result.video_url && (
+                  <div className="w-full mt-6 pt-6 border-t-2 border-indigo-100 flex flex-col items-center justify-center text-center">
+                    <p className="text-sm font-bold text-slate-500 mb-3">This is the link of the video:</p>
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                      <a
+                        href={getMediaUrl(result.video_url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
+                      >
+                        <Video size={18} />
+                        Watch Video
+                      </a>
+                      <button
+                        onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
+                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
+                      >
+                        <Download size={18} />
+                        Download
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
               </div>
-
             ) : (
-
-              <div className="text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
-                  <Video className="w-9 h-9 text-indigo-400" />
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center py-8">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
+                    <Video className="w-9 h-9 text-indigo-400" />
+                  </div>
+                  <p className="text-indigo-400 font-bold">No images generated yet</p>
                 </div>
-                <p className="text-indigo-400 font-bold">No video yet</p>
               </div>
-
             )}
-
           </div>
 
         </div>
@@ -668,278 +742,7 @@ export default function Amivi() {
 
           </div>
 
-          {/* VISUAL MICRO BITS */}
 
-          <div className="space-y-6 bg-gradient-to-br from-teal-50/50 via-white to-white rounded-3xl border border-teal-100 p-5 sm:p-7">
-
-            <div>
-
-              <span
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-2 text-teal-700"
-                style={{ background: '#f0fdfa', border: '1px solid #ccfbf1' }}
-              >
-                Your Results
-              </span>
-
-              <h3 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-2">
-                🧠 Visual Micro-Bits
-              </h3>
-
-              <p className="text-gray-500 font-semibold mt-1">
-                Each card represents one important
-                learning idea. Click ⛶ for fullscreen.
-              </p>
-
-            </div>
-
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-7">
-
-              {(result?.chunks || []).map(
-                (chunk, index) => (
-
-                  <div
-                    key={
-                      chunk.chunk_id ||
-                      index
-                    }
-                    className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden hover:shadow-md hover:border-blue-300 transition-all"
-                  >
-
-                    {/* IMAGES (primary + optional second angle) */}
-
-                    <div className="relative bg-gray-100">
-
-                      <div className={`grid ${chunk.image2_url ? 'grid-cols-2 gap-0.5' : 'grid-cols-1'}`}>
-
-                        {chunk.image_url ? (
-
-                          <img
-                            src={getMediaUrl(
-                              chunk.image_url
-                            )}
-                            alt={
-                              chunk.text ||
-                              `Chunk ${
-                                index + 1
-                              }`
-                            }
-                            className="w-full aspect-square object-cover cursor-pointer"
-                            onClick={() => openFullscreen(chunk, 1)}
-                          />
-
-                        ) : (
-
-                          <div className="w-full aspect-square flex items-center justify-center text-gray-400 font-bold">
-                            Image unavailable
-                          </div>
-
-                        )}
-
-                        {chunk.image2_url && (
-
-                          <img
-                            src={getMediaUrl(
-                              chunk.image2_url
-                            )}
-                            alt={
-                              (chunk.text ||
-                                `Chunk ${index + 1}`) +
-                              ' (alternate view)'
-                            }
-                            className="w-full aspect-square object-cover cursor-pointer"
-                            onClick={() => openFullscreen(chunk, 2)}
-                          />
-
-                        )}
-
-                      </div>
-
-                      {/* NUMBER */}
-
-                      <div className="absolute top-4 left-4 bg-red-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg">
-                        {index + 1}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openFullscreen(
-                            chunk,
-                            1
-                          )
-                        }
-                        className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center shadow-lg transition-all hover:scale-110"
-                        title="View fullscreen"
-                        aria-label="View visual fullscreen"
-                      >
-                        <Maximize size={18} />
-                      </button>
-
-                    </div>
-
-                    {/* PER-IMAGE ACTIONS */}
-
-                    <div className={`grid ${chunk.image2_url ? 'grid-cols-2' : 'grid-cols-1'} gap-0.5 bg-blue-50 border-t border-blue-100`}>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRegenerate(chunk, 1)}
-                        disabled={regeneratingKey === `${chunk.chunk_id}:1`}
-                        className="py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
-                        title="Regenerate this image"
-                      >
-                        <RefreshCw size={13} className={regeneratingKey === `${chunk.chunk_id}:1` ? 'animate-spin' : ''} />
-                        {chunk.image2_url ? 'Redo image 1' : 'Regenerate'}
-                      </button>
-
-                      {chunk.image2_url && (
-                        <button
-                          type="button"
-                          onClick={() => handleRegenerate(chunk, 2)}
-                          disabled={regeneratingKey === `${chunk.chunk_id}:2`}
-                          className="py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 flex items-center justify-center gap-1.5 disabled:opacity-50 transition"
-                          title="Regenerate this image"
-                        >
-                          <RefreshCw size={13} className={regeneratingKey === `${chunk.chunk_id}:2` ? 'animate-spin' : ''} />
-                          Redo image 2
-                        </button>
-                      )}
-
-                    </div>
-
-
-                    {/* CONTENT */}
-
-                    <div className="p-6">
-
-                      <p className="text-xl font-bold text-gray-800">
-                        {chunk.text ||
-                          chunk.key_point ||
-                          `Chunk ${
-                            index + 1
-                          }`}
-                      </p>
-
-                      {chunk.slogan && (
-
-                        <p className="mt-3 text-orange-600 font-bold">
-                          ✨ {chunk.slogan}
-                        </p>
-
-                      )}
-
-                      {chunk.description && (
-
-                        <p className="mt-4 text-gray-600 font-semibold leading-relaxed">
-                          {chunk.description}
-                        </p>
-
-                      )}
-
-                      {chunk.mcq_question && (
-
-                        <div className="mt-5 p-4 bg-purple-50 rounded-2xl border border-purple-100">
-
-                          <p className="text-xs font-bold text-purple-700 uppercase tracking-wide mb-2">
-                            🎯 {t('Quick Check')}
-                          </p>
-
-                          <p className="text-gray-800 font-bold mb-3">
-                            {chunk.mcq_question}
-                          </p>
-
-                          <div className="space-y-2">
-                            {['a', 'b'].map((opt) => {
-                              const optionText = opt === 'a' ? chunk.mcq_option_a : chunk.mcq_option_b;
-                              const answered = mcqAnswers[chunk.chunk_id];
-                              const isCorrect = opt === chunk.mcq_correct;
-                              const isPicked = answered === opt;
-
-                              let cls = 'bg-white border-gray-200 text-gray-700 hover:border-purple-300';
-
-                              if (answered) {
-                                if (isCorrect) cls = 'bg-green-50 border-green-400 text-green-700';
-                                else if (isPicked) cls = 'bg-red-50 border-red-400 text-red-700';
-                                else cls = 'bg-white border-gray-100 text-gray-400';
-                              }
-
-                              return (
-                                <button
-                                  key={opt}
-                                  type="button"
-                                  disabled={!!answered}
-                                  onClick={() =>
-                                    setMcqAnswers((prev) => ({
-                                      ...prev,
-                                      [chunk.chunk_id]: opt,
-                                    }))
-                                  }
-                                  className={`w-full text-left px-4 py-2.5 rounded-xl border-2 font-semibold transition-all disabled:cursor-default ${cls}`}
-                                >
-                                  {optionText}
-                                  {answered && isCorrect && ' ✓'}
-                                  {answered && isPicked && !isCorrect && ' ✗'}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                        </div>
-
-                      )}
-
-                      {chunk.audio_url && (
-
-                        <audio
-                          controls
-                          className="w-full mt-5"
-                          src={getMediaUrl(
-                            chunk.audio_url
-                          )}
-                        >
-                          Your browser does not
-                          support the audio element.
-                        </audio>
-
-                      )}
-
-                      <div className="grid grid-cols-1 gap-3 mt-5">
-
-                        <button
-                          type="button"
-                          onClick={() => setEditingChunk(chunk)}
-                          disabled={processingChunkId === chunk.chunk_id}
-                          className="py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold flex justify-center items-center gap-2 disabled:opacity-50 transition"
-                          title="Edit text"
-                        >
-                          <Pencil size={16} />
-                          Edit
-                        </button>
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                )
-              )}
-
-            </div>
-
-
-            {(!result?.chunks ||
-              result.chunks.length === 0) && (
-
-              <div className="bg-white rounded-2xl border border-red-100 p-8 text-center text-red-500 font-bold">
-                No visual chunks were returned
-                by the backend.
-              </div>
-
-            )}
-
-          </div>
 
 
           {/* PHOTO STORY */}
@@ -1022,36 +825,78 @@ export default function Amivi() {
 
           {/* BOTTOM ACTIONS */}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-            <div
-              className="py-4 bg-green-50 border-2 border-green-100 text-green-700 rounded-2xl font-bold text-lg flex items-center justify-center gap-3"
-            >
-              <CheckCircle2 size={20} className="text-green-500" />
-              {t('Saved to Library')}
+          <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 sm:p-8 mt-8 shadow-sm">
+            
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-800 mb-1">What Next?</h3>
+                <p className="text-slate-500 font-medium">
+                  {selectedChunks.size > 0 
+                    ? `${selectedChunks.size} card(s) selected.`
+                    : 'Select visual cards above to use them in other activities.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={resetAmivi}
+                className="text-sm font-bold text-slate-500 hover:text-slate-800 underline"
+              >
+                Start New AMIVI
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/amico', {
-                  state: { sourceProjectId: result.project_id },
-                })
-              }
-              disabled={!result?.project_id}
-              className="py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all"
-            >
-              {t('Send to AMICO')}
-              <ArrowRight size={20} />
-            </button>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
 
-            <button
-              type="button"
-              onClick={resetAmivi}
-              className="py-4 bg-blue-50 border-2 border-blue-200 text-blue-700 rounded-2xl font-bold text-lg hover:bg-blue-100 transition"
-            >
-              Start New AMIVI
-            </button>
+              <button
+                type="button"
+                className="py-4 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-200 text-emerald-700 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+                onClick={() => setShowSaveModal(true)}
+              >
+                <CheckCircle2 size={24} className="text-emerald-500" />
+                Save
+              </button>
+
+              <button
+                type="button"
+                className="py-4 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-700 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+                onClick={() => alert(`Sharing ${selectedChunks.size || result?.chunks?.length || 0} items...`)}
+              >
+                <div className="w-6 h-6 rounded-full border-2 border-current flex items-center justify-center">
+                  <span className="sr-only">Share</span>
+                  ↗
+                </div>
+                Share
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/quiz')}
+                className="py-4 bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 text-amber-700 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+              >
+                <span className="text-2xl">🧩</span>
+                Quiz
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/amico', { state: { sourceProjectId: result.project_id } })}
+                disabled={!result?.project_id}
+                className="py-4 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-200 text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+              >
+                <span className="text-2xl">🎨</span>
+                AMICO
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/analytics')}
+                className="py-4 bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 text-purple-700 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+              >
+                <span className="text-2xl">📈</span>
+                Analytics
+              </button>
+
+            </div>
 
           </div>
 
@@ -1270,6 +1115,76 @@ export default function Amivi() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================
+          SAVE MODAL
+      ======================================================= */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-extrabold text-slate-800">Save to Library</h3>
+              <button onClick={() => setShowSaveModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">1. Choose Library Space</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['personal', 'group', 'class'].map(space => (
+                    <button
+                      key={space}
+                      onClick={() => setSaveSpace(space)}
+                      className={`py-2 rounded-xl text-sm font-bold capitalize border-2 transition-colors ${
+                        saveSpace === space ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-emerald-300'
+                      }`}
+                    >
+                      {space}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">2. Choose Subject Folder</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Science', 'History', 'Geography', 'Math', 'Languages', 'Uncategorized'].map(folder => (
+                    <button
+                      key={folder}
+                      onClick={() => setSaveFolder(folder)}
+                      className={`py-2 rounded-xl text-sm font-bold border-2 transition-colors ${
+                        saveFolder === folder ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-emerald-300'
+                      }`}
+                    >
+                      {folder}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  alert(`Successfully saved ${selectedChunks.size || result?.chunks?.length || 0} visual cards to ${saveSpace} library under ${saveFolder}!`);
+                  setShowSaveModal(false);
+                }}
+                className="px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors flex items-center gap-2"
+              >
+                <CheckCircle2 size={18} /> Confirm Save
+              </button>
+            </div>
           </div>
         </div>
       )}

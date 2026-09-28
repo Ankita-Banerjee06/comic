@@ -65,6 +65,11 @@ export default function Amico() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [savedNotice, setSavedNotice] = useState(false);
+  
+  // Save Modal State
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveSpace, setSaveSpace] = useState('personal');
+  const [saveFolder, setSaveFolder] = useState('Science');
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [editingPanel, setEditingPanel] = useState(null);
@@ -179,7 +184,7 @@ export default function Amico() {
 
       setResult(data);
       setCurrentPageIndex(0);
-      setSavedNotice(true);
+      setSavedNotice(false); // Wait for explicit save
     } catch (err) {
       setError(err.message);
     } finally {
@@ -742,9 +747,13 @@ export default function Amico() {
                 <p className="font-bold text-xl">{t('Comic Generated!')}</p>
                 <p className="text-pink-100 font-bold flex flex-wrap items-center gap-2">
                   {t('Your comic strip is ready to read!')}
-                  {savedNotice && (
-                    <span className="inline-flex items-center gap-1 text-xs bg-white/20 px-2 py-1 rounded-full">
-                      <CheckCircle2 className="w-3 h-3" /> {t('Saved to your Library')}
+                  {!savedNotice ? (
+                    <button onClick={() => setShowSaveModal(true)} className="inline-flex items-center gap-1.5 text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full transition-colors cursor-pointer font-bold ml-2">
+                      <CheckCircle2 className="w-3 h-3" /> Save to Library...
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-500/20 text-emerald-100 px-3 py-1.5 rounded-full font-bold ml-2">
+                      <CheckCircle2 className="w-3 h-3" /> Saved to {saveSpace} / {saveFolder}
                     </span>
                   )}
                 </p>
@@ -1175,6 +1184,76 @@ export default function Amico() {
           </form>
         </div>
       )}
+      {/* ======================================================
+          SAVE MODAL
+      ======================================================= */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-extrabold text-slate-800">Save to Library</h3>
+              <button onClick={() => setShowSaveModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">1. Choose Library Space</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['personal', 'group', 'class'].map(space => (
+                    <button
+                      key={space}
+                      onClick={() => setSaveSpace(space)}
+                      className={`py-2 rounded-xl text-sm font-bold capitalize border-2 transition-colors ${
+                        saveSpace === space ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-slate-200 text-slate-500 hover:border-pink-300'
+                      }`}
+                    >
+                      {space}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">2. Choose Subject Folder</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Science', 'History', 'Geography', 'Math', 'Languages', 'Uncategorized'].map(folder => (
+                    <button
+                      key={folder}
+                      onClick={() => setSaveFolder(folder)}
+                      className={`py-2 rounded-xl text-sm font-bold border-2 transition-colors ${
+                        saveFolder === folder ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-slate-200 text-slate-500 hover:border-pink-300'
+                      }`}
+                    >
+                      {folder}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setSavedNotice(true);
+                  setShowSaveModal(false);
+                }}
+                className="px-5 py-2.5 rounded-xl font-bold text-white bg-pink-600 hover:bg-pink-700 transition-colors flex items-center gap-2"
+              >
+                <CheckCircle2 size={18} /> Confirm Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -8378,7 +8378,7 @@ def classroom_teacher_code(class_code: str, payload: TeacherCodeRequest):
                                          
             candidate = generate_room_code(length=10)
 
-            clash = (
+            clash = (                
                 db.query(Classroom)
                 .filter(Classroom.teacher_code == candidate)
                 .first()
