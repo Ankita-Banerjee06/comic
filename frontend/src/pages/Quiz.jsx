@@ -116,6 +116,21 @@ const QUIZ_DECKS = [
 function DeckPicker({ onSelect }) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Essential Learning</h2>
+        <p className="text-slate-600 font-medium max-w-xl mb-6">
+          Focuses learners on important knowledge rather than unnecessary trivia.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 bg-slate-50 py-4 rounded-xl border border-slate-200">
+          <div className="px-3 py-1.5 bg-sky-100 rounded-lg shadow-sm border border-sky-200 font-bold text-sky-700 text-sm">Identify</div>
+          <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
+          <div className="px-3 py-1.5 bg-blue-100 rounded-lg shadow-sm border border-blue-200 font-bold text-blue-700 text-sm">Understand</div>
+          <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
+          <div className="px-3 py-1.5 bg-indigo-100 rounded-lg shadow-sm border border-indigo-200 font-bold text-indigo-700 text-sm">Apply</div>
+          <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
+          <div className="px-3 py-1.5 bg-violet-600 rounded-lg shadow-sm border border-violet-600 font-bold text-white text-sm">Retain</div>
+        </div>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {QUIZ_DECKS.map(deck => {
           const Icon = deck.icon;
@@ -696,11 +711,9 @@ export default function Quiz() {
             >
               QUIZ
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 mb-3">{t('Quiz')}</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 mb-3">{t('Quizzes')}</h1>
             <p className="text-slate-600 font-medium max-w-xl">
-              {t(
-                'Pick a topic, or upload / paste your own learning material, and generate a quiz with pictures and answer explanations.'
-              )}
+              {t('Quizzes reinforce understanding and identify what needs revisiting.')}
             </p>
           </div>
         </div>
@@ -757,13 +770,22 @@ export default function Quiz() {
         {view === 'bank' ? (
           <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5 sm:p-8">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-              📕 {t('Wrong Answers')}
+              📕 Retakers Quiz
             </h2>
             <p className="text-gray-500 font-bold mb-6">
-              {t(
-                'Every question missed across every quiz collects here and stays until it’s answered correctly — come back and retake it whenever, even months or a year from now.'
-              )}
+              Retake focuses specifically on weaker areas and uses reinforcement rather than simply repeating the same quiz.
             </p>
+
+            {/* Retakers 4-Step Flowchart */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mb-8 bg-slate-50 py-4 rounded-xl border border-slate-200">
+              <div className="px-3 py-1.5 bg-slate-200 rounded-lg shadow-sm border border-slate-300 font-bold text-slate-700 text-sm">Review</div>
+              <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
+              <div className="px-3 py-1.5 bg-orange-100 rounded-lg shadow-sm border border-orange-200 font-bold text-orange-700 text-sm">Retry</div>
+              <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
+              <div className="px-3 py-1.5 bg-amber-100 rounded-lg shadow-sm border border-amber-200 font-bold text-amber-700 text-sm">Improve</div>
+              <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
+              <div className="px-3 py-1.5 bg-emerald-600 rounded-lg shadow-sm border border-emerald-600 font-bold text-white text-sm">Master</div>
+            </div>
 
             {isLoadingBank && (
               <p className="text-gray-500 font-bold text-center py-8">
@@ -935,6 +957,17 @@ export default function Quiz() {
               {genError}
             </p>
           )}
+
+          {/* Quizzes 4-Step Flowchart */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-12 bg-slate-50 py-6 rounded-2xl border border-slate-200">
+            <div className="px-4 py-2 bg-emerald-100 rounded-xl shadow-sm border border-emerald-200 font-bold text-emerald-700">Learn</div>
+            <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+            <div className="px-4 py-2 bg-purple-100 rounded-xl shadow-sm border border-purple-200 font-bold text-purple-700">Quiz</div>
+            <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+            <div className="px-4 py-2 bg-orange-100 rounded-xl shadow-sm border border-orange-200 font-bold text-orange-700">Check</div>
+            <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+            <div className="px-4 py-2 bg-indigo-600 rounded-xl shadow-sm border border-indigo-600 font-bold text-white">Reinforce</div>
+          </div>
         </div>
         )}
       </div>

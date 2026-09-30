@@ -214,6 +214,17 @@ export default function CollaborativeLearning() {
           onConfirm={handleLeave}
         />
       )}
+
+      {/* 4-Step Flowchart */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-12 mb-8 bg-slate-50 py-6 rounded-2xl border border-slate-200">
+        <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-pink-700">Create</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-sky-100 rounded-xl shadow-sm border border-sky-200 font-bold text-sky-700">Share</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-amber-100 rounded-xl shadow-sm border border-amber-200 font-bold text-amber-700">Discuss</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-indigo-600 rounded-xl shadow-sm border border-indigo-600 font-bold text-white">Learn Together</div>
+      </div>
     </div>
   );
 }
@@ -242,12 +253,12 @@ function Header({ screen, room, onLeaveClick }) {
             <Users className="w-3.5 h-3.5" /> Collaborative Learning
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">
-            {screen === 'room' && room ? room.name : 'Study together, live'}
+            {screen === 'room' && room ? room.name : 'Collaborative Learning'}
           </h1>
           <p className="text-white/90 font-medium max-w-lg">
             {screen === 'room' && room
               ? room.topic || 'A shared room for discussing, generating and quizzing together.'
-              : 'Create a room, invite your group with a code, and learn together — share material, chat, generate AMIVI/AMICO, and take a shared quiz.'}
+              : 'Learners share knowledge, ideas, and creative work to learn together.'}
           </p>
         </div>
 

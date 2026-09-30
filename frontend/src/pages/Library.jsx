@@ -238,10 +238,10 @@ export default function Library() {
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1.5">
-              📚 My Library
+              📚 Digital Library
             </h1>
             <p className="text-white/90 font-medium">
-              Everything you've created with AMIVI, AMICO and Quiz, all in one place.
+              Your personal place to save, organize, and revisit your visual learning materials.
             </p>
           </div>
 
@@ -521,6 +521,18 @@ export default function Library() {
           </div>
         </div>
       )}
+
+      {/* 4-Step Flowchart */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-12 mb-8 bg-slate-50 py-6 rounded-2xl border border-slate-200">
+        <div className="px-4 py-2 bg-indigo-100 rounded-xl shadow-sm border border-indigo-200 font-bold text-indigo-700">Learn</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-emerald-100 rounded-xl shadow-sm border border-emerald-200 font-bold text-emerald-700">Save</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-amber-100 rounded-xl shadow-sm border border-amber-200 font-bold text-amber-700">Revisit</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-pink-600 rounded-xl shadow-sm border border-pink-600 font-bold text-white">Remember</div>
+      </div>
+
     </div>
   );
 }

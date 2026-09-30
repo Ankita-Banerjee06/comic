@@ -418,13 +418,11 @@ export default function Amivi() {
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3">
-            {t('AMIVI')} Studio
+            AMIVI
           </h1>
 
           <p className="text-slate-600 font-medium max-w-xl">
-            {t(
-              'Transform large learning material or public video content into clear visual micro-bits with supporting images, explanations, narration and an optional educational video.'
-            )}
+            AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement.
           </p>
 
         </div>
@@ -629,7 +627,8 @@ export default function Amivi() {
                             <img
                               src={getMediaUrl(chunk.image_url)}
                               alt={chunk.text || `Chunk ${index + 1}`}
-                              className="w-full aspect-[4/3] sm:aspect-video object-cover cursor-pointer"
+                              className="w-full object-cover cursor-pointer"
+                              style={{ aspectRatio: '11.7/14.7' }}
                               onClick={() => openFullscreen(chunk, 1)}
                             />
                           </div>
@@ -917,146 +916,71 @@ export default function Amivi() {
         >
 
           <div
-            className="relative w-full h-full max-w-[1500px] max-h-[95vh] flex flex-col lg:flex-row gap-6 items-center justify-center"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            className="relative flex flex-col"
+            style={{ width: 'min(100%, calc(85vh * (11.7 / 14.7)))', aspectRatio: '11.7/14.7' }}
+            onClick={(event) => event.stopPropagation()}
           >
-
             {/* CLOSE */}
-
             <button
               type="button"
               onClick={closeFullscreen}
-              className="absolute top-2 right-2 lg:-top-3 lg:-right-3 z-50 w-12 h-12 rounded-full bg-white/20 hover:bg-white/35 text-white flex items-center justify-center transition-all hover:scale-110 shadow-xl"
+              className="absolute -top-4 -right-4 md:-top-6 md:-right-6 z-50 w-12 h-12 rounded-full bg-white text-gray-900 flex items-center justify-center transition-all hover:scale-110 shadow-2xl border border-gray-200"
               title="Close fullscreen"
               aria-label="Close fullscreen"
             >
-
               <X size={26} />
-
             </button>
 
-
-            {/* LARGE IMAGE */}
-
-            <div className="flex-1 min-w-0 w-full h-full flex items-center justify-center">
-
-              {fullscreenImageUrl ? (
-
-                <img
-                  src={getMediaUrl(
-                    fullscreenImageUrl
-                  )}
-                  alt={
-                    fullscreenChunk.text ||
-                    'AMIVI visual'
-                  }
-                  className="max-w-full max-h-[82vh] lg:max-h-[92vh] object-contain rounded-2xl shadow-lg"
-                />
-
-              ) : (
-
-                <div className="text-white font-bold text-xl">
-                  Image unavailable
+            <div className="w-full h-full bg-white rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col">
+              {/* LARGE IMAGE */}
+              <div className="relative flex-1 min-h-0 bg-gray-100 flex flex-col items-center justify-center">
+                {/* Red chunk number badge */}
+                <div 
+                  className="absolute bottom-0 left-0 z-20 px-3 py-1 sm:px-5 sm:py-2 bg-[#e3000f] text-white font-extrabold text-xl sm:text-2xl shadow-sm"
+                  style={{ borderTopRightRadius: '16px' }}
+                >
+                  {fullscreenChunk.chunk_number || ''}
                 </div>
 
-              )}
-
-            </div>
-
-
-            {/* INFO PANEL */}
-
-            <div className="w-full lg:w-[390px] max-h-[82vh] lg:max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-5 sm:p-7 shadow-lg flex-shrink-0">
-
-              <div className="flex items-center justify-between mb-4">
-
-                <span className="px-4 py-2 rounded-full bg-red-500 text-white font-bold">
-                  Chunk{' '}
-                  {fullscreenChunk.chunk_number || ''}
-                  {fullscreenChunk.__slot === 2 ? ' (view 2)' : ''}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={closeFullscreen}
-                  className="lg:hidden w-10 h-10 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center"
-                >
-                  <X size={20} />
-                </button>
-
+                {fullscreenImageUrl ? (
+                  <img
+                    src={getMediaUrl(fullscreenImageUrl)}
+                    alt={fullscreenChunk.text || 'AMIVI visual'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-gray-400 font-bold text-xl">
+                    Image unavailable
+                  </div>
+                )}
               </div>
 
+              {/* CAPTION INFO */}
+              <div className="bg-white px-6 py-5 sm:px-8 sm:py-8 flex items-center justify-center text-center shrink-0" style={{ minHeight: '15%' }}>
+                <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 leading-snug tracking-tight">
+                  {fullscreenChunk.text || fullscreenChunk.key_point || 'AMIVI Visual'}
+                </h2>
+              </div>
+            </div>
 
-              <h2 className="text-2xl font-bold text-gray-800">
-                {fullscreenChunk.text ||
-                  fullscreenChunk.key_point ||
-                  'AMIVI Visual'}
-              </h2>
-
-              {fullscreenImageUrl && (
-
+            {/* DOWNLOAD BUTTON */}
+            {fullscreenImageUrl && (
+              <div className="mt-6 flex justify-center w-full">
                 <button
                   type="button"
                   onClick={() =>
                     handleDownload(
                       getMediaUrl(fullscreenImageUrl),
-                      `amivi-chunk-${fullscreenChunk.chunk_number || ''}${fullscreenChunk.__slot === 2 ? '-b' : ''}.png`
+                      `amivi-card-${fullscreenChunk.chunk_number || ''}${fullscreenChunk.__slot === 2 ? '-b' : ''}.png`
                     )
                   }
-                  className="mt-4 w-full px-4 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors border border-white/30 backdrop-blur-sm shadow-lg"
                 >
-                  <Download size={16} />
-                  {t('Download Image')}
+                  <Download size={18} />
+                  {t('Download Card Image')}
                 </button>
-
-              )}
-
-
-              {fullscreenChunk.slogan && (
-
-                <p className="mt-4 text-orange-600 font-bold text-lg">
-                  ✨{' '}
-                  {fullscreenChunk.slogan}
-                </p>
-
-              )}
-
-
-              {fullscreenChunk.description && (
-
-                <p className="mt-5 text-gray-600 font-semibold leading-relaxed">
-                  {fullscreenChunk.description}
-                </p>
-
-              )}
-
-
-              {fullscreenChunk.audio_url && (
-
-                <div className="mt-6">
-
-                  <p className="text-sm font-bold text-gray-700 mb-2">
-                    🔊 Narration
-                  </p>
-
-                  <audio
-                    controls
-                    className="w-full"
-                    src={getMediaUrl(
-                      fullscreenChunk.audio_url
-                    )}
-                  >
-                    Your browser does not support
-                    the audio element.
-                  </audio>
-
-                </div>
-
-              )}
-
-            </div>
+              </div>
+            )}
 
           </div>
 
@@ -1188,6 +1112,17 @@ export default function Amivi() {
           </div>
         </div>
       )}
+
+      {/* 4-Step Flowchart */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-12 mb-8 bg-slate-50 py-6 rounded-2xl border border-slate-200">
+        <div className="px-4 py-2 bg-slate-200 rounded-xl shadow-sm border border-slate-300 font-bold text-slate-700">Complexity</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-blue-100 rounded-xl shadow-sm border border-blue-200 font-bold text-blue-700">Clarity</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-pink-700">Creativity</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-purple-600 rounded-xl shadow-sm border border-purple-600 font-bold text-white">Mastery</div>
+      </div>
 
     </div>
   );

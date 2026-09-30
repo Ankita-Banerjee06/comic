@@ -33,6 +33,7 @@ import {
   Maximize2,
   Camera,
   X,
+  ArrowRight,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -65,7 +66,7 @@ export default function Amico() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [savedNotice, setSavedNotice] = useState(false);
-  
+
   // Save Modal State
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveSpace, setSaveSpace] = useState('personal');
@@ -98,7 +99,7 @@ export default function Amico() {
   useEffect(() => {
     listAvatars()
       .then((data) => setAvatars(data.avatars || []))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -111,7 +112,7 @@ export default function Amico() {
     if (source === 'amivi' && amiviProjects.length === 0) {
       listProjects('amivi')
         .then((data) => setAmiviProjects(data.projects || []))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [source, amiviProjects.length]);
 
@@ -487,8 +488,8 @@ export default function Amico() {
           >
             AMICO
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3">{t('AMICO')} {t('Creator')}</h1>
-          <p className="text-slate-600 font-medium max-w-xl">{t('Turn any topic into a multi-panel visual story — characters, dialogue and a scene for every idea, so it sticks.')}</p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3">AMICO</h1>
+          <p className="text-slate-600 font-medium max-w-xl">AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement.</p>
         </div>
       </div>
 
@@ -496,21 +497,19 @@ export default function Amico() {
       <div className="max-w-3xl mx-auto flex gap-2">
         <button
           onClick={() => setMode('comic')}
-          className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-            mode === 'comic'
+          className={`flex-1 py-3 rounded-2xl font-bold transition-all ${mode === 'comic'
               ? 'bg-purple-500 text-white shadow-lg'
               : 'bg-purple-50 text-purple-500 border-2 border-purple-200'
-          }`}
+            }`}
         >
           🦸 {t('Comic')}
         </button>
         <button
           onClick={() => setMode('photostory')}
-          className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-            mode === 'photostory'
+          className={`flex-1 py-3 rounded-2xl font-bold transition-all ${mode === 'photostory'
               ? 'bg-purple-500 text-white shadow-lg'
               : 'bg-purple-50 text-purple-500 border-2 border-purple-200'
-          }`}
+            }`}
         >
           📷 {t('Visual Story')}
         </button>
@@ -523,21 +522,19 @@ export default function Amico() {
             <div className="flex gap-2 mb-6">
               <button
                 onClick={() => setSource('amivi')}
-                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-                  source === 'amivi'
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${source === 'amivi'
                     ? 'bg-pink-500 text-white shadow-lg'
                     : 'bg-pink-50 text-pink-500 border-2 border-pink-200 hover:bg-pink-100'
-                }`}
+                  }`}
               >
                 🎨 {t('Import from AMIVI')}
               </button>
               <button
                 onClick={() => setSource('text')}
-                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-                  source === 'text'
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${source === 'text'
                     ? 'bg-pink-500 text-white shadow-lg'
                     : 'bg-pink-50 text-pink-500 border-2 border-pink-200 hover:bg-pink-100'
-                }`}
+                  }`}
               >
                 ✍️ {t('Paste Text')}
               </button>
@@ -619,22 +616,20 @@ export default function Amico() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setLayout('horizontal')}
-                    className={`flex-1 p-3 rounded-xl border-2 flex items-center justify-center gap-1 font-bold transition-all ${
-                      layout === 'horizontal'
+                    className={`flex-1 p-3 rounded-xl border-2 flex items-center justify-center gap-1 font-bold transition-all ${layout === 'horizontal'
                         ? 'bg-pink-500 border-pink-500 text-white'
                         : 'bg-pink-50 border-pink-200 text-pink-500'
-                    }`}
+                      }`}
                     title={t('Horizontal grid')}
                   >
                     <LayoutGrid className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setLayout('vertical')}
-                    className={`flex-1 p-3 rounded-xl border-2 flex items-center justify-center gap-1 font-bold transition-all ${
-                      layout === 'vertical'
+                    className={`flex-1 p-3 rounded-xl border-2 flex items-center justify-center gap-1 font-bold transition-all ${layout === 'vertical'
                         ? 'bg-pink-500 border-pink-500 text-white'
                         : 'bg-pink-50 border-pink-200 text-pink-500'
-                    }`}
+                      }`}
                     title={t('Vertical stack')}
                   >
                     <Rows className="w-4 h-4" />
@@ -649,11 +644,10 @@ export default function Amico() {
               <div className="flex items-center gap-3 overflow-x-auto pb-2">
                 <button
                   onClick={() => setSelectedAvatarId(null)}
-                  className={`shrink-0 w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-xs font-bold ${
-                    selectedAvatarId === null
+                  className={`shrink-0 w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-xs font-bold ${selectedAvatarId === null
                       ? 'border-pink-500 bg-pink-50 text-pink-500'
                       : 'border-gray-200 text-gray-400'
-                  }`}
+                    }`}
                 >
                   {t('None')}
                 </button>
@@ -661,11 +655,10 @@ export default function Amico() {
                   <div key={avatar.avatar_id} className="relative shrink-0 group">
                     <button
                       onClick={() => setSelectedAvatarId(avatar.avatar_id)}
-                      className={`w-16 h-16 rounded-2xl overflow-hidden border-2 ${
-                        selectedAvatarId === avatar.avatar_id
+                      className={`w-16 h-16 rounded-2xl overflow-hidden border-2 ${selectedAvatarId === avatar.avatar_id
                           ? 'border-pink-500 ring-4 ring-pink-200'
                           : 'border-gray-200'
-                      }`}
+                        }`}
                       title={avatar.name}
                     >
                       <img src={mediaUrl(avatar.image_url)} alt={avatar.name} className="w-full h-full object-cover" />
@@ -1199,7 +1192,7 @@ export default function Amico() {
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">1. Choose Library Space</label>
@@ -1208,9 +1201,8 @@ export default function Amico() {
                     <button
                       key={space}
                       onClick={() => setSaveSpace(space)}
-                      className={`py-2 rounded-xl text-sm font-bold capitalize border-2 transition-colors ${
-                        saveSpace === space ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-slate-200 text-slate-500 hover:border-pink-300'
-                      }`}
+                      className={`py-2 rounded-xl text-sm font-bold capitalize border-2 transition-colors ${saveSpace === space ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-slate-200 text-slate-500 hover:border-pink-300'
+                        }`}
                     >
                       {space}
                     </button>
@@ -1225,9 +1217,8 @@ export default function Amico() {
                     <button
                       key={folder}
                       onClick={() => setSaveFolder(folder)}
-                      className={`py-2 rounded-xl text-sm font-bold border-2 transition-colors ${
-                        saveFolder === folder ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-slate-200 text-slate-500 hover:border-pink-300'
-                      }`}
+                      className={`py-2 rounded-xl text-sm font-bold border-2 transition-colors ${saveFolder === folder ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-slate-200 text-slate-500 hover:border-pink-300'
+                        }`}
                     >
                       {folder}
                     </button>
@@ -1256,6 +1247,17 @@ export default function Amico() {
           </div>
         </div>
       )}
+
+      {/* 4-Step Flowchart */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-12 mb-8 bg-slate-50 py-6 rounded-2xl border border-slate-200">
+        <div className="px-4 py-2 bg-slate-200 rounded-xl shadow-sm border border-slate-300 font-bold text-slate-700">Complexity</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-blue-100 rounded-xl shadow-sm border border-blue-200 font-bold text-blue-700">Clarity</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-pink-700">Creativity</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-purple-600 rounded-xl shadow-sm border border-purple-600 font-bold text-white">Mastery</div>
+      </div>
 
     </div>
   );

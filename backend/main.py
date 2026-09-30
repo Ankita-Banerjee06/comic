@@ -1905,30 +1905,20 @@ def generate_amivi_content(
         "micro-bits or chunks.\n\n"
 
         "Rules:\n"
-        "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the material (for example: 'Water Cycle', 'Photosynthesis', or 'Biology').\n"
+        "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the material.\n"
         "- Create 5 to 10 chunks depending on the length and complexity.\n"
-        "- Do not split randomly.\n"
-        "- Each chunk must represent ONE important learning idea.\n"
-        "- Keep all important educational information.\n"
-        "- Do not invent facts that are not supported by the source.\n"
-        "- Rewrite the content in simple learner-friendly language.\n"
-        "- Each chunk should be understandable on its own.\n"
-        "- Create a short memorable slogan for each chunk.\n"
-        "- Create a clear explanation for each chunk.\n"
-        "- Create a detailed supporting image prompt for each chunk.\n"
-        "- Also create a SECOND supporting image prompt for the same "
-        "chunk that illustrates it from a different angle — e.g. a "
-        "close-up detail vs. a wide diagram, or a before/after, or "
-        "a different step of the same process. It must not just "
-        "reword the first image prompt; it should add a genuinely "
-        "different visual.\n"
-        "- Prefer educational visuals such as diagrams, labeled illustrations, "
-        "process visuals, maps, charts or realistic educational scenes when appropriate.\n"
-        "- Create a short narration script for each chunk.\n"
-        "- Create one quick 'check yourself' multiple-choice question "
-        "for each chunk, testing the chunk's key idea, with EXACTLY "
-        "two answer options (one correct, one plausible but wrong). "
-        "Keep both options short.\n\n"
+        "- Redesign the AMIVI output as a simple, visual-first learning card system.\n"
+        "- Every individual AMIVI visual card must be exactly 11.7 × 14.7 in the required format.\n"
+        "- Each card should contain only: One clear educational illustration representing the key concept, and One short Key Point in large, bold, highly readable text.\n"
+        "- Clean, simple educational styling. No slogans, long descriptions, audio controls, buttons, or unnecessary text.\n"
+        "- The visual and Key Point should work together as one simple educational explanation.\n"
+        "- The FINAL chunk in the 'chunks' array MUST be the 'Complete Visual'. Its image_prompt should combine all previous concepts into one connected educational visual. Its key_point should just be the MAIN TOPIC, and its text should summarize the concepts.\n"
+        "- Create a detailed supporting image prompt for each chunk incorporating the 11.7 x 14.7 size requirement.\n"
+        "- CRITICAL: Do NOT include any text, words, labels, or typography in the image_prompt itself. The generated image must be completely text-free. The UI will render the key point text separately.\n"
+        "- Create a SECOND supporting image prompt for the same chunk from a different angle.\n"
+        "- Flow: Learning Material -> Key Points -> Individual Visual Cards -> Complete Connected Visual.\n"
+        "- Keep the design clean, colorful, consistent, educational, and easy to understand at a glance.\n"
+        "- Create one quick 'check yourself' multiple-choice question for each chunk with EXACTLY two answer options (one correct, one plausible but wrong).\n\n"
 
         "Return ONLY valid JSON in this exact structure:\n"
         "{\n"
@@ -2978,6 +2968,42 @@ def create_amivi_video(
             )
 
             image_file.close()
+
+            # Add text overlay to the image so it shows up in the video
+            text_to_draw = chunk.get("key_point") or chunk.get("text")
+            if text_to_draw:
+                try:
+                    with Image.open(image_file.name) as img:
+                        img = img.convert("RGB")
+                        draw = ImageDraw.Draw(img)
+                        width, height = img.size
+                        font_size = max(24, int(width * 0.06))
+                        try:
+                            font = ImageFont.truetype("arialbd.ttf", font_size)
+                        except IOError:
+                            font = ImageFont.load_default()
+                        
+                        char_width = draw.textlength("A", font=font) if hasattr(draw, 'textlength') else 15
+                        max_chars = int((width * 0.9) / (char_width or 10))
+                        max_chars = max(15, max_chars)
+                        lines = textwrap.wrap(text_to_draw, width=max_chars)
+                        
+                        line_height = draw.textbbox((0,0), "A", font=font)[3] if hasattr(draw, 'textbbox') else font_size
+                        line_spacing = int(line_height * 0.2)
+                        total_text_height = (line_height * len(lines)) + (line_spacing * (len(lines) - 1))
+                        
+                        current_y = height - total_text_height - int(height * 0.05)
+                        stroke_width = max(2, int(font_size * 0.05))
+                        
+                        for line in lines:
+                            line_w = draw.textlength(line, font=font) if hasattr(draw, 'textlength') else len(line)*char_width
+                            x = (width - line_w) / 2
+                            draw.text((x, current_y), line, font=font, fill="white", stroke_width=stroke_width, stroke_fill="black")
+                            current_y += line_height + line_spacing
+                        
+                        img.save(image_file.name)
+                except Exception as e:
+                    print("Error overlaying text on video image:", e)
 
             audio_file = tempfile.NamedTemporaryFile(
                 suffix=".wav",
