@@ -15,13 +15,17 @@ import {
 } from 'lucide-react';
 
 // ============================================================
-// ANALYTICS — a progress dashboard built on mock data. Real
-// numbers will come once quiz results / activity are wired to an
-// endpoint; the shape (stat tiles, score trend, time by category,
-// topic strengths, weekly activity) is ready to receive it.
-// Charts are hand-built inline SVG/CSS (no charting library is
-// installed yet) and follow the site's existing brand colors.
+// ANALYTICS — Focused Attention MVP.
+// Translates learning activity into simple categories (Strong, Improving, Needs Attention).
+// Allows a teacher to identify weak topics at a glance and trigger specific interventions.
 // ============================================================
+
+const STUDENTS = [
+  { id: 1, name: 'Emma W.', category: 'strong', label: 'Strong', score: '92%' },
+  { id: 2, name: 'Lucas K.', category: 'strong', label: 'Strong', score: '88%' },
+  { id: 3, name: 'Mia S.', category: 'improving', label: 'Improving', score: '74%' },
+  { id: 4, name: 'Noah P.', category: 'attention', label: 'Needs Attention', score: '58%' },
+];
 
 const STAT_TILES = [
   { label: 'Quizzes Taken', value: '47', delta: '+8 this month', deltaUp: true, icon: CheckCircle2, color: '#2563eb', tint: '#eff6ff' },
@@ -205,24 +209,117 @@ function CategoryTimeChart() {
 }
 
 export default function Analytics() {
+  const [selectedStudent, setSelectedStudent] = useState(null);
+
+  if (!selectedStudent) {
+    return <TeacherDashboard onSelect={setSelectedStudent} />;
+  }
+
+  return <StudentProfile student={selectedStudent} onBack={() => setSelectedStudent(null)} />;
+}
+
+function TeacherDashboard({ onSelect }) {
+  const strong = STUDENTS.filter(s => s.category === 'strong');
+  const improving = STUDENTS.filter(s => s.category === 'improving');
+  const attention = STUDENTS.filter(s => s.category === 'attention');
+
+  return (
+    <div className="py-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+      <div className="text-center lg:text-left mb-8">
+        <div
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
+          style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #e0e7ff' }}
+        >
+          <BarChart3 className="w-3.5 h-3.5" /> Class at a Glance
+        </div>
+        <h1 className="font-extrabold leading-tight text-slate-900" style={{ fontSize: 'clamp(28px,3.4vw,42px)' }}>
+          Analytics: Focused Attention
+        </h1>
+        <p className="mt-3 text-lg font-semibold text-slate-600">
+          Identify which learner needs support and turn learning data into specific educational actions.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Strong Column */}
+        <div className="bg-white rounded-2xl border-t-4 border-t-green-500 border border-slate-200 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-6 text-green-700">
+            <CheckCircle2 className="w-6 h-6" />
+            <h2 className="text-xl font-extrabold">Strong</h2>
+          </div>
+          <div className="space-y-3">
+            {strong.map(s => (
+              <button key={s.id} onClick={() => onSelect(s)} className="w-full text-left bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl p-4 flex justify-between items-center transition-colors">
+                <span className="font-bold text-slate-800">{s.name}</span>
+                <span className="font-bold text-green-600">{s.score}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Improving Column */}
+        <div className="bg-white rounded-2xl border-t-4 border-t-amber-500 border border-slate-200 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-6 text-amber-700">
+            <AlertTriangle className="w-6 h-6" />
+            <h2 className="text-xl font-extrabold">Improving</h2>
+          </div>
+          <div className="space-y-3">
+            {improving.map(s => (
+              <button key={s.id} onClick={() => onSelect(s)} className="w-full text-left bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl p-4 flex justify-between items-center transition-colors">
+                <span className="font-bold text-slate-800">{s.name}</span>
+                <span className="font-bold text-amber-600">{s.score}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Needs Attention Column */}
+        <div className="bg-white rounded-2xl border-t-4 border-t-red-500 border border-slate-200 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-6 text-red-700">
+            <AlertCircle className="w-6 h-6" />
+            <h2 className="text-xl font-extrabold">Needs Attention</h2>
+          </div>
+          <div className="space-y-3">
+            {attention.map(s => (
+              <button key={s.id} onClick={() => onSelect(s)} className="w-full text-left bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl p-4 flex justify-between items-center transition-colors">
+                <span className="font-bold text-slate-800">{s.name}</span>
+                <span className="font-bold text-red-600">{s.score}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function StudentProfile({ student, onBack }) {
   const [showTable, setShowTable] = useState(false);
 
   return (
     <div className="py-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      <div className="max-w-5xl mx-auto mb-[-1rem]">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-indigo-700 transition-colors">
+          <ArrowRight className="w-4 h-4 rotate-180" /> Back to Class at a Glance
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6 max-w-5xl mx-auto items-center">
         <div className="text-center lg:text-left">
           <div
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5"
             style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #e0e7ff' }}
           >
-            <BarChart3 className="w-3.5 h-3.5" /> Analytics
+            <BarChart3 className="w-3.5 h-3.5" /> Learner Profile
           </div>
           <h1 className="font-extrabold leading-tight text-slate-900" style={{ fontSize: 'clamp(28px,3.4vw,42px)' }}>
-            Track Your Progress
+            {student.name}'s Progress
           </h1>
           <p className="mt-3 text-lg font-semibold text-slate-600">
-            A clear look at how you're learning — scores over time, where your hours go, and what to
-            focus on next.
+            Current Status: <span className="font-bold text-slate-900">{student.label}</span> ({student.score} avg)
           </p>
         </div>
         <div className="rounded-2xl overflow-hidden">
@@ -310,22 +407,33 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl mx-auto items-start">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h2 className="font-extrabold text-slate-900 mb-0.5">Topic Strengths</h2>
-          <p className="text-sm font-medium text-slate-500 mb-4">Where you're doing well, and what needs another pass</p>
+          <p className="text-sm font-medium text-slate-500 mb-4">Where {student.name} is doing well, and what needs intervention.</p>
           <div className="space-y-4">
             {TOPIC_STRENGTHS.map((t) => {
               const s = STATUS_STYLE[t.status];
               const StatusIcon = s.icon;
               return (
-                <div key={t.topic}>
-                  <div className="flex items-center justify-between mb-1.5 gap-2">
+                <div key={t.topic} className={`p-4 rounded-xl border ${t.status === 'critical' ? 'bg-red-50/50 border-red-100' : 'border-transparent'}`}>
+                  <div className="flex items-center justify-between mb-2 gap-2">
                     <span className="text-sm font-bold text-slate-800">{t.topic}</span>
                     <span className="inline-flex items-center gap-1 text-xs font-bold flex-shrink-0" style={{ color: s.color }}>
                       <StatusIcon className="w-3.5 h-3.5" /> {t.score}% · {s.label}
                     </span>
                   </div>
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden mb-3">
                     <div className="h-full rounded-full" style={{ width: `${t.score}%`, background: s.bar }} />
                   </div>
+                  
+                  {/* Teacher Intervention Actions for Weak Topics */}
+                  {t.status === 'critical' && (
+                    <div className="mt-4 pt-3 border-t border-red-100 flex flex-wrap gap-2">
+                      <span className="text-xs font-bold text-red-800 w-full mb-1">Focused Attention Options:</span>
+                      <button onClick={() => alert(`Reviewing learning for ${t.topic}`)} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 rounded hover:bg-slate-50 text-slate-700">Review Learning</button>
+                      <button onClick={() => alert(`Generating AMIVI Reinforcement for ${t.topic}`)} className="text-xs font-bold px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 text-indigo-700">Reinforce</button>
+                      <button onClick={() => alert(`Generating a new diagnostic quiz for ${t.topic}`)} className="text-xs font-bold px-3 py-1.5 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 text-blue-700">New Quiz</button>
+                      <button onClick={() => alert(`Assigning Retake for ${t.topic} with new questions`)} className="text-xs font-bold px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 text-emerald-700">Assign Retake</button>
+                    </div>
+                  )}
                 </div>
               );
             })}

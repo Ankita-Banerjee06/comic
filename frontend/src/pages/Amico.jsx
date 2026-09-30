@@ -42,7 +42,7 @@ export default function Amico() {
   const [mode, setMode] = useState('comic'); // 'comic' | 'photostory'
 
   // Source: free-typed homework topic, or imported AMIVI content
-  const [source, setSource] = useState('text'); // 'text' | 'amivi'
+  const [source, setSource] = useState('amivi'); // 'text' | 'amivi'
   const [textInput, setTextInput] = useState('');
   const [extraInstructions, setExtraInstructions] = useState('');
   const [amiviProjects, setAmiviProjects] = useState([]);
@@ -502,7 +502,7 @@ export default function Amico() {
               : 'bg-purple-50 text-purple-500 border-2 border-purple-200'
           }`}
         >
-          🦸 {t('Comic Story')}
+          🦸 {t('Comic')}
         </button>
         <button
           onClick={() => setMode('photostory')}
@@ -512,7 +512,7 @@ export default function Amico() {
               : 'bg-purple-50 text-purple-500 border-2 border-purple-200'
           }`}
         >
-          📷 {t('Photo Story')}
+          📷 {t('Visual Story')}
         </button>
       </div>
 
@@ -522,42 +522,40 @@ export default function Amico() {
             {/* Source tabs */}
             <div className="flex gap-2 mb-6">
               <button
-                onClick={() => setSource('text')}
-                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-                  source === 'text'
-                    ? 'bg-pink-500 text-white shadow-lg'
-                    : 'bg-pink-50 text-pink-500 border-2 border-pink-200'
-                }`}
-              >
-                ✍️ {t('Write it myself')}
-              </button>
-              <button
                 onClick={() => setSource('amivi')}
                 className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
                   source === 'amivi'
                     ? 'bg-pink-500 text-white shadow-lg'
-                    : 'bg-pink-50 text-pink-500 border-2 border-pink-200'
+                    : 'bg-pink-50 text-pink-500 border-2 border-pink-200 hover:bg-pink-100'
                 }`}
               >
                 🎨 {t('Import from AMIVI')}
               </button>
+              <button
+                onClick={() => setSource('text')}
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                  source === 'text'
+                    ? 'bg-pink-500 text-white shadow-lg'
+                    : 'bg-pink-50 text-pink-500 border-2 border-pink-200 hover:bg-pink-100'
+                }`}
+              >
+                ✍️ {t('Paste Text')}
+              </button>
             </div>
 
-            {source === 'text' ? (
+            {source === 'amivi' ? (
               <>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">💭 {t('Your Homework Topic')}</h2>
-                <p className="text-gray-500 font-bold mb-6">{t("What did you learn today? We'll turn it into a comic adventure!")}</p>
-                <textarea
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  placeholder={t('e.g. I learned about the Taj Mahal and Shah Jahan today. The Taj Mahal is a beautiful marble mausoleum...')}
-                  className="w-full flex-1 min-h-[160px] p-5 bg-pink-50 border-2 border-pink-200 rounded-2xl text-gray-700 font-semibold resize-none focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none mb-2 text-lg transition-all"
-                />
-              </>
-            ) : (
-              <>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">🎨 {t('Pick an AMIVI Lesson')}</h2>
-                <p className="text-gray-500 font-bold mb-4">{t('Turn a lesson you already made in AMIVI into a comic.')}</p>
+                {/* Automatic AMIVI Data Import Banner */}
+                <div className="flex items-center gap-3 mb-6 bg-pink-50 p-4 rounded-xl border border-pink-100">
+                  <CheckCircle2 className="w-6 h-6 text-pink-500" />
+                  <div>
+                    <h3 className="font-bold text-pink-900">AMIVI Learning Package Connected</h3>
+                    <p className="text-sm font-medium text-pink-700">Essential Learning, Key Points, Slogans, and Images are automatically imported.</p>
+                  </div>
+                </div>
+
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">🎨 {t('Select AMIVI Material')}</h2>
+                <p className="text-gray-500 font-bold mb-4">{t('Choose the learning material to transform into a creative format. No retyping required.')}</p>
                 {amiviProjects.length === 0 ? (
                   <p className="text-gray-400 font-semibold bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-4">
                     {t('No AMIVI lessons found yet. Create one in AMIVI Studio first.')}
@@ -566,21 +564,26 @@ export default function Amico() {
                   <select
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="w-full p-4 bg-pink-50 border-2 border-pink-200 rounded-2xl text-gray-700 font-semibold mb-4 focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none"
+                    className="w-full p-4 bg-pink-50 border-2 border-pink-200 rounded-2xl text-gray-700 font-bold mb-4 focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none"
                   >
-                    <option value="">{t('Select a lesson...')}</option>
+                    <option value="">{t('Select an AMIVI Learning Package...')}</option>
                     {amiviProjects.map((project) => (
                       <option key={project.project_id} value={project.project_id}>
-                        {project.title || `Project #${project.project_id}`}
+                        {project.title || `Learning Package #${project.project_id}`}
                       </option>
                     ))}
                   </select>
                 )}
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">✍️ {t('Paste Your Text')}</h2>
+                <p className="text-gray-500 font-bold mb-6">{t("Paste any text here and we'll turn it into a creative visual story or comic.")}</p>
                 <textarea
-                  value={extraInstructions}
-                  onChange={(e) => setExtraInstructions(e.target.value)}
-                  placeholder={t('Add extra instructions (optional)')}
-                  className="w-full min-h-[80px] p-4 bg-pink-50 border-2 border-pink-200 rounded-2xl text-gray-700 font-semibold resize-none focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none mb-2"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  placeholder={t('e.g. Paste your learning material, notes, or story here...')}
+                  className="w-full flex-1 min-h-[160px] p-5 bg-pink-50 border-2 border-pink-200 rounded-2xl text-gray-700 font-semibold resize-none focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none mb-2 text-lg transition-all"
                 />
               </>
             )}

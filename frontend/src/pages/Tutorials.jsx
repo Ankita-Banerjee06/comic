@@ -71,6 +71,45 @@ const tutorials = [
     steps: ['Feed in your source material', 'AMIVI extracts key ideas, concepts and relationships', 'Get back visual summaries and learning chunks', 'Carry that content straight into AMICO for comics, quizzes and activities'],
     description: 'A quick look at AMIVI, the Visual Engine Synthesizer that turns any source material into key ideas, visual summaries and learning chunks — ready to flow into AMICO.'
   },
+  {
+    id: 10,
+    icon: Lightbulb,
+    title: 'The Power of Visual Learning',
+    category: 'Study Tips',
+    duration: '1:00', // Update this if needed
+    level: 'All Levels',
+    tint: 'bg-yellow-50',
+    iconColor: 'text-yellow-600',
+    videoUrl: '/videos/the power of visual learning.mp4',
+    steps: ['Understand why visual learning works', 'See real examples', 'Apply it to your own studies', 'Retain more information'],
+    description: 'Discover the science and impact behind visual learning, and how it can completely transform the way you study.'
+  },
+  {
+    id: 11,
+    icon: GraduationCap,
+    title: 'The VLQ Learning Experience',
+    category: 'Getting Started',
+    duration: '2:30', // Approximate, update if needed
+    level: 'All Levels',
+    tint: 'bg-emerald-50',
+    iconColor: 'text-emerald-600',
+    videoUrl: '/videos/THE VLQ LEARNING EXPERIENCE.mp4',
+    steps: ['Discover personalized learning', 'Retain complex ideas easily', 'Use quizzes for active recall', 'Learn faster with visuals'],
+    description: 'See how VLQ helps learners stay engaged, remember more, and master difficult subjects through interactive visual tools.'
+  },
+  {
+    id: 12,
+    icon: GraduationCap,
+    title: 'Benefits to Learners',
+    category: 'Getting Started',
+    duration: '1:45', // Approximate, update if needed
+    level: 'All Levels',
+    tint: 'bg-blue-50',
+    iconColor: 'text-blue-600',
+    videoUrl: '/videos/BENEFITS TO LEARNERS.mp4',
+    steps: ['Understand learning outcomes', 'Improve memory retention', 'Build confidence', 'Track your progress'],
+    description: 'A deep dive into exactly how and why the VLQ methodology benefits every kind of learner.'
+  },
 ];
 
 const levelBadge = {
@@ -222,19 +261,27 @@ export default function Tutorials() {
             className={`bg-white rounded-2xl overflow-hidden border shadow-sm hover:shadow-md group cursor-pointer transition-all flex flex-col ${featured.id === tut.id ? 'border-indigo-300' : 'border-slate-200'}`}
           >
             {/* Thumbnail */}
-            <div className={`h-36 relative overflow-hidden ${tut.thumbnail ? '' : tut.tint}`}>
+            <div className={`h-36 relative overflow-hidden ${tut.thumbnail || tut.videoUrl ? '' : tut.tint}`}>
               {tut.thumbnail ? (
                 <img
                   src={tut.thumbnail}
                   alt=""
                   className="absolute inset-0 w-full h-full object-cover"
                 />
+              ) : tut.videoUrl ? (
+                <video
+                  src={tut.videoUrl}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  preload="metadata"
+                  muted
+                  playsInline
+                />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <tut.icon className={`w-10 h-10 ${tut.iconColor}`} />
                 </div>
               )}
-              <div className={`absolute inset-0 transition-colors flex items-center justify-center ${tut.thumbnail ? 'bg-black/10 group-hover:bg-black/25' : 'bg-black/0 group-hover:bg-black/5'}`}>
+              <div className={`absolute inset-0 transition-colors flex items-center justify-center ${(tut.thumbnail || tut.videoUrl) ? 'bg-black/10 group-hover:bg-black/25' : 'bg-black/0 group-hover:bg-black/5'}`}>
                 <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
                   <Play className="w-4 h-4 text-slate-800 ml-0.5" fill="currentColor" />
                 </div>
