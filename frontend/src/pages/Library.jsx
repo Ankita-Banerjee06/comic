@@ -20,6 +20,7 @@ import {
   ImageOff,
   Library as LibraryIcon,
   Sparkles,
+  ArrowLeft,
   ArrowRight,
 } from 'lucide-react';
 import { getLibrary, getLibraryProject, deleteLibraryProject, mediaUrl } from '../services/api';
@@ -228,6 +229,14 @@ export default function Library() {
 
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <button
+        type="button"
+        onClick={() => navigate('/explore')}
+        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back
+      </button>
+
       {/* Header */}
       <div
         className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8"
@@ -242,7 +251,7 @@ export default function Library() {
               📚 Digital Library
             </h1>
             <p className="text-white/90 font-medium">
-              Your personal place to save, organize, and revisit your visual learning materials.
+              A personal home for visual learning materials. Learners can save, revisit and reinforce important knowledge. Learning remains available whenever it is needed.
             </p>
           </div>
 

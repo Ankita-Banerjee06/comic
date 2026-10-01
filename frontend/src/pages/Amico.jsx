@@ -1,7 +1,7 @@
 import FileUpload from '../components/ui/FileUpload';
 import ProcessingAnimation from '../components/ui/ProcessingAnimation';
 import { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   generateAmico,
   regenerateAmicoPanel,
@@ -33,6 +33,7 @@ import {
   Maximize2,
   Camera,
   X,
+  ArrowLeft,
   ArrowRight,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -90,6 +91,7 @@ export default function Amico() {
   const { language, t } = useLanguage();
   const { projectId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // AMIVI's "Send to AMICO" button navigates here with the AMIVI
   // project id in route state, so this page can pre-select it
@@ -470,6 +472,14 @@ export default function Amico() {
 
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <button
+        type="button"
+        onClick={() => navigate('/explore')}
+        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back
+      </button>
+
       {/* Header */}
       <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
         <div className="w-full h-44 sm:h-56" style={{ background: '#fdf2f8' }}>
@@ -489,7 +499,7 @@ export default function Amico() {
             AMICO
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3">AMICO</h1>
-          <p className="text-slate-600 font-medium max-w-xl">AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement.</p>
+          <p className="text-slate-600 font-medium max-w-xl">AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement. Together they create a continuous learning journey.</p>
         </div>
       </div>
 

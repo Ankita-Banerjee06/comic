@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapPin, Stethoscope, ArrowLeft, ArrowRight, ExternalLink, RotateCcw, Trophy, Layers } from 'lucide-react';
 import indiaQuestions from '../data/quizDecks/india.json';
 import medicalQuestions from '../data/quizDecks/medical.json';
@@ -31,8 +32,17 @@ const DECKS = [
 ];
 
 function DeckPicker({ onSelect }) {
+  const navigate = useNavigate();
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <button
+        type="button"
+        onClick={() => navigate('/explore')}
+        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back
+      </button>
+
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8" style={{ minHeight: 160, background: '#eef2ff' }}>
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 bg-indigo-600/10 border border-indigo-200 rounded-full px-4 py-1.5 text-xs font-bold mb-4 text-indigo-700">
@@ -72,6 +82,24 @@ function DeckPicker({ onSelect }) {
             </button>
           );
         })}
+      </div>
+
+      {/* ESSENTIAL LEARNING */}
+      <div className="text-center max-w-2xl mx-auto space-y-1">
+        <p className="text-slate-500 font-medium">Focuses learning on what is genuinely important.</p>
+        <p className="text-slate-500 font-medium">Key ideas, relationships and understanding replace unnecessary trivia.</p>
+        <p className="text-slate-500 font-medium">Learners concentrate on knowledge worth remembering.</p>
+      </div>
+
+      {/* 4-Step Flowchart */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 bg-slate-50 py-6 rounded-2xl border border-slate-200">
+        <div className="px-4 py-2 bg-indigo-100 rounded-xl shadow-sm border border-indigo-200 font-bold text-indigo-700">Identify</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-cyan-100 rounded-xl shadow-sm border border-cyan-200 font-bold text-cyan-700">Understand</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-amber-100 rounded-xl shadow-sm border border-amber-200 font-bold text-amber-700">Apply</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-indigo-600 rounded-xl shadow-sm border border-indigo-600 font-bold text-white">Retain</div>
       </div>
     </div>
   );

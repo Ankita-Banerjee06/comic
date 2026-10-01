@@ -694,6 +694,14 @@ export default function Quiz() {
   if (!quiz) {
     return (
       <div className="max-w-3xl mx-auto py-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <button
+          type="button"
+          onClick={() => navigate('/explore')}
+          className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+
         <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
           <div className="w-full h-44 sm:h-56" style={{ background: '#f5f3ff' }}>
             <img
@@ -713,7 +721,7 @@ export default function Quiz() {
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 mb-3">{t('Quizzes')}</h1>
             <p className="text-slate-600 font-medium max-w-xl">
-              {t('Quizzes reinforce understanding and identify what needs revisiting.')}
+              {t('Short quizzes reinforce understanding and memory. Questions focus on meaningful knowledge rather than trivia. Results help identify what has been learned and what needs revisiting.')}
             </p>
           </div>
         </div>
@@ -772,9 +780,11 @@ export default function Quiz() {
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
               📕 Retakers Quiz
             </h2>
-            <p className="text-gray-500 font-bold mb-6">
-              Retake focuses specifically on weaker areas and uses reinforcement rather than simply repeating the same quiz.
-            </p>
+            <div className="mb-6 space-y-0.5">
+              <p className="text-gray-500 font-bold">A second opportunity focused on areas needing improvement.</p>
+              <p className="text-gray-500 font-bold">Learners revisit weaker knowledge before trying again.</p>
+              <p className="text-gray-500 font-bold">Progress comes through reinforcement rather than simple repetition.</p>
+            </div>
 
             {/* Retakers 4-Step Flowchart */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mb-8 bg-slate-50 py-4 rounded-xl border border-slate-200">

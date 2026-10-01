@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Plus,
+  ArrowLeft,
   ArrowRight,
   ArrowUpRight,
   CheckCircle2,
@@ -169,6 +170,14 @@ export default function CollaborativeLearning() {
 
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <button
+        type="button"
+        onClick={() => navigate('/explore')}
+        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back
+      </button>
+
       <Header
         screen={screen}
         room={room}
@@ -270,38 +279,58 @@ function Header({ screen, room, onLeaveClick }) {
 
 function RoomHub({ onGoCreate, onGoJoin }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <button
-        onClick={onGoCreate}
-        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
-      >
-        <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-          <Plus className="w-6 h-6 text-indigo-600" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-1.5">Create a room</h2>
-        <p className="text-slate-500 font-medium text-sm mb-4">
-          Start a new study room, get a shareable code, and invite your group.
-        </p>
-        <span className="inline-flex items-center gap-1.5 text-indigo-600 font-bold text-sm">
-          Create <ArrowRight className="w-4 h-4" />
-        </span>
-      </button>
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <button
+          onClick={onGoCreate}
+          className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <Plus className="w-6 h-6 text-indigo-600" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-1.5">Create a room</h2>
+          <p className="text-slate-500 font-medium text-sm mb-4">
+            Start a new study room, get a shareable code, and invite your group.
+          </p>
+          <span className="inline-flex items-center gap-1.5 text-indigo-600 font-bold text-sm">
+            Create <ArrowRight className="w-4 h-4" />
+          </span>
+        </button>
 
-      <button
-        onClick={onGoJoin}
-        className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
-      >
-        <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-          <Users className="w-6 h-6 text-pink-600" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-1.5">Join a room</h2>
-        <p className="text-slate-500 font-medium text-sm mb-4">
-          Have a room code from someone else? Jump straight into their room.
-        </p>
-        <span className="inline-flex items-center gap-1.5 text-pink-600 font-bold text-sm">
-          Join <ArrowRight className="w-4 h-4" />
-        </span>
-      </button>
+        <button
+          onClick={onGoJoin}
+          className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <Users className="w-6 h-6 text-pink-600" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-1.5">Join a room</h2>
+          <p className="text-slate-500 font-medium text-sm mb-4">
+            Have a room code from someone else? Jump straight into their room.
+          </p>
+          <span className="inline-flex items-center gap-1.5 text-pink-600 font-bold text-sm">
+            Join <ArrowRight className="w-4 h-4" />
+          </span>
+        </button>
+      </div>
+
+      {/* COLLABORATIVE LEARNING */}
+      <div className="text-center max-w-2xl mx-auto space-y-1">
+        <p className="text-slate-500 font-medium">Learners share ideas, knowledge and creative work with others.</p>
+        <p className="text-slate-500 font-medium">Collaboration encourages discussion and deeper understanding.</p>
+        <p className="text-slate-500 font-medium">Individual learning becomes a shared learning experience.</p>
+      </div>
+
+      {/* 4-Step Flowchart */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 bg-slate-50 py-6 rounded-2xl border border-slate-200">
+        <div className="px-4 py-2 bg-indigo-100 rounded-xl shadow-sm border border-indigo-200 font-bold text-indigo-700">Create</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-pink-700">Share</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-amber-100 rounded-xl shadow-sm border border-amber-200 font-bold text-amber-700">Discuss</div>
+        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-indigo-600 rounded-xl shadow-sm border border-indigo-600 font-bold text-white">Learn Together</div>
+      </div>
     </div>
   );
 }

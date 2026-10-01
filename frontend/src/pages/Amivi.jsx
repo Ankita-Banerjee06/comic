@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Pencil,
   CheckCircle2,
+  ArrowLeft,
   ArrowRight,
   Video,
   Maximize,
@@ -392,6 +393,14 @@ export default function Amivi() {
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
+      <button
+        type="button"
+        onClick={() => navigate('/explore')}
+        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back
+      </button>
+
       {/* ======================================================
           HEADER
       ======================================================= */}
@@ -422,7 +431,7 @@ export default function Amivi() {
           </h1>
 
           <p className="text-slate-600 font-medium max-w-xl">
-            AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement.
+            AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement. Together they create a continuous learning journey.
           </p>
 
         </div>
@@ -571,23 +580,47 @@ export default function Amivi() {
 
           {/* PROMPT TYPE */}
 
-          <div className="bg-white border-2 border-indigo-100 rounded-2xl p-5">
-            <p className="text-center text-sm font-extrabold uppercase tracking-widest text-indigo-700 mb-1">
-              Prompt Type
-            </p>
-            <p className="text-center text-xs font-semibold text-slate-400 mb-4">
-              (System / User)
-            </p>
-            <div className="space-y-3 text-sm">
-              <p className="text-slate-600 font-semibold">
-                <span className="font-extrabold text-slate-800">Prompt 1</span> — System Generated: automatic generation of{' '}
-                <span className="font-bold text-indigo-600">Key Points + Images + Slogan</span>.
-              </p>
-              <p className="text-slate-600 font-semibold">
-                <span className="font-extrabold text-slate-800">Prompt 2</span> — System Generated: automatic generation of{' '}
-                <span className="font-bold text-indigo-600">Key Points + Images + Slogan + Description</span>.
+          <div className="bg-white border-2 border-indigo-100 rounded-2xl p-5 sm:p-6">
+
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4 text-indigo-500" />
+              <p className="text-center text-sm font-extrabold uppercase tracking-widest text-indigo-700">
+                Prompt Type
               </p>
             </div>
+            <p className="text-center text-xs font-semibold text-slate-400 mb-5">
+              System / User
+            </p>
+
+            <div className="space-y-3">
+              {[
+                { n: 1, parts: ['Key Points', 'Images', 'Slogan'] },
+                { n: 2, parts: ['Key Points', 'Images', 'Slogan', 'Description'] },
+              ].map((p) => (
+                <div key={p.n} className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-extrabold flex items-center justify-center flex-shrink-0">
+                      {p.n}
+                    </span>
+                    <span className="text-sm font-extrabold text-slate-800">Prompt {p.n}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-500 bg-white border border-indigo-200 rounded-full px-2 py-0.5">
+                      System Generated
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pl-8">
+                    {p.parts.map((part) => (
+                      <span
+                        key={part}
+                        className="text-xs font-bold text-indigo-700 bg-white border border-indigo-200 rounded-full px-2.5 py-1"
+                      >
+                        {part}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
           </div>
 
         </div>
@@ -637,7 +670,7 @@ export default function Amivi() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {result.chunks.map((chunk, index) => (
                     <div
                       key={chunk.chunk_id || index}
@@ -645,20 +678,20 @@ export default function Amivi() {
                         selectedChunks.has(chunk.chunk_id) ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-indigo-300'
                       }`}
                     >
-                      <div className="absolute top-2 left-2 z-20">
+                      <div className="absolute top-3 left-3 z-20">
                         <div
                           onClick={(e) => { e.stopPropagation(); toggleChunkSelection(chunk.chunk_id); }}
-                          className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center cursor-pointer shadow-sm transition-colors ${
+                          className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center cursor-pointer shadow-sm transition-colors ${
                             selectedChunks.has(chunk.chunk_id) ? 'bg-indigo-500 border-indigo-500' : 'bg-white border-gray-300'
                           }`}
                         >
-                          {selectedChunks.has(chunk.chunk_id) && <CheckCircle2 className="w-4 h-4 text-white" />}
+                          {selectedChunks.has(chunk.chunk_id) && <CheckCircle2 className="w-5 h-5 text-white" />}
                         </div>
                       </div>
 
                       <div className="relative bg-gray-100">
                         <div
-                          className="absolute -bottom-2 -left-2 z-20 w-8 h-8 bg-red-700 text-white font-extrabold text-sm flex items-center justify-center shadow-md drop-shadow-md"
+                          className="absolute -bottom-2 -left-2 z-20 w-10 h-10 bg-red-700 text-white font-extrabold flex items-center justify-center shadow-md drop-shadow-md"
                           style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
                         >
                           {index + 1}
@@ -667,12 +700,12 @@ export default function Amivi() {
                           src={getMediaUrl(chunk.image_url)}
                           alt={chunk.text || `Chunk ${index + 1}`}
                           className="w-full object-cover cursor-pointer"
-                          style={{ aspectRatio: '1/1' }}
+                          style={{ aspectRatio: '11.7/14.7' }}
                           onClick={() => openFullscreen(chunk, 1)}
                         />
                       </div>
-                      <div className="p-3 flex-1 flex items-center justify-center text-center bg-amber-50 border-t-2 border-amber-100">
-                        <p className="text-xs sm:text-sm font-extrabold text-slate-900 leading-tight">
+                      <div className="p-4 flex-1 flex items-center justify-center text-center bg-amber-50 border-t-2 border-amber-100">
+                        <p className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
                           {chunk.slogan || chunk.text || chunk.key_point || `Chunk ${index + 1}`}
                         </p>
                       </div>
@@ -708,14 +741,14 @@ export default function Amivi() {
 
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4, 5, 6].map((n) => (
               <div key={n} className="bg-amber-50 rounded-2xl border-2 border-amber-200 flex flex-col overflow-hidden">
-                <div className="flex-1 min-h-[90px] flex items-center justify-center text-amber-300 font-extrabold text-2xl">
+                <div className="flex items-center justify-center text-amber-300 font-extrabold text-4xl" style={{ aspectRatio: '11.7/14.7' }}>
                   {n}
                 </div>
-                <div className="py-2 bg-amber-100 border-t-2 border-amber-200 text-center">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-amber-700">Slogan</p>
+                <div className="py-3 bg-amber-100 border-t-2 border-amber-200 text-center">
+                  <p className="text-sm font-extrabold uppercase tracking-wide text-amber-700">Slogan</p>
                 </div>
               </div>
             ))}
@@ -957,7 +990,7 @@ export default function Amivi() {
 
           <div
             className="relative flex flex-col"
-            style={{ width: 'min(100%, calc(85vh * (11.7 / 14.7)))', aspectRatio: '11.7/14.7' }}
+            style={{ width: 'min(94vw, calc(80vh * (11.7 / 14.7)))', aspectRatio: '11.7/14.7' }}
             onClick={(event) => event.stopPropagation()}
           >
             {/* CLOSE */}
