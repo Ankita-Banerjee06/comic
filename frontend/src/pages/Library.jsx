@@ -20,6 +20,7 @@ import {
   ImageOff,
   Library as LibraryIcon,
   Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 import { getLibrary, getLibraryProject, deleteLibraryProject, mediaUrl } from '../services/api';
 
