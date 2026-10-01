@@ -430,12 +430,12 @@ export default function Amivi() {
       </div>
 
       {/* ======================================================
-          INPUT + VIDEO OUTPUT
+          INSERT SUBJECT  +  UPLOAD FILE / PROMPT TYPE
       ======================================================= */}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        {/* LEARNING MATERIAL — paste text OR upload a document */}
+        {/* INSERT SUBJECT — heading/paragraph text, video option, other, generate */}
 
         <div className="bg-gradient-to-br from-blue-50/70 via-white to-white rounded-2xl border border-blue-100 border-t-4 border-t-blue-400 shadow-sm p-6 sm:p-8 flex flex-col">
 
@@ -444,12 +444,12 @@ export default function Amivi() {
               <FileText className="w-5 h-5 text-white" />
             </div>
             <h2 className="text-xl font-bold text-slate-800">
-              {t('Your Learning Material')}
+              Insert Subject
             </h2>
           </div>
 
           <p className="text-slate-500 font-medium mb-6">
-            Paste your educational text below, or upload a PDF, Word document or TXT file to fill it in for you.
+            Add a heading or paragraph of your learning material below.
           </p>
 
           <textarea
@@ -464,42 +464,9 @@ export default function Amivi() {
 
           {!isProcessing && !result && (
             <>
-              {/* EXTRACTION INSTRUCTION */}
-              <div className="mb-5">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Extraction Instruction</label>
-                <input
-                  value={instructionInput}
-                  onChange={(e) => setInstructionInput(e.target.value)}
-                  placeholder="e.g. Give this in 5 key points"
-                  className="w-full px-5 py-3 bg-white border border-blue-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all text-lg shadow-inner"
-                />
-              </div>
+              {/* VIDEO (OPTIONAL) */}
 
-              {/* FILE UPLOAD */}
-
-              <div className="bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-4 mb-5">
-
-                <div className="flex items-center gap-2 mb-3">
-                  <UploadCloud className="w-4 h-4 text-cyan-600" />
-                  <p className="text-sm text-cyan-700 font-bold">
-                    Or upload a document to fill in the text above
-                  </p>
-                </div>
-
-                <FileUpload
-                  accept=".pdf,.docx,.txt"
-                  onUpload={handleUpload}
-                />
-
-                <p className="text-xs text-cyan-600/70 font-semibold mt-3">
-                  Supported formats: PDF · DOCX · TXT
-                </p>
-
-              </div>
-
-              {/* VIDEO OPTION */}
-
-              <div className="flex items-center gap-3 mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-3 mb-4 bg-white border-2 border-slate-200 rounded-xl px-4 py-3">
 
                 <input
                   id="generate-video"
@@ -515,12 +482,25 @@ export default function Amivi() {
 
                 <label
                   htmlFor="generate-video"
-                  className="font-bold text-amber-800 flex items-center gap-2 cursor-pointer"
+                  className="font-bold text-slate-700 flex items-center gap-2 cursor-pointer"
                 >
                   <Video className="w-5 h-5 text-amber-500" />
-                  Generate educational video
+                  Video <span className="text-slate-400 font-semibold">(Optional)</span>
                 </label>
 
+              </div>
+
+              {/* OTHER */}
+              <div className="mb-5">
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  Other <span className="text-slate-400 font-semibold">(optional instructions)</span>
+                </label>
+                <input
+                  value={instructionInput}
+                  onChange={(e) => setInstructionInput(e.target.value)}
+                  placeholder="e.g. Give this in 5 key points"
+                  className="w-full px-5 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all text-lg shadow-inner"
+                />
               </div>
 
               <button
@@ -529,12 +509,12 @@ export default function Amivi() {
                   !textInput.trim() &&
                   !videoUrl.trim()
                 }
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-lg hover:-translate-y-0.5 flex items-center justify-center gap-3 shadow-sm"
+                className="w-full py-4 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold uppercase tracking-wide rounded-2xl transition-all text-lg hover:-translate-y-0.5 flex items-center justify-center gap-3 shadow-sm"
               >
 
                 <Sparkles className="w-5 h-5" />
 
-                {t('Generate AMIVI')}
+                {t('Generate')}
 
               </button>
 
@@ -549,138 +529,198 @@ export default function Amivi() {
 
           {result && !isProcessing && (
             <p className="text-sm text-slate-500 font-bold text-center mt-auto pt-2">
-              ✅ Done! Click "Start Over" above to create another.
+              ✅ Done! Click "Start Over" below to create another.
             </p>
           )}
 
         </div>
 
 
-        {/* VIDEO OUTPUT */}
+        {/* UPLOAD FILE  +  PROMPT TYPE */}
 
         <div className="bg-gradient-to-br from-indigo-50/70 via-white to-white rounded-2xl border border-indigo-100 border-t-4 border-t-indigo-400 shadow-sm p-6 sm:p-8 flex flex-col">
 
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-sm">
-              <Video className="w-5 h-5 text-white" />
+              <UploadCloud className="w-5 h-5 text-white" />
             </div>
             <h2 className="text-xl font-bold text-slate-800">
-              {t('Your Images')}
+              Upload File
             </h2>
           </div>
 
           <p className="text-slate-500 font-medium mb-6">
-            {isProcessing
-              ? 'Sit tight — your images are being generated.'
-              : result
-              ? 'Your images are ready! Scroll down to see your visual cards.'
-              : 'Your generated images will appear here once you click Generate AMIVI.'}
+            Upload a PDF, Word document or TXT file to fill in your subject automatically.
           </p>
 
-          <div className="flex-1 flex flex-col w-full h-full mt-4">
-            {isProcessing ? (
-              <div className="flex-1 flex items-center justify-center">
-                <ProcessingAnimation title={`✨ ${t('Generating Images')}...`} />
-              </div>
-            ) : result && (result.chunks?.length > 0 || result.video_url) ? (
-              <div className="flex flex-col flex-1 w-full">
-                
-                {result.chunks?.length > 0 && (
-                  <>
-                    <div className="flex items-center justify-between mb-4 px-2">
-                      <p className="text-slate-600 font-bold text-sm">Select cards to use below:</p>
-                      <button
-                        type="button"
-                        onClick={toggleSelectAll}
-                        className="px-3 py-1.5 bg-white border-2 border-indigo-200 text-indigo-600 text-sm font-bold rounded-lg hover:bg-indigo-50 transition-colors"
-                      >
-                        {selectedChunks.size === result.chunks.length ? 'Deselect All' : 'Select All'}
-                      </button>
-                    </div>
+          {!isProcessing && !result ? (
+            <div className="bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-6 mb-6 flex-1 flex flex-col justify-center">
+              <FileUpload
+                accept=".pdf,.docx,.txt"
+                onUpload={handleUpload}
+              />
+              <p className="text-xs text-cyan-600/70 font-semibold mt-3 text-center">
+                Supported formats: PDF · DOCX · TXT
+              </p>
+            </div>
+          ) : (
+            <div className="bg-cyan-50/50 border-2 border-dashed border-cyan-100 rounded-2xl p-6 mb-6 flex-1 flex items-center justify-center text-cyan-400 font-bold text-center">
+              File upload locked while generating
+            </div>
+          )}
 
-                    <div className="flex flex-col gap-6 w-full max-h-[800px] overflow-y-auto pr-2 custom-scrollbar">
-                      {result.chunks.map((chunk, index) => (
-                        <div
-                          key={chunk.chunk_id || index}
-                          className={`bg-white rounded-2xl border-2 shadow-sm relative w-full flex flex-col shrink-0 ${
-                            selectedChunks.has(chunk.chunk_id) ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-indigo-300'
-                          }`}
-                        >
-                          <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
-                            <div 
-                              onClick={(e) => { e.stopPropagation(); toggleChunkSelection(chunk.chunk_id); }}
-                              className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center cursor-pointer shadow-sm transition-colors ${
-                                selectedChunks.has(chunk.chunk_id) ? 'bg-indigo-500 border-indigo-500' : 'bg-white border-gray-300'
-                              }`}
-                            >
-                              {selectedChunks.has(chunk.chunk_id) && <CheckCircle2 className="w-5 h-5 text-white" />}
-                            </div>
-                          </div>
+          {/* PROMPT TYPE */}
 
-                          <div className="relative bg-gray-100 rounded-t-2xl overflow-hidden shrink-0">
-                            <div 
-                              className="absolute -bottom-2 -left-2 z-20 w-10 h-10 bg-red-700 text-white font-extrabold flex items-center justify-center shadow-md drop-shadow-md"
-                              style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-                            >
-                              {index + 1}
-                            </div>
-                            <img
-                              src={getMediaUrl(chunk.image_url)}
-                              alt={chunk.text || `Chunk ${index + 1}`}
-                              className="w-full object-cover cursor-pointer"
-                              style={{ aspectRatio: '11.7/14.7' }}
-                              onClick={() => openFullscreen(chunk, 1)}
-                            />
-                          </div>
-                          <div className="p-4 sm:p-5 flex-1 flex items-center justify-center text-center">
-                            <p className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight tracking-tight">
-                              {chunk.text || chunk.key_point || `Chunk ${index + 1}`}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {result.video_url && (
-                  <div className="w-full mt-6 pt-6 border-t-2 border-indigo-100 flex flex-col items-center justify-center text-center">
-                    <p className="text-sm font-bold text-slate-500 mb-3">This is the link of the video:</p>
-                    <div className="flex flex-wrap items-center justify-center gap-3">
-                      <a
-                        href={getMediaUrl(result.video_url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
-                      >
-                        <Video size={18} />
-                        Watch Video
-                      </a>
-                      <button
-                        onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
-                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
-                      >
-                        <Download size={18} />
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center py-8">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
-                    <Video className="w-9 h-9 text-indigo-400" />
-                  </div>
-                  <p className="text-indigo-400 font-bold">No images generated yet</p>
-                </div>
-              </div>
-            )}
+          <div className="bg-white border-2 border-indigo-100 rounded-2xl p-5">
+            <p className="text-center text-sm font-extrabold uppercase tracking-widest text-indigo-700 mb-1">
+              Prompt Type
+            </p>
+            <p className="text-center text-xs font-semibold text-slate-400 mb-4">
+              (System / User)
+            </p>
+            <div className="space-y-3 text-sm">
+              <p className="text-slate-600 font-semibold">
+                <span className="font-extrabold text-slate-800">Prompt 1</span> — System Generated: automatic generation of{' '}
+                <span className="font-bold text-indigo-600">Key Points + Images + Slogan</span>.
+              </p>
+              <p className="text-slate-600 font-semibold">
+                <span className="font-extrabold text-slate-800">Prompt 2</span> — System Generated: automatic generation of{' '}
+                <span className="font-bold text-indigo-600">Key Points + Images + Slogan + Description</span>.
+              </p>
+            </div>
           </div>
 
         </div>
+
+      </div>
+
+
+      {/* ======================================================
+          IMAGE
+      ======================================================= */}
+
+      <div className="bg-gradient-to-br from-slate-50 via-white to-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">Image</h2>
+          <p className="text-slate-500 font-semibold">
+            {isProcessing
+              ? 'Sit tight — your images are being generated.'
+              : result
+              ? 'Your images are ready!'
+              : 'Your images appear here'}
+          </p>
+          {!isProcessing && !result && (
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">
+              Example: Prompt 1
+            </p>
+          )}
+        </div>
+
+        {isProcessing ? (
+          <div className="py-10 flex items-center justify-center">
+            <ProcessingAnimation title={`✨ ${t('Generating Images')}...`} />
+          </div>
+        ) : result && (result.chunks?.length > 0 || result.video_url) ? (
+          <div className="flex flex-col w-full">
+
+            {result.chunks?.length > 0 && (
+              <>
+                <div className="flex items-center justify-between mb-4 px-2">
+                  <p className="text-slate-600 font-bold text-sm">Select cards to use below:</p>
+                  <button
+                    type="button"
+                    onClick={toggleSelectAll}
+                    className="px-3 py-1.5 bg-white border-2 border-indigo-200 text-indigo-600 text-sm font-bold rounded-lg hover:bg-indigo-50 transition-colors"
+                  >
+                    {selectedChunks.size === result.chunks.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {result.chunks.map((chunk, index) => (
+                    <div
+                      key={chunk.chunk_id || index}
+                      className={`bg-white rounded-2xl border-2 shadow-sm relative flex flex-col overflow-hidden ${
+                        selectedChunks.has(chunk.chunk_id) ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-indigo-300'
+                      }`}
+                    >
+                      <div className="absolute top-2 left-2 z-20">
+                        <div
+                          onClick={(e) => { e.stopPropagation(); toggleChunkSelection(chunk.chunk_id); }}
+                          className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center cursor-pointer shadow-sm transition-colors ${
+                            selectedChunks.has(chunk.chunk_id) ? 'bg-indigo-500 border-indigo-500' : 'bg-white border-gray-300'
+                          }`}
+                        >
+                          {selectedChunks.has(chunk.chunk_id) && <CheckCircle2 className="w-4 h-4 text-white" />}
+                        </div>
+                      </div>
+
+                      <div className="relative bg-gray-100">
+                        <div
+                          className="absolute -bottom-2 -left-2 z-20 w-8 h-8 bg-red-700 text-white font-extrabold text-sm flex items-center justify-center shadow-md drop-shadow-md"
+                          style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                        >
+                          {index + 1}
+                        </div>
+                        <img
+                          src={getMediaUrl(chunk.image_url)}
+                          alt={chunk.text || `Chunk ${index + 1}`}
+                          className="w-full object-cover cursor-pointer"
+                          style={{ aspectRatio: '1/1' }}
+                          onClick={() => openFullscreen(chunk, 1)}
+                        />
+                      </div>
+                      <div className="p-3 flex-1 flex items-center justify-center text-center bg-amber-50 border-t-2 border-amber-100">
+                        <p className="text-xs sm:text-sm font-extrabold text-slate-900 leading-tight">
+                          {chunk.slogan || chunk.text || chunk.key_point || `Chunk ${index + 1}`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {result.video_url && (
+              <div className="w-full mt-6 pt-6 border-t-2 border-indigo-100 flex flex-col items-center justify-center text-center">
+                <p className="text-sm font-bold text-slate-500 mb-3">This is the link of the video:</p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <a
+                    href={getMediaUrl(result.video_url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
+                  >
+                    <Video size={18} />
+                    Watch Video
+                  </a>
+                  <button
+                    onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
+                  >
+                    <Download size={18} />
+                    Download
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="bg-amber-50 rounded-2xl border-2 border-amber-200 flex flex-col overflow-hidden">
+                <div className="flex-1 min-h-[90px] flex items-center justify-center text-amber-300 font-extrabold text-2xl">
+                  {n}
+                </div>
+                <div className="py-2 bg-amber-100 border-t-2 border-amber-200 text-center">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-amber-700">Slogan</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
       </div>
 
