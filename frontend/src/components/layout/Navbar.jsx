@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Menu, X, User, Globe, ChevronDown, GraduationCap, Video, LogOut, Home, Compass, CreditCard, Lightbulb, Info } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useLanguage, SUPPORTED_LANGUAGES } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 const navLinks = [
@@ -15,12 +15,27 @@ const navLinks = [
 ];
 
 function LanguageSwitcher() {
-  // Only English is supported right now, so this is a plain label
-  // rather than a dropdown — nothing to switch to yet.
+  // English (default) and Spanish, per the MVP language scope — see
+  // SUPPORTED_LANGUAGES in LanguageContext for the full list; this
+  // just renders whatever's there, so a later addition needs no
+  // change here.
+  const { language, setLanguage } = useLanguage();
+
   return (
-    <div className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-white font-bold text-lg">
-      <Globe className="w-5 h-5" />
-      <span>English</span>
+    <div className="flex items-center gap-1.5 pl-3 pr-2 py-2 rounded-xl text-white font-bold text-lg hover:bg-white/10 transition-colors">
+      <Globe className="w-5 h-5 flex-shrink-0" />
+      <select
+        value={language}
+        onChange={(e) => setLanguage(e.target.value)}
+        aria-label="Language"
+        className="bg-transparent text-white font-bold text-lg focus:outline-none cursor-pointer [&>option]:text-slate-900"
+      >
+        {SUPPORTED_LANGUAGES.map((lang) => (
+          <option key={lang.code} value={lang.code}>
+            {lang.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

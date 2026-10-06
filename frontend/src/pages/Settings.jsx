@@ -1,6 +1,9 @@
 import { Bell, Moon, Sun, Shield, Globe } from 'lucide-react';
+import { useLanguage, SUPPORTED_LANGUAGES } from '../contexts/LanguageContext';
 
 export default function Settings() {
+  const { language, setLanguage } = useLanguage();
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
       <div>
@@ -21,10 +24,16 @@ export default function Settings() {
               <p className="text-white font-medium">App Language</p>
               <p className="text-sm text-gray-500">Select your preferred language</p>
             </div>
-            <select className="bg-gray-950 border border-gray-800 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5">
-              <option>English (US)</option>
-              <option>Spanish</option>
-              <option>French</option>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="bg-gray-950 border border-gray-800 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5"
+            >
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.label}
+                </option>
+              ))}
             </select>
           </div>
         </SettingSection>

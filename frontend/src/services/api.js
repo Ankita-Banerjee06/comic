@@ -180,6 +180,67 @@ export async function editAmiviChunk(
   return response.json();
 }
 
+// AMIVI EXPLAIN — second stage. Generates a short explanation for ONE
+// already-generated Microbit, on demand, when that Microbit is
+// individually selected (click-to-reveal), without touching its image.
+export async function explainAmiviChunk(
+  chunk,
+  subject = '',
+  language = 'en',
+  projectId = null
+) {
+  const response = await fetch(`${API_URL}/api/amivi/explain_chunk`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      project_id: projectId,
+      chunk_id: chunk.chunk_id,
+      key_point: chunk.key_point || chunk.slogan || chunk.text || '',
+      slogan: chunk.slogan || '',
+      subject,
+      language,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to generate explanation.');
+  }
+
+  return response.json();
+}
+
+// AMIVI COMPLETE VISUAL — optional Stage 3. Generates ONE new
+// connected illustration from the project's already-saved Microbits
+// (requires the project to already be saved, i.e. generation has run).
+export async function generateAmiviCompleteVisual(
+  projectId,
+  language = 'en'
+) {
+  const response = await fetch(
+    `${API_URL}/api/amivi/generate_complete_visual`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        project_id: projectId,
+        language,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to generate Complete Visual.');
+  }
+
+  return response.json();
+}
+
 export async function generateAmiviPhotoStory(projectId) {
   const response = await fetch(
     `${API_URL}/api/amivi/generate_photo_story`,

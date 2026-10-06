@@ -7,6 +7,7 @@ import {
   generateAmivi,
   regenerateAmiviImage,
   editAmiviChunk,
+  generateAmiviCompleteVisual,
   generateAmiviPhotoStory,
   getLibraryProject,
   API_URL,
@@ -25,22 +26,67 @@ import {
   Download,
   FileText,
   UploadCloud,
+  Loader2,
 } from 'lucide-react';
 
 import { useLanguage } from '../contexts/LanguageContext';
+
+// Shared pager for the Microbit grids (Box 1 / Box 2) — 6 Microbits
+// per page, 3 per row x 2 rows; only rendered when there's more
+// than one page.
+function MicrobitPager({ page, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-3 mt-6">
+      <button
+        type="button"
+        onClick={() => onChange(page - 1)}
+        disabled={page === 0}
+        className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-300 transition-colors"
+      >
+        ← Previous
+      </button>
+
+      <div className="flex items-center gap-2">
+        {Array.from({ length: totalPages }).map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onChange(i)}
+            className={`w-9 h-9 rounded-full font-bold text-sm border-2 transition-colors ${
+              i === page
+                ? 'bg-indigo-500 border-indigo-500 text-white'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
+            }`}
+          >
+            {i + 1}
+          </button>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages - 1}
+        className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-300 transition-colors"
+      >
+        Next →
+      </button>
+    </div>
+  );
+}
 
 export default function Amivi() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [result, setResult] = useState(null);
   const [textInput, setTextInput] = useState('');
-  const [instructionInput, setInstructionInput] = useState('');
   const [error, setError] = useState(null);
 
   const [generateVideo, setGenerateVideo] = useState(true);
   const [videoUrl, setVideoUrl] = useState('');
 
-  const [fullscreenChunk, setFullscreenChunk] = useState(null);
   const [processingChunkId, setProcessingChunkId] = useState(null);
   const [editingChunk, setEditingChunk] = useState(null);
   const [selectedChunks, setSelectedChunks] = useState(new Set());
@@ -59,6 +105,19 @@ export default function Amivi() {
 
   const [isGeneratingPhotoStory, setIsGeneratingPhotoStory] = useState(false);
   const [photoStoryError, setPhotoStoryError] = useState(null);
+
+  // Microbit pages — 6 cards per page (3 per row x 2 rows), shared by
+  // Box 1 and Box 2 so a teacher moves through the same Microbits
+  // together in both. Resets to page 1 whenever a different
+  // project's results load (see useEffect below).
+  const [chunkPage, setChunkPage] = useState(0);
+  const CHUNKS_PER_PAGE = 6;
+
+  // Complete Visual — optional Stage 3, one new connected illustration
+  // generated from the already-saved Microbits.
+  const [completeVisualUrl, setCompleteVisualUrl] = useState(null);
+  const [isGeneratingCompleteVisual, setIsGeneratingCompleteVisual] = useState(false);
+  const [completeVisualError, setCompleteVisualError] = useState(null);
 
   const navigate = useNavigate();
   const { projectId } = useParams();
@@ -98,6 +157,14 @@ export default function Amivi() {
     };
   }, [projectId]);
 
+  // Start back at Microbit page 1 whenever a different project's
+  // results load (a fresh generation, or opening one from the
+  // Library) — but not on every small in-place update (an image
+  // regenerate, an edit) to the same project's result.
+  useEffect(() => {
+    setChunkPage(0);
+  }, [result?.project_id]);
+
   // ============================================================
   // HELPERS
   // ============================================================
@@ -113,6 +180,76 @@ export default function Amivi() {
     }
 
     return `${API_URL}${path}`;
+  };
+
+  // Clicking a visual card opens its photo full-size in a new browser
+  // tab (not an in-page popup) — a teacher can drag that tab onto a
+  // projector/second screen, like a slide, instead of being stuck
+  // inside this app window. The slogan comes along with it, shown
+  // under the enlarged photo, so the "slide" still carries its
+  // message rather than being a bare image.
+  const escapeHtml = (str) =>
+    String(str || '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }[ch]));
+
+  const openImageInNewTab = (imagePath, slogan) => {
+    const url = getMediaUrl(imagePath);
+    if (!url) return;
+
+    // NOTE: deliberately NOT passing 'noopener' here — when that flag
+    // is set, window.open() returns null (the browser won't hand back
+    // a reference), and we need the reference below to write this
+    // tab's content. Sever the back-reference manually instead, right
+    // after opening, so the new tab still can't reach this page via
+    // window.opener.
+    const tab = window.open('', '_blank');
+    if (!tab) return;
+    tab.opener = null;
+
+    tab.document.write(`<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(slogan) || 'Microbit'}</title>
+    <style>
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Nunito', Arial, sans-serif;
+      }
+      img {
+        max-width: 100vw;
+        max-height: 85vh;
+        object-fit: contain;
+      }
+      .slogan {
+        margin-top: 1.5rem;
+        padding: 0 2rem;
+        color: #fcd34d;
+        font-size: clamp(1.75rem, 4.5vw, 3.5rem);
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <img src="${url}" alt="${escapeHtml(slogan) || 'Microbit visual'}" />
+    ${slogan ? `<div class="slogan">${escapeHtml(slogan)}</div>` : ''}
+  </body>
+</html>`);
+    tab.document.close();
   };
 
   const handleDownload = async (url, filename) => {
@@ -141,17 +278,34 @@ export default function Amivi() {
     setTextInput('');
     setVideoUrl('');
     setError(null);
-    setFullscreenChunk(null);
     setMcqAnswers({});
     setPhotoStoryError(null);
+    setCompleteVisualUrl(null);
+    setIsGeneratingCompleteVisual(false);
+    setCompleteVisualError(null);
+    setChunkPage(0);
   };
 
-  const openFullscreen = (chunk, slot = 1) => {
-    setFullscreenChunk({ ...chunk, __slot: slot });
-  };
+  // ============================================================
+  // COMPLETE VISUAL — optional Stage 3. One new connected
+  // illustration built from the already-generated Microbits.
+  // ============================================================
 
-  const closeFullscreen = () => {
-    setFullscreenChunk(null);
+  const handleGenerateCompleteVisual = async () => {
+    if (!result?.project_id) return;
+
+    setIsGeneratingCompleteVisual(true);
+    setCompleteVisualError(null);
+
+    try {
+      const data = await generateAmiviCompleteVisual(result.project_id, language);
+      setCompleteVisualUrl(data?.image_url || null);
+    } catch (err) {
+      console.error('AMIVI Complete Visual error:', err);
+      setCompleteVisualError('Could not generate the Complete Visual.');
+    } finally {
+      setIsGeneratingCompleteVisual(false);
+    }
   };
 
   const toggleChunkSelection = (chunkId) => {
@@ -172,30 +326,26 @@ export default function Amivi() {
     }
   };
 
-  // Whichever image is showing in the fullscreen viewer right now.
-  const fullscreenImageUrl = fullscreenChunk
-    ? fullscreenChunk.__slot === 2
-      ? fullscreenChunk.image2_url
-      : fullscreenChunk.image_url
-    : null;
+  // Microbit paging for Box 1 / Box 2 — 6 per page (3 per row, 2
+  // rows); a 7th Microbit starts page 2, and so on. Select All /
+  // Deselect All still applies to every Microbit, not just the
+  // current page.
+  const totalChunkPages = result?.chunks?.length
+    ? Math.ceil(result.chunks.length / CHUNKS_PER_PAGE)
+    : 0;
 
-  // Escape key closes fullscreen viewer
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setFullscreenChunk(null);
-      }
-    };
+  const pagedChunks = result?.chunks
+    ? result.chunks.slice(
+        chunkPage * CHUNKS_PER_PAGE,
+        chunkPage * CHUNKS_PER_PAGE + CHUNKS_PER_PAGE
+      )
+    : [];
 
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener(
-        'keydown',
-        handleKeyDown
-      );
-    };
-  }, []);
+  const goToChunkPage = (page) => {
+    setChunkPage(
+      Math.max(0, Math.min(page, totalChunkPages - 1))
+    );
+  };
 
   // ============================================================
   // GENERATE AMIVI
@@ -426,11 +576,11 @@ export default function Amivi() {
             AMIVI
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-black mb-3">
             AMIVI
           </h1>
 
-          <p className="text-slate-600 font-medium max-w-xl">
+          <p className="text-black font-medium max-w-xl text-lg">
             AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement. Together they create a continuous learning journey.
           </p>
 
@@ -452,12 +602,12 @@ export default function Amivi() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-sm">
               <FileText className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-xl font-bold text-slate-800">
+            <h2 className="text-2xl font-bold text-black">
               Insert Subject
             </h2>
           </div>
 
-          <p className="text-slate-500 font-medium mb-6">
+          <p className="text-black font-medium mb-6 text-lg">
             Add a heading or paragraph of your learning material below.
           </p>
 
@@ -468,7 +618,7 @@ export default function Amivi() {
             placeholder={t(
               'Paste your educational text here... e.g. Give this in 5 key points, and the pics should come with key points.'
             )}
-            className={`w-full flex-1 min-h-[220px] p-5 bg-blue-50/60 border border-blue-200 rounded-2xl text-slate-700 font-medium resize-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none mb-5 text-lg transition-all ${(isProcessing || !!result) ? 'opacity-60 cursor-not-allowed' : ''}`}
+            className={`w-full flex-1 min-h-[220px] p-5 bg-blue-50/60 border border-blue-200 rounded-2xl text-black font-medium resize-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none mb-5 text-xl transition-all ${(isProcessing || !!result) ? 'opacity-60 cursor-not-allowed' : ''}`}
           />
 
           {!isProcessing && !result && (
@@ -491,25 +641,12 @@ export default function Amivi() {
 
                 <label
                   htmlFor="generate-video"
-                  className="font-bold text-slate-700 flex items-center gap-2 cursor-pointer"
+                  className="font-bold text-black flex items-center gap-2 cursor-pointer text-lg"
                 >
                   <Video className="w-5 h-5 text-amber-500" />
-                  Video <span className="text-slate-400 font-semibold">(Optional)</span>
+                  Video <span className="text-black font-semibold">(Optional)</span>
                 </label>
 
-              </div>
-
-              {/* OTHER */}
-              <div className="mb-5">
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Other <span className="text-slate-400 font-semibold">(optional instructions)</span>
-                </label>
-                <input
-                  value={instructionInput}
-                  onChange={(e) => setInstructionInput(e.target.value)}
-                  placeholder="e.g. Give this in 5 key points"
-                  className="w-full px-5 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all text-lg shadow-inner"
-                />
               </div>
 
               <button
@@ -537,7 +674,7 @@ export default function Amivi() {
           )}
 
           {result && !isProcessing && (
-            <p className="text-sm text-slate-500 font-bold text-center mt-auto pt-2">
+            <p className="text-base text-black font-bold text-center mt-auto pt-2">
               ✅ Done! Click "Start Over" below to create another.
             </p>
           )}
@@ -553,12 +690,12 @@ export default function Amivi() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-sm">
               <UploadCloud className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-xl font-bold text-slate-800">
+            <h2 className="text-2xl font-bold text-black">
               Upload File
             </h2>
           </div>
 
-          <p className="text-slate-500 font-medium mb-6">
+          <p className="text-black font-medium mb-6 text-lg">
             Upload a PDF, Word document or TXT file to fill in your subject automatically.
           </p>
 
@@ -568,7 +705,7 @@ export default function Amivi() {
                 accept=".pdf,.docx,.txt"
                 onUpload={handleUpload}
               />
-              <p className="text-xs text-cyan-600/70 font-semibold mt-3 text-center">
+              <p className="text-sm text-black font-semibold mt-3 text-center">
                 Supported formats: PDF · DOCX · TXT
               </p>
             </div>
@@ -588,35 +725,36 @@ export default function Amivi() {
                 Prompt Type
               </p>
             </div>
-            <p className="text-center text-xs font-semibold text-slate-400 mb-5">
+            <p className="text-center text-sm font-semibold text-black mb-5">
               System / User
             </p>
 
             <div className="space-y-3">
               {[
-                { n: 1, parts: ['Key Points', 'Images', 'Slogan'] },
-                { n: 2, parts: ['Key Points', 'Images', 'Slogan', 'Description'] },
+                {
+                  n: 1,
+                  name: 'INTRODUCE',
+                  description: 'Create individual visual Microbits with key points, images and short slogans.',
+                },
+                {
+                  n: 2,
+                  name: 'AMIVI EXPLAIN',
+                  description: 'Automatically explains each Microbit using its own key point and slogan — no extra step needed.',
+                },
               ].map((p) => (
                 <div key={p.n} className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-2">
                     <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-extrabold flex items-center justify-center flex-shrink-0">
                       {p.n}
                     </span>
-                    <span className="text-sm font-extrabold text-slate-800">Prompt {p.n}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-500 bg-white border border-indigo-200 rounded-full px-2 py-0.5">
+                    <span className="text-base font-extrabold text-black">{p.name}</span>
+                    <span className="text-xs font-bold uppercase tracking-wide text-indigo-500 bg-white border border-indigo-200 rounded-full px-2 py-0.5">
                       System Generated
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 pl-8">
-                    {p.parts.map((part) => (
-                      <span
-                        key={part}
-                        className="text-xs font-bold text-indigo-700 bg-white border border-indigo-200 rounded-full px-2.5 py-1"
-                      >
-                        {part}
-                      </span>
-                    ))}
-                  </div>
+                  <p className="text-sm font-semibold text-black pl-8 leading-relaxed">
+                    {p.description}
+                  </p>
                 </div>
               ))}
             </div>
@@ -629,14 +767,18 @@ export default function Amivi() {
 
 
       {/* ======================================================
-          IMAGE
+          BOX 1 — INTRODUCE (Image + Key Point + Slogan)
+          Never replaced or overwritten by EXPLAIN below.
       ======================================================= */}
 
       <div className="bg-gradient-to-br from-slate-50 via-white to-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
 
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">Image</h2>
-          <p className="text-slate-500 font-semibold">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-2 text-amber-700" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+            {t('Box 1 · INTRODUCE')}
+          </div>
+          <h2 className="text-3xl font-extrabold text-black mb-1">Image</h2>
+          <p className="text-black font-semibold text-lg">
             {isProcessing
               ? 'Sit tight — your images are being generated.'
               : result
@@ -644,7 +786,7 @@ export default function Amivi() {
               : 'Your images appear here'}
           </p>
           {!isProcessing && !result && (
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">
+            <p className="text-sm font-bold uppercase tracking-widest text-black mt-1">
               Example: Prompt 1
             </p>
           )}
@@ -660,7 +802,7 @@ export default function Amivi() {
             {result.chunks?.length > 0 && (
               <>
                 <div className="flex items-center justify-between mb-4 px-2">
-                  <p className="text-slate-600 font-bold text-sm">Select cards to use below:</p>
+                  <p className="text-black font-bold text-base">Select cards to use below:</p>
                   <button
                     type="button"
                     onClick={toggleSelectAll}
@@ -671,7 +813,9 @@ export default function Amivi() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {result.chunks.map((chunk, index) => (
+                  {pagedChunks.map((chunk, pageIndex) => {
+                    const index = chunkPage * CHUNKS_PER_PAGE + pageIndex;
+                    return (
                     <div
                       key={chunk.chunk_id || index}
                       className={`bg-white rounded-2xl border-2 shadow-sm relative flex flex-col overflow-hidden ${
@@ -699,25 +843,37 @@ export default function Amivi() {
                         <img
                           src={getMediaUrl(chunk.image_url)}
                           alt={chunk.text || `Chunk ${index + 1}`}
-                          className="w-full object-cover cursor-pointer"
+                          className="w-full object-contain cursor-pointer"
                           style={{ aspectRatio: '11.7/14.7' }}
-                          onClick={() => openFullscreen(chunk, 1)}
+                          onClick={() => openImageInNewTab(chunk.image_url, chunk.slogan)}
                         />
                       </div>
-                      <div className="p-4 flex-1 flex items-center justify-center text-center bg-amber-50 border-t-2 border-amber-100">
-                        <p className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
-                          {chunk.slogan || chunk.text || chunk.key_point || `Chunk ${index + 1}`}
+                      <div className="p-4 flex-1 flex flex-col items-center justify-center text-center bg-amber-50 border-t-2 border-amber-100 gap-1">
+                        <p className="text-2xl sm:text-3xl font-extrabold text-black leading-tight">
+                          {chunk.key_point || chunk.text || `Chunk ${index + 1}`}
                         </p>
+                        {chunk.slogan && (
+                          <p className="text-lg sm:text-xl font-bold text-amber-700 uppercase tracking-wide">
+                            {chunk.slogan}
+                          </p>
+                        )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
+
+                <MicrobitPager
+                  page={chunkPage}
+                  totalPages={totalChunkPages}
+                  onChange={goToChunkPage}
+                />
               </>
             )}
 
             {result.video_url && (
               <div className="w-full mt-6 pt-6 border-t-2 border-indigo-100 flex flex-col items-center justify-center text-center">
-                <p className="text-sm font-bold text-slate-500 mb-3">This is the link of the video:</p>
+                <p className="text-base font-bold text-black mb-3">This is the link of the video:</p>
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <a
                     href={getMediaUrl(result.video_url)}
@@ -741,7 +897,7 @@ export default function Amivi() {
 
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((n) => (
               <div key={n} className="bg-amber-50 rounded-2xl border-2 border-amber-200 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-center text-amber-300 font-extrabold text-4xl" style={{ aspectRatio: '11.7/14.7' }}>
@@ -757,6 +913,151 @@ export default function Amivi() {
 
       </div>
 
+      {/* ======================================================
+          BOX 2 — EXPLAIN (Same Image + Same Key Point + Same
+          Slogan + Brief Explanation). A completely separate
+          section — it never replaces or hides Box 1 above; both
+          stay visible. Every Microbit's explanation is generated
+          automatically (from its own Key Point + Slogan) as part
+          of generation itself — there's no separate "AMIVI
+          Explain" click any more.
+      ======================================================= */}
+
+      {result && !isProcessing && result.chunks?.length > 0 && (
+        <div className="bg-gradient-to-br from-amber-50/60 via-white to-white rounded-2xl border border-amber-200 shadow-sm p-6 sm:p-8">
+
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-2 text-amber-700" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+              {t('Box 2 · AMIVI EXPLAIN')}
+            </div>
+            <h2 className="text-3xl font-extrabold text-black mb-1">{t('Understand Each Microbit')}</h2>
+            <p className="text-black font-semibold text-lg">
+              {t('Same image, same slogan — now explained, ready to present one at a time.')}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pagedChunks.map((chunk, pageIndex) => {
+              const index = chunkPage * CHUNKS_PER_PAGE + pageIndex;
+              return (
+              <div
+                key={chunk.chunk_id || index}
+                className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm relative flex flex-col overflow-hidden"
+              >
+                <div className="relative bg-gray-100">
+                  <div
+                    className="absolute -bottom-2 -left-2 z-20 w-10 h-10 bg-red-700 text-white font-extrabold flex items-center justify-center shadow-md drop-shadow-md"
+                    style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                  >
+                    {index + 1}
+                  </div>
+                  <img
+                    src={getMediaUrl(chunk.image_url)}
+                    alt={chunk.text || `Chunk ${index + 1}`}
+                    className="w-full object-contain cursor-pointer"
+                    style={{ aspectRatio: '11.7/14.7' }}
+                    onClick={() => openImageInNewTab(chunk.image_url, chunk.slogan)}
+                  />
+                </div>
+
+                <div className="p-4 flex flex-col items-center text-center bg-amber-50 border-t-2 border-amber-100 gap-1">
+                  <p className="text-2xl sm:text-3xl font-extrabold text-black leading-tight">
+                    {chunk.key_point || chunk.text || `Chunk ${index + 1}`}
+                  </p>
+                  {chunk.slogan && (
+                    <p className="text-lg sm:text-xl font-bold text-amber-700 uppercase tracking-wide">
+                      {chunk.slogan}
+                    </p>
+                  )}
+
+                  <div className="w-full mt-2">
+                    {chunk.description ? (
+                      <p className="text-xl sm:text-2xl text-black font-medium text-left w-full bg-white border border-amber-200 rounded-xl p-3">
+                        {chunk.description}
+                      </p>
+                    ) : (
+                      <p className="text-base text-slate-400 italic w-full bg-white border border-amber-100 rounded-xl p-3">
+                        {t('Explanation not available for this Microbit.')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              );
+            })}
+          </div>
+
+          <MicrobitPager
+            page={chunkPage}
+            totalPages={totalChunkPages}
+            onChange={goToChunkPage}
+          />
+
+        </div>
+      )}
+
+      {/* ======================================================
+          BOX 3 — COMPLETE VISUAL (optional)
+          One new connected illustration, generated after the
+          individual Microbits. Shows the relationship between
+          Key Points — never a replacement for Box 1 or Box 2.
+      ======================================================= */}
+
+      {result && !isProcessing && result.chunks?.length > 0 && (
+        <div className="bg-gradient-to-br from-purple-50/60 via-white to-white rounded-2xl border border-purple-200 shadow-sm p-6 sm:p-8">
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+            <div className="text-center sm:text-left">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-2 text-purple-700" style={{ background: '#faf5ff', border: '1px solid #e9d5ff' }}>
+                {t('Optional')}
+              </div>
+              <h2 className="text-3xl font-extrabold text-black mb-1">{t('Complete Visual')}</h2>
+              <p className="text-black font-semibold text-lg">
+                {t('One connected illustration that brings every Microbit together.')}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGenerateCompleteVisual}
+              disabled={isGeneratingCompleteVisual}
+              className="px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center gap-2 transition-all flex-shrink-0"
+            >
+              {isGeneratingCompleteVisual ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" /> {t('Generating...')}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  {completeVisualUrl ? t('Regenerate Complete Visual') : t('Generate Complete Visual')}
+                </>
+              )}
+            </button>
+          </div>
+
+          {completeVisualError && (
+            <p className="text-red-500 font-bold text-sm text-center mb-4">{completeVisualError}</p>
+          )}
+
+          {completeVisualUrl ? (
+            <div className="rounded-2xl overflow-hidden border-2 border-purple-200 shadow-sm">
+              <img
+                src={getMediaUrl(completeVisualUrl)}
+                alt={t('Complete Visual')}
+                className="w-full object-contain bg-white"
+              />
+            </div>
+          ) : (
+            <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/40 py-10 flex flex-col items-center justify-center text-center gap-1">
+              <p className="text-black font-bold text-lg">
+                {t('Generate a single connected illustration showing how all Microbits relate.')}
+              </p>
+            </div>
+          )}
+
+        </div>
+      )}
 
       {/* ======================================================
           RESULTS
@@ -824,10 +1125,10 @@ export default function Amivi() {
             <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
 
               <div>
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="text-3xl font-bold text-black flex items-center gap-2">
                   📖 {t('Photo Story')}
                 </h3>
-                <p className="text-sm text-gray-500 font-semibold mt-1">
+                <p className="text-base text-black font-semibold mt-1">
                   {t('Combine every chunk into one poster-style sheet you can print or share.')}
                 </p>
               </div>
@@ -901,9 +1202,9 @@ export default function Amivi() {
             
             <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
               <div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-1">What Next?</h3>
-                <p className="text-slate-500 font-medium">
-                  {selectedChunks.size > 0 
+                <h3 className="text-3xl font-bold text-black mb-1">What Next?</h3>
+                <p className="text-black font-medium text-lg">
+                  {selectedChunks.size > 0
                     ? `${selectedChunks.size} card(s) selected.`
                     : 'Select visual cards above to use them in other activities.'}
                 </p>
@@ -953,10 +1254,11 @@ export default function Amivi() {
                 type="button"
                 onClick={() => navigate('/amico', { state: { sourceProjectId: result.project_id } })}
                 disabled={!result?.project_id}
+                title="Sends this completed AMIVI package (Key Points, slogans, visuals and explanations) straight to AMICO — nothing needs retyping."
                 className="py-4 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-200 text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
               >
                 <span className="text-2xl">🎨</span>
-                AMICO
+                Send to AMICO
               </button>
 
               <button
@@ -978,121 +1280,37 @@ export default function Amivi() {
 
 
       {/* ======================================================
-          FULLSCREEN VIEWER
-      ======================================================= */}
-
-      {fullscreenChunk && (
-
-        <div
-          className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4 md:p-8"
-          onClick={closeFullscreen}
-        >
-
-          <div
-            className="relative flex flex-col"
-            style={{ width: 'min(94vw, calc(80vh * (11.7 / 14.7)))', aspectRatio: '11.7/14.7' }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            {/* CLOSE */}
-            <button
-              type="button"
-              onClick={closeFullscreen}
-              className="absolute -top-4 -right-4 md:-top-6 md:-right-6 z-50 w-12 h-12 rounded-full bg-white text-gray-900 flex items-center justify-center transition-all hover:scale-110 shadow-2xl border border-gray-200"
-              title="Close fullscreen"
-              aria-label="Close fullscreen"
-            >
-              <X size={26} />
-            </button>
-
-            <div className="w-full h-full bg-white rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col">
-              {/* LARGE IMAGE */}
-              <div className="relative flex-1 min-h-0 bg-gray-100 flex flex-col items-center justify-center">
-                {/* Red chunk number badge */}
-                <div 
-                  className="absolute bottom-0 left-0 z-20 px-3 py-1 sm:px-5 sm:py-2 bg-[#e3000f] text-white font-extrabold text-xl sm:text-2xl shadow-sm"
-                  style={{ borderTopRightRadius: '16px' }}
-                >
-                  {fullscreenChunk.chunk_number || ''}
-                </div>
-
-                {fullscreenImageUrl ? (
-                  <img
-                    src={getMediaUrl(fullscreenImageUrl)}
-                    alt={fullscreenChunk.text || 'AMIVI visual'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-gray-400 font-bold text-xl">
-                    Image unavailable
-                  </div>
-                )}
-              </div>
-
-              {/* CAPTION INFO */}
-              <div className="bg-white px-6 py-5 sm:px-8 sm:py-8 flex items-center justify-center text-center shrink-0" style={{ minHeight: '15%' }}>
-                <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-900 leading-snug tracking-tight">
-                  {fullscreenChunk.text || fullscreenChunk.key_point || 'AMIVI Visual'}
-                </h2>
-              </div>
-            </div>
-
-            {/* DOWNLOAD BUTTON */}
-            {fullscreenImageUrl && (
-              <div className="mt-6 flex justify-center w-full">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleDownload(
-                      getMediaUrl(fullscreenImageUrl),
-                      `amivi-card-${fullscreenChunk.chunk_number || ''}${fullscreenChunk.__slot === 2 ? '-b' : ''}.png`
-                    )
-                  }
-                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors border border-white/30 backdrop-blur-sm shadow-lg"
-                >
-                  <Download size={18} />
-                  {t('Download Card Image')}
-                </button>
-              </div>
-            )}
-
-          </div>
-
-        </div>
-
-      )}
-
-      {/* ======================================================
           EDIT MODAL
       ======================================================= */}
       {editingChunk && (
         <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-lg">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Edit Micro-Bit</h2>
+            <h2 className="text-3xl font-bold text-black mb-4">Edit Micro-Bit</h2>
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Text / Key Point</label>
+                <label className="block text-base font-bold text-black mb-1">Text / Key Point</label>
                 <textarea
                   value={editingChunk.text || ''}
                   onChange={(e) => setEditingChunk({...editingChunk, text: e.target.value})}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl"
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl text-black text-lg"
                   rows={2}
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Slogan (Optional)</label>
+                <label className="block text-base font-bold text-black mb-1">Slogan (Optional)</label>
                 <input
                   type="text"
                   value={editingChunk.slogan || ''}
                   onChange={(e) => setEditingChunk({...editingChunk, slogan: e.target.value})}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl"
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl text-black text-lg"
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Description (Optional)</label>
+                <label className="block text-base font-bold text-black mb-1">Description (Optional)</label>
                 <textarea
                   value={editingChunk.description || ''}
                   onChange={(e) => setEditingChunk({...editingChunk, description: e.target.value})}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl"
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl text-black text-lg"
                   rows={3}
                 />
               </div>
@@ -1123,7 +1341,7 @@ export default function Amivi() {
         <div className="fixed inset-0 z-[9999] bg-slate-900/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-xl font-extrabold text-slate-800">Save to Library</h3>
+              <h3 className="text-2xl font-extrabold text-black">Save to Library</h3>
               <button onClick={() => setShowSaveModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X size={24} />
               </button>
@@ -1131,7 +1349,7 @@ export default function Amivi() {
             
             <div className="p-6 space-y-6">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">1. Choose Library Space</label>
+                <label className="block text-base font-bold text-black mb-2">1. Choose Library Space</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['personal', 'group', 'class'].map(space => (
                     <button
@@ -1148,7 +1366,7 @@ export default function Amivi() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">2. Choose Subject Folder</label>
+                <label className="block text-base font-bold text-black mb-2">2. Choose Subject Folder</label>
                 <div className="grid grid-cols-2 gap-2">
                   {['Science', 'History', 'Geography', 'Math', 'Languages', 'Uncategorized'].map(folder => (
                     <button

@@ -183,8 +183,22 @@ class AmiviEditChunkRequest(BaseModel):
     language: str = "en"
 
 
+class AmiviExplainChunkRequest(BaseModel):
+    project_id: int | None = None
+    chunk_id: int | None = None
+    key_point: str = ""
+    slogan: str = ""
+    subject: str = ""
+    language: str = "en"
+
+
 class AmiviPhotoStoryRequest(BaseModel):
     project_id: int
+
+
+class AmiviCompleteVisualRequest(BaseModel):
+    project_id: int
+    language: str = "en"
 
 
 class AmicoRequest(BaseModel):
@@ -946,6 +960,51 @@ def save_amivi_chunk(
         db.refresh(row)
 
         return row.id
+
+    finally:
+        db.close()
+
+
+def update_amivi_chunk_description(chunk_id, description):
+    """
+    Persists an EXPLAIN-stage (Box 2) explanation onto its Microbit
+    row, so it's available later from the database itself — e.g.
+    when AMICO builds its "Send to AMICO" package from this AMIVI
+    project — instead of living only in the AMIVI page's in-memory
+    state and being lost on reload or when read from elsewhere.
+
+    Best-effort: a failure here must never break the explain_chunk
+    response the teacher is already looking at.
+    """
+
+    if not chunk_id:
+        return
+
+    db = SessionLocal()
+
+    try:
+
+        row = (
+            db.query(AmiviChunk)
+            .filter(AmiviChunk.id == chunk_id)
+            .first()
+        )
+
+        if not row:
+            return
+
+        row.description = description
+
+        db.add(row)
+        db.commit()
+
+    except Exception as exc:
+
+        print(
+            f"update_amivi_chunk_description failed for "
+            f"chunk {chunk_id} (non-fatal): {exc}"
+        )
+        db.rollback()
 
     finally:
         db.close()
@@ -1897,28 +1956,37 @@ def generate_amivi_content(
 ):
 
     prompt = (
-        "You are AMIVI, an educational visual synthesis engine.\n\n"
+        "You are AMIVI, an educational visual synthesis engine running "
+        "the INTRODUCE stage of the AMIVI system.\n\n"
 
-        "The user will provide one large educational passage.\n\n"
+        "The user will provide one large educational passage — the "
+        "SUBJECT.\n\n"
 
-        "Transform that material into meaningful educational "
-        "micro-bits or chunks.\n\n"
+        "Generate separate individual Chunks/Microbits for the subject. "
+        "Choose the natural number of essential Key Points required by "
+        "the subject; do NOT force a fixed number — use as many or as "
+        "few Microbits as the subject genuinely needs.\n\n"
 
         "Rules:\n"
         "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the material.\n"
-        "- Create 5 to 10 chunks depending on the length and complexity.\n"
-        "- Redesign the AMIVI output as a simple, visual-first learning card system.\n"
+        "- Each Microbit should contain exactly: one essential Key Point Name, one relevant image, and one memorable slogan of maximum 4 words.\n"
+        "- Generate each Microbit separately so it can be individually selected and presented for teaching.\n"
+        "- Do NOT combine the Microbits into one poster or image here — every Microbit stays its own separate, standalone card. (A connected 'Complete Visual' may be generated separately afterward, as its own later step — never as part of this set.)\n"
         "- Every individual AMIVI visual card must be exactly 11.7 × 14.7 in the required format.\n"
-        "- Each card should contain only: One clear educational illustration representing the key concept, and One short Key Point in large, bold, highly readable text.\n"
-        "- Clean, simple educational styling. No slogans, long descriptions, audio controls, buttons, or unnecessary text.\n"
-        "- The visual and Key Point should work together as one simple educational explanation.\n"
-        "- The FINAL chunk in the 'chunks' array MUST be the 'Complete Visual'. Its image_prompt should combine all previous concepts into one connected educational visual. Its key_point should just be the MAIN TOPIC, and its text should summarize the concepts.\n"
-        "- Create a detailed supporting image prompt for each chunk incorporating the 11.7 x 14.7 size requirement.\n"
-        "- CRITICAL: Do NOT include any text, words, labels, or typography in the image_prompt itself. The generated image must be completely text-free. The UI will render the key point text separately.\n"
-        "- Create a SECOND supporting image prompt for the same chunk from a different angle.\n"
-        "- Flow: Learning Material -> Key Points -> Individual Visual Cards -> Complete Connected Visual.\n"
-        "- Keep the design clean, colorful, consistent, educational, and easy to understand at a glance.\n"
-        "- Create one quick 'check yourself' multiple-choice question for each chunk with EXACTLY two answer options (one correct, one plausible but wrong).\n\n"
+        "- IMAGE REQUIREMENTS for image_prompt — be precise, this is read by an image generator, not a human:\n"
+        "  * Describe a concrete, literal scene or illustration that directly depicts THIS one Key Point — e.g. for a key point about sunlight feeding a plant, describe 'a healthy green plant with sunlight clearly shining on its leaves', not an abstract or generic decorative image.\n"
+        "  * The image must visually communicate the concept on its own, before the learner reads any text.\n"
+        "  * Simple, clear, colourful, educational illustration style — not photorealistic, not cluttered.\n"
+        "  * Keep the scene focused on THIS Key Point's own concept — do not depict other Key Points' content. But the image must still clearly belong to the overall SUBJECT: ground the scene in a setting, objects, characters, era, or symbols that come from the subject itself, so that someone flipping through only the pictures (without reading any Key Point text or slogan) can still tell what general subject all the cards are about — not just this one isolated idea.\n"
+        "  * The slogan for this Microbit IS the main topic of the picture — build the scene directly around what the slogan is saying, so the single clearest visual idea in the image is the slogan's idea, not a loosely related detail.\n"
+        "  * Any character, person, animal, or main subject in the scene must be fully contained inside the frame and roughly centered, with clear visible background margin on every side — explicitly instruct the image model to show the ENTIRE subject (head to feet / full extent), never cropped, cut off, zoomed in too close, or extending past the edges of the image.\n"
+        "  * Explicitly describe the same consistent illustration style (same rendering style, same color palette family) to use across every Microbit in this set, so the full set feels like one unified series.\n"
+        "  * Incorporate the 11.7 x 14.7 size requirement into the prompt.\n"
+        "- CRITICAL: Do NOT include any text, words, labels, captions, slogans, or typography in the image_prompt itself. The generated image must be completely text-free — it is a pure illustration. The UI renders the Key Point and slogan as separate text.\n"
+        "- Create a SECOND supporting image prompt for the same Microbit from a different angle, following the same image requirements above.\n"
+        "- Also write one short spoken narration line (voice_script) per Microbit, for optional audio/video playback — this is narration, not on-screen text.\n"
+        "- Set the 'text' field to the same value as 'key_point'. Leave the 'description' field as an empty string — explanations are generated separately in the later EXPLAIN stage, not here.\n"
+        "- Keep the points in a clear, logical learning sequence.\n\n"
 
         "Return ONLY valid JSON in this exact structure:\n"
         "{\n"
@@ -1929,16 +1997,10 @@ def generate_amivi_content(
         '      "key_point": "...",\n'
         '      "text": "...",\n'
         '      "slogan": "...",\n'
-        '      "description": "...",\n'
+        '      "description": "",\n'
         '      "image_prompt": "...",\n'
         '      "image_prompt_2": "...",\n'
-        '      "voice_script": "...",\n'
-        '      "mcq": {\n'
-        '        "question": "...",\n'
-        '        "option_a": "...",\n'
-        '        "option_b": "...",\n'
-        '        "correct": "a"\n'
-        "      }\n"
+        '      "voice_script": "..."\n'
         "    }\n"
         "  ]\n"
         "}\n\n"
@@ -1952,6 +2014,129 @@ def generate_amivi_content(
         TERRA_MODEL,
         prompt,
         text_input,
+    )
+
+
+def generate_amivi_explanation(
+    key_point,
+    slogan,
+    subject_context,
+    language="en",
+):
+    """
+    AMIVI EXPLAIN stage. Takes ONE already-generated Microbit (its Key
+    Point Name + slogan, from the INTRODUCE stage) and produces a short,
+    standalone explanation for just that Microbit — called on demand
+    when a single Microbit is selected, not as part of the bulk
+    INTRODUCE generation.
+    """
+
+    prompt = (
+        "You are AMIVI EXPLAIN, the second stage of the AMIVI system.\n\n"
+
+        "You are given ONE Microbit that was already created in the "
+        "INTRODUCE stage: its Key Point Name and its slogan. Use ONLY "
+        "this stored output. Do not re-analyse the original learning "
+        "material, do not invent or introduce a new Key Point, and do "
+        "not change or rename this one.\n\n"
+
+        "Generate a short, clear explanation for this individual "
+        "Microbit only. Keep the same Key Point Name and the same "
+        "slogan, and write as if the same image/visual identity from "
+        "INTRODUCE is still being shown, so the learner recognises and "
+        "reinforces the same visual memory.\n\n"
+
+        "Describe only the essential information needed to understand "
+        "this Key Point, using simple, concise language appropriate to "
+        "the subject and learner. This explanation is for ONE Microbit "
+        "presented on its own — do not reference or summarize other "
+        "Key Points. Keep it to around 1 to 3 short sentences — never "
+        "a long essay or a full paragraph.\n\n"
+
+        "Return ONLY valid JSON in this exact structure:\n"
+        '{\n  "explanation": "..."\n}\n\n'
+
+        + get_language_instruction(
+            language
+        )
+    )
+
+    user_input = (
+        f"Subject: {subject_context}\n"
+        f"Key Point: {key_point}\n"
+        f"Slogan: {slogan}"
+    )
+
+    return call_json_model(
+        TERRA_MODEL,
+        prompt,
+        user_input,
+    )
+
+
+def generate_amivi_complete_visual_prompt(
+    key_points,
+    subject,
+    language="en",
+):
+    """
+    Optional Stage 3. Takes the ordered list of Key Points already
+    created by INTRODUCE (never re-analyses the original material or
+    invents new ones) and asks the model to write ONE image prompt for
+    a single connected illustration that shows how they relate —
+    via arrows, sequence, or cause-and-effect — rather than simply
+    placing the individual Microbit images next to each other.
+    """
+
+    prompt = (
+        "You are AMIVI, writing the image prompt for the optional "
+        "'Complete Visual' stage, which comes after INTRODUCE and "
+        "EXPLAIN.\n\n"
+
+        "You are given the ordered list of Key Points already created "
+        "in the INTRODUCE stage. Do not re-analyse the subject or "
+        "invent new Key Points — use exactly the ones given, in the "
+        "order given.\n\n"
+
+        "Write ONE detailed image prompt for a single connected "
+        "educational illustration that brings these Key Points "
+        "together into one simple visual story — using arrows, "
+        "sequence, or cause-and-effect connections between them, so "
+        "the relationship between the Key Points is clear at a "
+        "glance. Do not just describe the Key Points placed side by "
+        "side — describe how they connect and flow into each other.\n\n"
+
+        "The image must be simple, clear, colourful, and in the same "
+        "consistent educational illustration style as the individual "
+        "Microbits. It should feel like a simple educational "
+        "story/infographic.\n\n"
+
+        "CRITICAL: Do NOT include any text, words, labels, captions, "
+        "or typography in the image itself — describe only the "
+        "visual scene, arrows, and connections. It must be text-free.\n\n"
+
+        "Return ONLY valid JSON in this exact structure:\n"
+        '{\n  "image_prompt": "..."\n}\n\n'
+
+        + get_language_instruction(
+            language
+        )
+    )
+
+    ordered_points = "\n".join(
+        f"{i + 1}. {kp}"
+        for i, kp in enumerate(key_points)
+    )
+
+    user_input = (
+        f"Subject: {subject}\n\n"
+        f"Key Points in order:\n{ordered_points}"
+    )
+
+    return call_json_model(
+        TERRA_MODEL,
+        prompt,
+        user_input,
     )
 
 
@@ -2002,6 +2187,7 @@ def generate_amico_comic(
     total_panels=8,
     character_reference="",
     character_name="",
+    from_amivi_package=False,
 ):
 
     if character_name and character_reference:
@@ -2036,10 +2222,32 @@ def generate_amico_comic(
 
         character_line = ""
 
+    source_package_line = (
+        (
+            "IMPORTANT — SOURCE MATERIAL: the text below is NOT raw, "
+            "unanalysed material. It is an ALREADY-FINISHED AMIVI "
+            "learning package: a Subject plus its essential Key "
+            "Points, already identified, sequenced, illustrated, and "
+            "explained. Do NOT re-analyse the subject from scratch, "
+            "and do NOT invent, merge, drop, reorder, or rename any "
+            "Key Point — treat the given Key Points, in the given "
+            "order, as fixed. Your job is only to TRANSFORM this "
+            "existing package into a connected comic story: turn "
+            "each Key Point into one or more panels, in the given "
+            "sequence, using its slogan and explanation as the "
+            "factual basis for that panel's dialogue and "
+            "learning_point.\n\n"
+        )
+        if from_amivi_package
+        else ""
+    )
+
     prompt = (
         "You are AMICO's storytelling engine.\n\n"
 
-        f"Create a connected {total_panels}-panel educational "
+        + source_package_line
+
+        + f"Create a connected {total_panels}-panel educational "
         "comic that teaches the learner the given topic through "
         "storytelling and visual explanation.\n\n"
 
@@ -4662,43 +4870,10 @@ async def amivi_generate(
                 "",
             )
 
-            image_id = generate_image_resilient(
-                prompt=chunk.get(
-                    "image_prompt",
-                    "",
-                ),
-                filename=(
-                    f"amivi_{project_id}"
-                    f"_chunk_{index}.png"
-                ),
-                project_id=project_id,
-                fallback_label=(
-                    slogan or key_point or text
-                ),
-            )
-
-            # Second supporting image — best-effort: a chunk still
-            # works fine with only its first image if this fails.
-            image2_id = None
-
             image_prompt_2 = chunk.get(
                 "image_prompt_2",
                 "",
             )
-
-            if image_prompt_2:
-
-                image2_id = generate_image_resilient(
-                    prompt=image_prompt_2,
-                    filename=(
-                        f"amivi_{project_id}"
-                        f"_chunk_{index}_b.png"
-                    ),
-                    project_id=project_id,
-                    fallback_label=(
-                        slogan or key_point or text
-                    ),
-                )
 
             mcq = chunk.get("mcq") or {}
 
@@ -4726,30 +4901,119 @@ async def amivi_generate(
                 mcq_option_b = None
                 mcq_correct = None
 
-            # Best-effort, same reasoning as the images above: a
-            # chunk still works fine (just silently, without
-            # narration) if voice synthesis fails for it.
-            audio_id = None
+            # This Microbit's explanation, its 1-2 images, and its
+            # narration audio are three independent network calls
+            # (text model, image model, voice model) that don't
+            # depend on each other's results — running them one
+            # after another was most of why a chunk took so long.
+            # Fire them at the same time instead and only wait on
+            # whichever is slowest.
 
-            try:
+            def _gen_explanation():
 
-                audio_id = generate_voice(
-                    text=voice_script,
+                if description or not key_point:
+                    return description
+
+                try:
+
+                    explain_result = generate_amivi_explanation(
+                        key_point=key_point,
+                        slogan=slogan,
+                        subject_context=final_title,
+                        language=request.language,
+                    )
+
+                    return (
+                        (explain_result or {})
+                        .get("explanation", "")
+                        .strip()
+                    )
+
+                except Exception as explain_exc:
+
+                    print(
+                        "AMIVI explanation generation "
+                        f"failed for chunk {index} "
+                        f"(non-fatal): {explain_exc}"
+                    )
+                    return description
+
+            def _gen_image():
+
+                return generate_image_resilient(
+                    prompt=chunk.get(
+                        "image_prompt",
+                        "",
+                    ),
                     filename=(
                         f"amivi_{project_id}"
-                        f"_chunk_{index}.wav"
+                        f"_chunk_{index}.png"
                     ),
-                    language=request.language,
                     project_id=project_id,
+                    fallback_label=(
+                        slogan or key_point or text
+                    ),
                 )
 
-            except Exception as audio_exc:
+            def _gen_image2():
 
-                print(
-                    "AMIVI voice generation "
-                    f"failed for chunk {index}: "
-                    f"{audio_exc}"
+                # Second supporting image — best-effort: a chunk
+                # still works fine with only its first image if
+                # this fails, or if there's no second prompt at all.
+                if not image_prompt_2:
+                    return None
+
+                return generate_image_resilient(
+                    prompt=image_prompt_2,
+                    filename=(
+                        f"amivi_{project_id}"
+                        f"_chunk_{index}_b.png"
+                    ),
+                    project_id=project_id,
+                    fallback_label=(
+                        slogan or key_point or text
+                    ),
                 )
+
+            def _gen_audio():
+
+                # Best-effort, same reasoning as the images above:
+                # a chunk still works fine (just silently, without
+                # narration) if voice synthesis fails for it.
+                try:
+
+                    return generate_voice(
+                        text=voice_script,
+                        filename=(
+                            f"amivi_{project_id}"
+                            f"_chunk_{index}.wav"
+                        ),
+                        language=request.language,
+                        project_id=project_id,
+                    )
+
+                except Exception as audio_exc:
+
+                    print(
+                        "AMIVI voice generation "
+                        f"failed for chunk {index}: "
+                        f"{audio_exc}"
+                    )
+                    return None
+
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=4
+            ) as chunk_executor:
+
+                explanation_future = chunk_executor.submit(_gen_explanation)
+                image_future = chunk_executor.submit(_gen_image)
+                image2_future = chunk_executor.submit(_gen_image2)
+                audio_future = chunk_executor.submit(_gen_audio)
+
+                description = explanation_future.result()
+                image_id = image_future.result()
+                image2_id = image2_future.result()
+                audio_id = audio_future.result()
 
             chunk_id = save_amivi_chunk(
                 project_id=project_id,
@@ -4987,6 +5251,172 @@ async def amivi_edit_chunk(
 
 
 # ============================================================
+# AMIVI EXPLAIN
+# (second stage — generates a short explanation for ONE already-
+# generated Microbit, on demand when that Microbit is individually
+# selected. Does not touch or regenerate its image.)
+# ============================================================
+
+@app.post("/api/amivi/explain_chunk")
+async def amivi_explain_chunk(
+    request: AmiviExplainChunkRequest,
+):
+
+    try:
+
+        require_services()
+
+        if not request.key_point:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "A Key Point is required "
+                    "to generate an explanation."
+                ),
+            )
+
+        result = generate_amivi_explanation(
+            key_point=request.key_point,
+            slogan=request.slogan,
+            subject_context=(
+                request.subject
+                or request.key_point
+            ),
+            language=request.language,
+        )
+
+        explanation = (
+            (result or {})
+            .get("explanation", "")
+            .strip()
+        )
+
+        # Save it onto the Microbit itself (not just the response)
+        # so the completed EXPLAIN package is available from the
+        # database later — including when AMICO builds its "Send
+        # to AMICO" package from this project.
+        if explanation:
+            update_amivi_chunk_description(
+                request.chunk_id,
+                explanation,
+            )
+
+        return {
+            "status": "success",
+            "explanation": explanation,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMIVI COMPLETE VISUAL
+# (optional Stage 3 — comes after INTRODUCE + EXPLAIN. Generates
+# ONE brand-new connected illustration showing how the already-
+# generated Key Points relate to each other, instead of a plain
+# collage of the existing Microbit images. Individual Microbits
+# are never touched or replaced by this.)
+# ============================================================
+
+@app.post("/api/amivi/generate_complete_visual")
+async def amivi_generate_complete_visual(
+    request: AmiviCompleteVisualRequest,
+):
+
+    try:
+
+        require_services()
+
+        project = get_project(request.project_id)
+
+        if not project or project.project_type != "amivi":
+
+            raise HTTPException(
+                status_code=404,
+                detail="AMIVI project not found.",
+            )
+
+        chunks = list_amivi_chunks_for_project(
+            request.project_id
+        )
+
+        key_points = [
+            chunk.key_point
+            for chunk in chunks
+            if chunk.key_point
+        ]
+
+        if not key_points:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No Microbits are available yet "
+                    "to build a Complete Visual."
+                ),
+            )
+
+        visual_prompt_result = generate_amivi_complete_visual_prompt(
+            key_points=key_points,
+            subject=project.title or "",
+            language=request.language,
+        )
+
+        image_prompt = (
+            (visual_prompt_result or {})
+            .get("image_prompt", "")
+            .strip()
+        )
+
+        image_id = generate_image_resilient(
+            prompt=image_prompt,
+            filename=(
+                f"amivi_{request.project_id}"
+                f"_complete_visual.png"
+            ),
+            project_id=request.project_id,
+            fallback_label=project.title or "the lesson",
+        )
+
+        if not image_id:
+
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to generate the Complete Visual image.",
+            )
+
+        update_project_data(
+            request.project_id,
+            {"complete_visual_image_id": image_id},
+        )
+
+        return {
+            "status": "success",
+            "image_id": image_id,
+            "image_url": f"/api/media/{image_id}",
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
 # AMIVI PHOTO STORY
 # (composes all of a project's already-generated chunk images
 # into one poster-style sheet — reuses AMICO's Photo Story
@@ -5125,23 +5555,136 @@ async def amico_generate(
 
         topic = request.homework_prompt.strip()
 
+        # True only when the material below is an already-finished
+        # AMIVI package (Subject + Key Points + slogans +
+        # explanations), never raw, unanalysed text — tells Terra
+        # not to re-analyse/re-derive the Key Points itself.
+        source_is_amivi_package = False
+
         if request.source_project_id:
 
             source_project = get_project(
                 request.source_project_id
             )
 
-            source_text = (
-                source_project.input_text
-                or source_project.title
-                or ""
+            amivi_chunks = list_amivi_chunks_for_project(
+                request.source_project_id
             )
 
-            topic = (
-                f"{topic}\n\nBased on this material:\n{source_text}"
-                if topic
-                else source_text
-            )
+            if amivi_chunks:
+
+                # "Send to AMICO" / "Import from AMIVI" transfers the
+                # EXPLAIN (Box 2) package, not the raw original
+                # material: Subject + each essential Key Point, in
+                # sequence, with its slogan, its visual anchor, and
+                # its brief explanation. AMICO then transforms this
+                # existing package into a story instead of
+                # re-analysing the source from scratch.
+                package_lines = [
+                    f"Subject: {source_project.title or 'Untitled'}",
+                    "",
+                    "Essential Key Points, in sequence (already "
+                    "analysed — use exactly these, in this exact "
+                    "order):",
+                    "",
+                ]
+
+                for idx, chunk in enumerate(amivi_chunks, start=1):
+
+                    key_point = (
+                        chunk.key_point or chunk.text or ""
+                    ).strip()
+
+                    if not key_point:
+                        continue
+
+                    slogan = (chunk.slogan or "").strip()
+                    explanation = (chunk.description or "").strip()
+
+                    # A Microbit the teacher never clicked "AMIVI
+                    # Explain" on still needs to arrive as part of a
+                    # *completed* EXPLAIN package — generate and
+                    # persist its explanation now rather than
+                    # sending AMICO a half-finished Key Point.
+                    if not explanation:
+
+                        try:
+
+                            explain_result = generate_amivi_explanation(
+                                key_point=key_point,
+                                slogan=slogan,
+                                subject_context=(
+                                    source_project.title or key_point
+                                ),
+                                language=request.language,
+                            )
+
+                            explanation = (
+                                (explain_result or {})
+                                .get("explanation", "")
+                                .strip()
+                            )
+
+                            if explanation:
+
+                                update_amivi_chunk_description(
+                                    chunk.id,
+                                    explanation,
+                                )
+
+                        except Exception:
+                            explanation = ""
+
+                    package_lines.append(
+                        f"{idx}. Key Point: {key_point}"
+                    )
+
+                    if slogan:
+                        package_lines.append(
+                            f'   Slogan: "{slogan}"'
+                        )
+
+                    if explanation:
+                        package_lines.append(
+                            f"   Explanation: {explanation}"
+                        )
+
+                    package_lines.append(
+                        "   Visual anchor: AMIVI already illustrated "
+                        "this Key Point with its own image — keep "
+                        "this panel's imagery true to that same "
+                        "concept."
+                    )
+
+                    package_lines.append("")
+
+                package_text = "\n".join(package_lines).strip()
+
+                topic = (
+                    f"{package_text}\n\nAdditional creative "
+                    f"direction from the teacher: {topic}"
+                    if topic
+                    else package_text
+                )
+
+                source_is_amivi_package = True
+
+            else:
+
+                # No Microbits saved yet on this project (shouldn't
+                # normally happen) — fall back to whatever raw
+                # material the project has rather than failing.
+                source_text = (
+                    source_project.input_text
+                    or source_project.title
+                    or ""
+                )
+
+                topic = (
+                    f"{topic}\n\nBased on this material:\n{source_text}"
+                    if topic
+                    else source_text
+                )
 
         if not topic:
 
@@ -5193,6 +5736,7 @@ async def amico_generate(
             total_panels,
             character_reference,
             character_name,
+            source_is_amivi_package,
         )
 
         # -----------------------------------------------------

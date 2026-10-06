@@ -179,6 +179,17 @@ const translations = {
   }
 };
 
+// MVP language list — English is the default, Spanish is the only
+// additional MVP language. Every UI language picker (Navbar,
+// Settings, ...) renders from this one list instead of hardcoding
+// its own options, so adding a language later is just: add its
+// block to `translations` above and one entry here — nothing else
+// to touch. Deliberately not adding more languages now.
+export const SUPPORTED_LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+];
+
 const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
