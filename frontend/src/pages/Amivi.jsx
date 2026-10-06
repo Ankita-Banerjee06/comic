@@ -766,12 +766,12 @@ export default function Amivi() {
       {result?.title && (
         <div className="bg-gradient-to-br from-indigo-50 via-white to-white rounded-2xl border border-indigo-200 shadow-sm p-6 sm:p-8 text-center">
           <div
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-2 text-black"
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-base sm:text-lg font-bold uppercase tracking-[0.25em] mb-3 text-black"
             style={{ background: '#eef2ff', border: '1px solid #c7d2fe' }}
           >
             {t('Subject Heading / Title')}
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-black">{result.title}</h2>
+          <h2 className="text-4xl sm:text-5xl font-extrabold text-black">{result.title}</h2>
         </div>
       )}
 
@@ -782,12 +782,12 @@ export default function Amivi() {
 
       <div className="bg-gradient-to-br from-slate-50 via-white to-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
 
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-2 text-black" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-base sm:text-lg font-bold uppercase tracking-[0.25em] mb-3 text-black" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
             {t('Box 1 · INTRODUCE')}
           </div>
-          <h2 className="text-3xl font-extrabold text-black mb-1">Image</h2>
-          <p className="text-black font-semibold text-lg">
+          <h2 className="text-4xl sm:text-5xl font-extrabold text-black mb-2">Image</h2>
+          <p className="text-black font-semibold text-xl sm:text-2xl">
             {isProcessing
               ? 'Sit tight — your images are being generated.'
               : result
@@ -935,12 +935,12 @@ export default function Amivi() {
       {result && !isProcessing && result.chunks?.length > 0 && (
         <div className="bg-gradient-to-br from-amber-50/60 via-white to-white rounded-2xl border border-amber-200 shadow-sm p-6 sm:p-8">
 
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-2 text-black" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-base sm:text-lg font-bold uppercase tracking-[0.25em] mb-3 text-black" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
               {t('Box 2 · AMIVI EXPLAIN')}
             </div>
-            <h2 className="text-3xl font-extrabold text-black mb-1">{t('Understand Each Microbit')}</h2>
-            <p className="text-black font-semibold text-lg">
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-black mb-2">{t('Understand Each Microbit')}</h2>
+            <p className="text-black font-semibold text-xl sm:text-2xl">
               {t('Same image, same slogan — now explained, ready to present one at a time.')}
             </p>
           </div>
