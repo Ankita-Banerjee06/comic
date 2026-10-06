@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightbulb, Sparkles, BookOpen, Palette, Target } from 'lucide-react';
 
 // ============================================================
 // PROCESSING ANIMATION — the "please wait" screen shown while
-// AMIVI / AMICO are generating. A rotating set of simple, brand-
-// colored icons "buffers" while a rotating set of short quotes
-// keeps the wait feeling light instead of like a stalled spinner.
-// Friendly, but not a children's-mascot cast — this app is used
-// by teachers and adult learners as much as by students.
+// AMIVI / AMICO are generating. A rotating set of cute sticker
+// mascots "buffers" while a rotating set of short quotes keeps
+// the wait feeling light instead of like a stalled spinner.
 // ============================================================
 
 const DEFAULT_QUOTES = [
@@ -21,28 +18,36 @@ const DEFAULT_QUOTES = [
   'A picture is worth a thousand words, and yours are on the way.',
 ];
 
-// Rotating set of simple icon badges standing in for the buffering
-// mascot — each a plain, universally-readable symbol rather than a
-// cartoon character, in the app's existing brand colors.
-const ICONS = [
-  { key: 'idea', icon: Lightbulb, bg: '#2563eb' },
-  { key: 'sparkle', icon: Sparkles, bg: '#7c3aed' },
-  { key: 'learn', icon: BookOpen, bg: '#0d9488' },
-  { key: 'create', icon: Palette, bg: '#db2777' },
-  { key: 'focus', icon: Target, bg: '#d97706' },
+// Rotating set of sticker mascots standing in for the buffering
+// indicator, each with its own accent color for the spinning ring
+// behind it.
+const STICKERS = [
+  { key: 'penguin', src: '/stickers/penguin.png', color: '#0ea5e9' },
+  { key: 'frog', src: '/stickers/frog.png', color: '#16a34a' },
+  { key: 'star', src: '/stickers/star.png', color: '#eab308' },
+  { key: 'cat', src: '/stickers/cat.png', color: '#ec4899' },
+  { key: 'bunny', src: '/stickers/bunny.png', color: '#f472b6' },
+  { key: 'panda', src: '/stickers/panda.png', color: '#334155' },
+  { key: 'avocado', src: '/stickers/avocado.png', color: '#65a30d' },
+  { key: 'clover', src: '/stickers/clover.png', color: '#22c55e' },
 ];
 
 function Mascot({ mascot }) {
-  const Icon = mascot.icon;
   return (
-    <motion.div
-      className="w-28 h-28 sm:w-32 sm:h-32 rounded-full flex items-center justify-center shadow-lg"
-      style={{ background: mascot.bg }}
-      animate={{ y: [0, -10, 0] }}
-      transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-    >
-      <Icon className="w-14 h-14 sm:w-16 sm:h-16 text-white" strokeWidth={1.75} />
-    </motion.div>
+    <div className="relative w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center">
+      <motion.div
+        className="absolute inset-0 rounded-full border-4 border-slate-200"
+        style={{ borderTopColor: mascot.color, borderRightColor: mascot.color }}
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: 'linear' }}
+      />
+      <img
+        src={mascot.src}
+        alt=""
+        className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-sm select-none"
+        draggable={false}
+      />
+    </div>
   );
 }
 
@@ -59,20 +64,20 @@ export default function ProcessingAnimation({
     return () => clearInterval(id);
   }, []);
 
-  const mascot = ICONS[step % ICONS.length];
+  const mascot = STICKERS[step % STICKERS.length];
   const quote = quotes[step % quotes.length];
 
   return (
     <div
-      className="flex flex-col items-center justify-center p-8 sm:p-14 rounded-3xl overflow-hidden relative border border-blue-100"
+      className="flex flex-col items-center justify-center p-10 sm:p-20 rounded-3xl overflow-hidden relative border border-blue-100 min-h-[380px] sm:min-h-[480px]"
       style={{ background: 'linear-gradient(160deg,#eff6ff 0%,#f5f9ff 55%,#ffffff 100%)' }}
     >
       {/* soft glow accents */}
-      <div className="absolute -top-10 -left-10 w-52 h-52 bg-blue-200/40 blur-3xl rounded-full pointer-events-none" />
-      <div className="absolute -bottom-10 -right-10 w-52 h-52 bg-indigo-200/40 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute -top-10 -left-10 w-64 h-64 bg-blue-200/40 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-indigo-200/40 blur-3xl rounded-full pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col items-center max-w-md">
-        <div className="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center">
+      <div className="relative z-10 flex flex-col items-center max-w-lg">
+        <div className="w-40 h-40 sm:w-48 sm:h-48 flex items-center justify-center">
           <AnimatePresence mode="wait">
             <motion.div
               key={mascot.key}
@@ -86,12 +91,12 @@ export default function ProcessingAnimation({
           </AnimatePresence>
         </div>
 
-        <h3 className="mt-5 text-xl sm:text-2xl font-extrabold text-slate-800 text-center tracking-tight">
+        <h3 className="mt-7 text-2xl sm:text-3xl font-extrabold text-slate-800 text-center tracking-tight">
           {title}
         </h3>
 
         {/* rotating quote */}
-        <div className="w-full min-h-[52px] flex items-center justify-center px-2 mt-3">
+        <div className="w-full min-h-[64px] flex items-center justify-center px-2 mt-4">
           <AnimatePresence mode="wait">
             <motion.p
               key={quote}
@@ -99,7 +104,7 @@ export default function ProcessingAnimation({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.4 }}
-              className="text-center text-sm sm:text-base font-semibold text-blue-700 italic"
+              className="text-center text-base sm:text-lg font-semibold text-blue-700 italic"
             >
               “{quote}”
             </motion.p>

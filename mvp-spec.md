@@ -266,7 +266,7 @@ Every placement already had a dedicated icon/image slot before this change (a ca
 
 **Fixed-number wording.** The AMIVI "Insert Subject" textarea's placeholder text read *"Paste your educational text here... e.g. Give this in 5 key points, and the pics should come with key points."* — directly suggesting a fixed count of 5, which contradicts the INTRODUCE spec (section 2) that already made the backend choose a natural number. Reworded to *"Paste your educational text here... AMIVI will break it into the key points the subject naturally calls for, each with its own picture."* A full search of both the backend prompts and the frontend copy turned up no other fixed-number wording — the generation prompt itself had already been corrected in an earlier session (section 2), this placeholder was the one remaining spot still telling a teacher to ask for a specific number.
 
-**Loading characters.** `ProcessingAnimation.jsx` (the "please wait" screen shown while AMIVI/AMICO generate) rotated through a cast of cute mascots — a bear wearing a graduation cap, plus cupcake/penguin/frog/star stickers — which reads as a children's-app mascot set, not matching an app used by teachers and adult learners. Replaced the mascot cast with a rotating set of plain icon badges (lightbulb, sparkles, book, palette, target) in the app's existing brand colors, keeping the same gentle bounce animation and fade transition so the "something is happening" feeling is unchanged. The rotating quotes underneath (e.g. "Every expert was once a beginner.") were already friendly-but-professional and needed no change — only the character art was the issue.
+**Loading characters.** `ProcessingAnimation.jsx` (the "please wait" screen shown while AMIVI/AMICO generate) rotated through a cast of cute mascots — a bear wearing a graduation cap, plus cupcake/penguin/frog/star stickers — which reads as a children's-app mascot set, not matching an app used by teachers and adult learners. First pass replaced the mascot cast with a rotating set of icons (lightbulb, sparkles, book, palette, target) in a solid colored circle badge, keeping the same gentle bounce animation. Follow-up feedback: that colored circle badge still read as a "sticker," just without a cartoon face on it. Redone again — dropped the filled-color circle and the bounce entirely; now it's a plain line icon with a thin spinning ring around it (the same rotating color per icon), the way a standard loading indicator looks in most apps, with no badge/sticker treatment at all. The rotating quotes underneath (e.g. "Every expert was once a beginner.") were already friendly-but-professional and needed no change across either pass — only the icon treatment was the issue.
 
 ---
 
@@ -280,7 +280,59 @@ Direct feedback on the "What would you like to create?" launcher tiles (section 
 
 ### How this was implemented
 
-In `Amico.jsx`'s `CREATION_TYPES` list, swapped the placeholder emoji (🦸 📷 📜 📔 🪄) for real `lucide-react` icons in a white/translucent rounded badge — `Drama` (Comic), `Camera` (Photo Story), `ScrollText` (Biography), `NotebookText` (Diary), `Wand2` (My Own Story) — so they render crisp and consistent instead of depending on the OS's emoji font. Deepened each tile's gradient slightly (e.g. Comic: violet→fuchsia instead of purple→pink) for more contrast against the white icon badge. Enlarged the tiles themselves (more padding, a `min-h` so all five are a consistent taller size, bigger gap between them), the icon badge (16×16 up to 20×20 on larger screens, icon itself 9×9/11×11), and the type/heading text (title bumped a size, the "What would you like to create?" heading bumped a size) so the whole launcher reads as a more substantial set of five choices rather than small buttons.
+In `Amico.jsx`'s `CREATION_TYPES` list, swapped the placeholder emoji (🦸 📷 📜 📔 🪄) for real `lucide-react` icons — `Drama` (Comic), `Camera` (Photo Story), `ScrollText` (Biography), `NotebookText` (Diary), `Wand2` (My Own Story) — so they render crisp and consistent instead of depending on the OS's emoji font. Deepened each tile's gradient slightly (e.g. Comic: violet→fuchsia instead of purple→pink). Enlarged the tiles themselves (more padding, a `min-h` so all five are a consistent taller size, bigger gap between them), the icon badge (16×16 up to 20×20 on larger screens, icon itself 9×9/11×11), and the type/heading text (title bumped a size, the "What would you like to create?" heading bumped a size) so the whole launcher reads as a more substantial set of five choices rather than small buttons. Follow-up: the first pass put each icon in a translucent white badge (`bg-white/20`) with the icon colored white — low contrast, since a white icon barely shows up against a near-white circle. Fixed by making the badge solid white and coloring each icon to match its own tile's gradient instead (`iconColor` added per entry — violet for Comic, pink for Photo Story, orange for Biography, blue for Diary, teal for My Own Story), so every icon now reads clearly against both the badge and the surrounding gradient.
+
+---
+
+## 11. AMIVI images look the same across Key Points
+
+**Status: implemented.**
+
+Direct feedback with a screenshot: a Photosynthesis AMIVI set's six Key Points (Light Energy, Water Absorption, Carbon Dioxide, Chlorophyll, Glucose Production, Oxygen Release) all rendered as near-identical pictures — a small plant in soil under the sun, repeated six times with only a minor prop changed (roots visible, a leaf close-up, a butterfly). Six conceptually different ideas were reading as one picture shown six times.
+
+### How this was implemented
+
+Root cause was in the IMAGE REQUIREMENTS section of the INTRODUCE prompt (`generate_amivi_content()` in `main.py`) — two rules were pulling the image model toward exactly this outcome. One told it to "ground the scene in a setting, objects, characters... from the subject itself" so the whole set reads as belonging to one subject; the other told it to keep "the same consistent illustration style... across every Microbit." For a subject like Photosynthesis, the simplest way to satisfy both at once is to draw the same plant-in-soil scene every time — which is exactly what was happening. Neither rule actually said the images had to look *different from each other*.
+
+Rewrote the section to require that directly:
+- Each `image_prompt` must now depict the specific **mechanism or action** of its own Key Point, not a generic portrait of the subject — a concrete instruction to find the one visual device that makes that particular idea visible (light → visible light/glow; movement → droplets, arrows, flow; a gas → arrows/bubbles at an opening; an internal structure or pigment → a close-up or cross-section revealing it).
+- Added a hard check: "no two Key Points in this set may end up as near-identical images" — explicitly telling the model to compare the prompts it's about to write against each other and rewrite any that would produce basically the same composition.
+- Split "grounding in the subject" from "same scene": the set may share one small consistent anchor (e.g. the same plant or character recurring) so it still reads as one subject, but that anchor is now explicitly secondary framing — each Key Point's own mechanism has to be the dominant visual focus, not the shared anchor.
+- Split "consistent style" from "same composition" the same way: style (rendering technique, line weight, color palette family) stays constant across the set; scene, camera angle, and composition must not.
+
+This only changes the instructions sent to the image model for future generations — it doesn't retroactively fix an already-generated Photosynthesis set. Regenerating that subject (or any subject) should now produce visibly distinct images per Key Point. Applies to both `image_prompt` and `image_prompt_2` (the second supporting angle), since both are built from this same requirements block.
+
+---
+
+---
+
+## 12. AMIVI — Subject Heading / Title box
+
+**Status: implemented.**
+
+"I am thinking of introducing a new heading box (on top of the first Prompt 1 image), called: Subject Heading/Title."
+
+### How this was implemented
+
+AMIVI's INTRODUCE prompt (`generate_amivi_content()`) already asks the model for a short, max-2-word title capturing the subject's main topic (e.g. "Photosynthesis") — this was already being generated and saved with the project, and was already used as the project's name in the Library. It just wasn't being shown anywhere on the AMIVI results page itself, and wasn't even included in the live generation response — `amivi_generate`'s return dict never had a `title` key, only `project_id`, `chunks`, etc. (a saved project reloaded from the Library did pick it up via its stored data, so the gap only showed on a first, not-yet-reloaded generation).
+
+Two changes:
+- **Backend** (`main.py`, `amivi_generate`): added `"title": final_title` to the endpoint's response, so the subject title is available immediately after generating, not only after a reload.
+- **Frontend** (`Amivi.jsx`): added a new "Subject Heading / Title" box, styled to match the existing Box 1/Box 2 header pattern (eyebrow pill + big heading), placed directly above the Box 1 · INTRODUCE card — i.e. "on top of the first Prompt 1 image," as asked. It only renders once a result with a title exists, so it doesn't appear before generation or clutter the empty-state placeholder.
+
+---
+
+## 13. Loading screen — sticker mascots
+
+**Status: implemented.**
+
+Client supplied a reference sheet of kawaii stickers (penguin, frog, star, cat, bunny, panda, bear, avocado, clover, and others) and asked for these to replace the plain icon-in-a-ring shown on the "AI is thinking..." / "Generating Images..." loading screen (section 9's icon redesign).
+
+### How this was implemented
+
+Cropped 8 of the supplied stickers out of the reference sheet (penguin, frog, star, cat, bunny, panda, avocado, clover) into individual transparent-background PNGs and added them to `frontend/public/stickers/`. `ProcessingAnimation.jsx`'s rotating mascot now renders one of these sticker images (instead of a lucide icon) inside the same spinning accent ring used before, cycling every 3.5s alongside the rotating quote underneath. Each sticker keeps its own ring accent color (e.g. sky blue for the penguin, pink for the cat) so the rotation feels varied.
+
+This affects the loading screen everywhere `ProcessingAnimation` is used: AMIVI's "Generating Images..." step, and AMICO's "Drawing Your Comic..." / "Building Your Photo Story..." steps.
 
 ---
 

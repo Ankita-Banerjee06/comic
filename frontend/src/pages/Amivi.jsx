@@ -757,6 +757,25 @@ export default function Amivi() {
 
 
       {/* ======================================================
+          SUBJECT HEADING / TITLE — the short subject title AMIVI
+          generates alongside the Key Points (e.g. "Photosynthesis").
+          Sits above Box 1 so the subject is identified at a glance
+          once results are in; not shown before generation.
+      ======================================================= */}
+
+      {result?.title && (
+        <div className="bg-gradient-to-br from-indigo-50 via-white to-white rounded-2xl border border-indigo-200 shadow-sm p-6 sm:p-8 text-center">
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-2 text-black"
+            style={{ background: '#eef2ff', border: '1px solid #c7d2fe' }}
+          >
+            {t('Subject Heading / Title')}
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-black">{result.title}</h2>
+        </div>
+      )}
+
+      {/* ======================================================
           BOX 1 — INTRODUCE (Image + Key Point + Slogan)
           Never replaced or overwritten by EXPLAIN below.
       ======================================================= */}
