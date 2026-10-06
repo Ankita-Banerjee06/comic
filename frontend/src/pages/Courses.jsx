@@ -79,7 +79,8 @@ export default function Courses() {
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
             <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5 text-xs font-bold mb-4 text-white">
-              {courses.length} visual courses available
+              <img src="/vlq-badge-essential-learning-icon.png" alt="" className="w-4 h-4 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              Essential Learning · {courses.length} visual courses available
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight text-white">
               Courses

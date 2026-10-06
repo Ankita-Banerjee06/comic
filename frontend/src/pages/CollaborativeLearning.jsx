@@ -248,7 +248,8 @@ function Header({ screen, room, onLeaveClick }) {
       <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5 text-xs font-bold mb-4">
-            <Users className="w-3.5 h-3.5" /> Collaborative Learning
+            <img src="/vlq-badge-collaborative-learning-icon.png" alt="" className="w-3.5 h-3.5 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            Collaborative Learning
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">
             {screen === 'room' && room ? room.name : 'Study together, live'}

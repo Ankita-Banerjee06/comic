@@ -1,6 +1,6 @@
 import FileUpload from '../components/ui/FileUpload';
 import ProcessingAnimation from '../components/ui/ProcessingAnimation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   generateAmico,
@@ -35,13 +35,81 @@ import {
   X,
   ArrowLeft,
   ArrowRight,
+  Drama,
+  ScrollText,
+  NotebookText,
+  Wand2,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
+// "What would you like to create?" — the launcher screen's choices.
+// AMICO is framed as a visual storytelling engine, not just a comic
+// generator, so this list is deliberately wider than what's actually
+// buildable today: Comic and Photo Story are real, working content
+// types; Biography, Diary and My Own Story are shown so the full
+// vision is visible and demonstrable, but are marked "coming soon"
+// rather than built out, per "keep the MVP version small — we
+// demonstrate the possibility, not every creation tool, right now."
+// The emoji below stand in for the "carefully selected images" the
+// vision calls for (a small photo for Biography, a diary-style image
+// for Diary, etc.) — swap them for real curated thumbnails later
+// without touching the structure.
+const CREATION_TYPES = [
+  {
+    key: 'comic',
+    icon: Drama,
+    label: 'Comic',
+    subtitle: 'A character-driven comic strip',
+    gradient: 'from-violet-600 to-fuchsia-600',
+    iconColor: '#7c3aed',
+    available: true,
+  },
+  {
+    key: 'photostory',
+    icon: Camera,
+    label: 'Photo Story',
+    subtitle: 'Turn a photo into a diagram story',
+    gradient: 'from-rose-500 to-pink-600',
+    iconColor: '#db2777',
+    available: true,
+  },
+  {
+    key: 'biography',
+    icon: ScrollText,
+    label: 'Biography',
+    subtitle: 'Tell someone\'s life story',
+    gradient: 'from-amber-500 to-orange-600',
+    iconColor: '#c2410c',
+    available: false,
+  },
+  {
+    key: 'diary',
+    icon: NotebookText,
+    label: 'Diary',
+    subtitle: 'A day, in your own words',
+    gradient: 'from-sky-500 to-blue-600',
+    iconColor: '#1d4ed8',
+    available: false,
+  },
+  {
+    key: 'myownstory',
+    icon: Wand2,
+    label: 'My Own Story',
+    subtitle: 'Start from a blank page',
+    gradient: 'from-emerald-500 to-teal-600',
+    iconColor: '#0d9488',
+    available: false,
+  },
+];
+
 export default function Amico() {
   // Top-level mode: a character-driven comic, or a photo-based
-  // character-free diagram story.
-  const [mode, setMode] = useState('comic'); // 'comic' | 'photostory'
+  // character-free diagram story. Starts unset — null means "show
+  // the launcher" ('What would you like to create?'); picking a
+  // tile there sets this, which is also what makes the rest of the
+  // page (comic flow / photo story flow) start rendering.
+  const [mode, setMode] = useState(null); // null | 'comic' | 'photostory'
+  const [comingSoonNotice, setComingSoonNotice] = useState(null);
 
   // Source: free-typed homework topic, or imported AMIVI content
   const [source, setSource] = useState('amivi'); // 'text' | 'amivi'
@@ -106,7 +174,11 @@ export default function Amico() {
 
   useEffect(() => {
     if (incomingSourceProjectId) {
+      // Arriving here via AMIVI's "Send to AMICO" — skip the
+      // launcher and go straight into the Comic flow with this
+      // project pre-selected, same as before the launcher existed.
       setSource('amivi');
+      setMode('comic');
     }
   }, [incomingSourceProjectId]);
 
@@ -123,6 +195,31 @@ export default function Amico() {
       setSelectedProjectId(String(incomingSourceProjectId));
     }
   }, [incomingSourceProjectId, amiviProjects]);
+
+  // Titles in the AMIVI package picker are short, auto-generated
+  // 2-word summaries, so two different lessons can easily end up
+  // with the exact same title (e.g. two separate "Photosynthesis"
+  // projects from different classes or test runs) — a teacher
+  // can't tell those apart in the dropdown. When a title repeats,
+  // disambiguate it with the project's own id; a project with no
+  // title at all still falls back to its id alone, as before.
+  const amiviProjectOptions = useMemo(() => {
+    const titleCounts = {};
+    amiviProjects.forEach((project) => {
+      const base = (project.title || '').trim();
+      if (base) titleCounts[base] = (titleCounts[base] || 0) + 1;
+    });
+
+    return amiviProjects.map((project) => {
+      const base = (project.title || '').trim();
+      const label = !base
+        ? `Learning Package #${project.project_id}`
+        : titleCounts[base] > 1
+          ? `${base} (#${project.project_id})`
+          : base;
+      return { ...project, label };
+    });
+  }, [amiviProjects]);
 
   // ============================================================
   // OPEN FROM LIBRARY (load a previously saved AMICO comic
@@ -475,55 +572,90 @@ export default function Amico() {
       <button
         type="button"
         onClick={() => navigate('/explore')}
-        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+        className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
       {/* Header */}
       <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
-        <div className="w-full h-44 sm:h-56" style={{ background: '#fdf2f8' }}>
-          <img
-            src="/vlq-understand-tool.png"
-            alt=""
-            aria-hidden="true"
-            className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-        </div>
         <div className="p-6 sm:p-10 max-w-2xl">
           <div
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-pink-700"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-4 text-black"
             style={{ background: '#fdf2f8', border: '1px solid #fbcfe8' }}
           >
             AMICO
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3">AMICO</h1>
-          <p className="text-slate-600 font-medium max-w-xl">AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement. Together they create a continuous learning journey.</p>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-black mb-3">AMICO</h1>
+          <p className="text-black font-medium max-w-xl text-lg">AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement. Together they create a continuous learning journey.</p>
         </div>
       </div>
 
-      {/* Top-level mode tabs */}
-      <div className="max-w-3xl mx-auto flex gap-2">
-        <button
-          onClick={() => setMode('comic')}
-          className={`flex-1 py-3 rounded-2xl font-bold transition-all ${mode === 'comic'
-              ? 'bg-purple-500 text-white shadow-lg'
-              : 'bg-purple-50 text-purple-500 border-2 border-purple-200'
-            }`}
-        >
-          🦸 {t('Comic')}
-        </button>
-        <button
-          onClick={() => setMode('photostory')}
-          className={`flex-1 py-3 rounded-2xl font-bold transition-all ${mode === 'photostory'
-              ? 'bg-purple-500 text-white shadow-lg'
-              : 'bg-purple-50 text-purple-500 border-2 border-purple-200'
-            }`}
-        >
-          📷 {t('Visual Story')}
-        </button>
-      </div>
+      {/* ======================================================
+          LAUNCHER — "What would you like to create?" Shown until
+          a creation type is picked. Comic and Photo Story are real
+          and clickable; the other three are visible (so the full
+          vision is demonstrable) but marked "coming soon" rather
+          than built out yet.
+      ======================================================= */}
+      {!mode && (
+        <div className="max-w-5xl mx-auto space-y-6">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-black text-center">
+            {t('What would you like to create?')}
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 sm:gap-6">
+            {CREATION_TYPES.map((type) => {
+              const Icon = type.icon;
+              return (
+                <button
+                  key={type.key}
+                  type="button"
+                  onClick={() => {
+                    if (!type.available) {
+                      setComingSoonNotice(type.label);
+                      return;
+                    }
+                    setComingSoonNotice(null);
+                    setMode(type.key);
+                  }}
+                  className={`relative overflow-hidden rounded-3xl p-7 sm:p-8 min-h-[190px] sm:min-h-[220px] flex flex-col items-start text-left text-white bg-gradient-to-br ${type.gradient} shadow-md transition-all ${type.available
+                      ? 'hover:-translate-y-1.5 hover:shadow-2xl cursor-pointer'
+                      : 'opacity-70 cursor-not-allowed'
+                    }`}
+                >
+                  {!type.available && (
+                    <span className="absolute top-4 right-4 text-xs font-bold uppercase tracking-wide bg-black/25 px-2.5 py-1 rounded-full">
+                      {t('Coming soon')}
+                    </span>
+                  )}
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white shadow-md flex items-center justify-center mb-4 sm:mb-5">
+                    <Icon className="w-9 h-9 sm:w-11 sm:h-11" style={{ color: type.iconColor }} strokeWidth={2} />
+                  </div>
+                  <p className="font-extrabold text-xl sm:text-2xl mb-1">{t(type.label)}</p>
+                  <p className="text-base sm:text-lg text-white/85 font-medium">{t(type.subtitle)}</p>
+                </button>
+              );
+            })}
+          </div>
+          {comingSoonNotice && (
+            <p className="text-center text-base font-bold text-black bg-slate-50 border border-slate-200 rounded-2xl py-3">
+              {t(comingSoonNotice)} {t("isn't ready yet — Comic and Photo Story are open now.")}
+            </p>
+          )}
+        </div>
+      )}
+
+      {mode && (
+        <div className="max-w-3xl mx-auto -mt-2">
+          <button
+            type="button"
+            onClick={() => setMode(null)}
+            className="text-base font-bold text-black hover:text-black transition-colors"
+          >
+            ← {t('Choose a different way to create')}
+          </button>
+        </div>
+      )}
 
       {mode === 'comic' && !isProcessing && !result && (
         <div className="max-w-3xl mx-auto space-y-6">
@@ -534,7 +666,7 @@ export default function Amico() {
                 onClick={() => setSource('amivi')}
                 className={`flex-1 py-3 rounded-2xl font-bold transition-all ${source === 'amivi'
                     ? 'bg-pink-500 text-white shadow-lg'
-                    : 'bg-pink-50 text-pink-500 border-2 border-pink-200 hover:bg-pink-100'
+                    : 'bg-pink-50 text-black border-2 border-pink-200 hover:bg-pink-100'
                   }`}
               >
                 🎨 {t('Import from AMIVI')}
@@ -543,7 +675,7 @@ export default function Amico() {
                 onClick={() => setSource('text')}
                 className={`flex-1 py-3 rounded-2xl font-bold transition-all ${source === 'text'
                     ? 'bg-pink-500 text-white shadow-lg'
-                    : 'bg-pink-50 text-pink-500 border-2 border-pink-200 hover:bg-pink-100'
+                    : 'bg-pink-50 text-black border-2 border-pink-200 hover:bg-pink-100'
                   }`}
               >
                 ✍️ {t('Paste Text')}
@@ -556,27 +688,27 @@ export default function Amico() {
                 <div className="flex items-center gap-3 mb-6 bg-pink-50 p-4 rounded-xl border border-pink-100">
                   <CheckCircle2 className="w-6 h-6 text-pink-500" />
                   <div>
-                    <h3 className="font-bold text-pink-900">AMIVI Learning Package Connected</h3>
-                    <p className="text-sm font-medium text-pink-700">Essential Learning, Key Points, Slogans, and Images are automatically imported.</p>
+                    <h3 className="font-bold text-black">AMIVI Learning Package Connected</h3>
+                    <p className="text-base font-medium text-black">Essential Learning, Key Points, Slogans, and Images are automatically imported.</p>
                   </div>
                 </div>
 
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">🎨 {t('Select AMIVI Material')}</h2>
-                <p className="text-gray-500 font-bold mb-4">{t('Choose the learning material to transform into a creative format. No retyping required.')}</p>
+                <h2 className="text-2xl font-bold text-black mb-2">🎨 {t('Select AMIVI Material')}</h2>
+                <p className="text-black font-bold mb-4">{t('Choose the learning material to transform into a creative format. No retyping required.')}</p>
                 {amiviProjects.length === 0 ? (
-                  <p className="text-gray-400 font-semibold bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-4">
+                  <p className="text-black font-semibold bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-4">
                     {t('No AMIVI lessons found yet. Create one in AMIVI Studio first.')}
                   </p>
                 ) : (
                   <select
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="w-full p-4 bg-pink-50 border-2 border-pink-200 rounded-2xl text-gray-700 font-bold mb-4 focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none"
+                    className="w-full p-4 bg-pink-50 border-2 border-pink-200 rounded-2xl text-black font-bold mb-4 focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none"
                   >
                     <option value="">{t('Select an AMIVI Learning Package...')}</option>
-                    {amiviProjects.map((project) => (
+                    {amiviProjectOptions.map((project) => (
                       <option key={project.project_id} value={project.project_id}>
-                        {project.title || `Learning Package #${project.project_id}`}
+                        {project.label}
                       </option>
                     ))}
                   </select>
@@ -584,13 +716,13 @@ export default function Amico() {
               </>
             ) : (
               <>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">✍️ {t('Paste Your Text')}</h2>
-                <p className="text-gray-500 font-bold mb-6">{t("Paste any text here and we'll turn it into a creative visual story or comic.")}</p>
+                <h2 className="text-2xl font-bold text-black mb-2">✍️ {t('Paste Your Text')}</h2>
+                <p className="text-black font-bold mb-6">{t("Paste any text here and we'll turn it into a creative visual story or comic.")}</p>
                 <textarea
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
                   placeholder={t('e.g. Paste your learning material, notes, or story here...')}
-                  className="w-full flex-1 min-h-[160px] p-5 bg-pink-50 border-2 border-pink-200 rounded-2xl text-gray-700 font-semibold resize-none focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none mb-2 text-lg transition-all"
+                  className="w-full flex-1 min-h-[160px] p-5 bg-pink-50 border-2 border-pink-200 rounded-2xl text-black font-semibold resize-none focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none mb-2 text-lg transition-all"
                 />
               </>
             )}
@@ -598,11 +730,11 @@ export default function Amico() {
             {/* Comic layout settings */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6 mb-6">
               <div>
-                <label className="text-sm font-bold text-gray-600 block mb-1">{t('Panels per page')}</label>
+                <label className="text-base font-bold text-black block mb-1">{t('Panels per page')}</label>
                 <select
                   value={panelsPerPage}
                   onChange={(e) => setPanelsPerPage(Number(e.target.value))}
-                  className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-bold text-gray-700 focus:outline-none"
+                  className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-bold text-black focus:outline-none"
                 >
                   {[2, 3, 4, 5, 6, 7].map((n) => (
                     <option key={n} value={n}>{n}</option>
@@ -610,11 +742,11 @@ export default function Amico() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-bold text-gray-600 block mb-1">{t('Pages')}</label>
+                <label className="text-base font-bold text-black block mb-1">{t('Pages')}</label>
                 <select
                   value={pagesCount}
                   onChange={(e) => setPagesCount(Number(e.target.value))}
-                  className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-bold text-gray-700 focus:outline-none"
+                  className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-bold text-black focus:outline-none"
                 >
                   {[1, 2, 3, 4, 5, 6].map((n) => (
                     <option key={n} value={n}>{n}</option>
@@ -622,7 +754,7 @@ export default function Amico() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-bold text-gray-600 block mb-1">{t('Layout')}</label>
+                <label className="text-base font-bold text-black block mb-1">{t('Layout')}</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setLayout('horizontal')}
@@ -650,13 +782,13 @@ export default function Amico() {
 
             {/* Avatars */}
             <div className="mb-6">
-              <label className="text-sm font-bold text-gray-600 block mb-2">{t('Character Avatar (optional)')}</label>
+              <label className="text-base font-bold text-black block mb-2">{t('Character Avatar (optional)')}</label>
               <div className="flex items-center gap-3 overflow-x-auto pb-2">
                 <button
                   onClick={() => setSelectedAvatarId(null)}
-                  className={`shrink-0 w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-xs font-bold ${selectedAvatarId === null
-                      ? 'border-pink-500 bg-pink-50 text-pink-500'
-                      : 'border-gray-200 text-gray-400'
+                  className={`shrink-0 w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-sm font-bold ${selectedAvatarId === null
+                      ? 'border-pink-500 bg-pink-50 text-black'
+                      : 'border-gray-200 text-black'
                     }`}
                 >
                   {t('None')}
@@ -697,8 +829,8 @@ export default function Amico() {
               {showAvatarUpload && (
                 <div className="mt-4 bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="font-bold text-gray-700">{t('Create an avatar from a photo')}</p>
-                    <button onClick={() => setShowAvatarUpload(false)} className="text-gray-400 hover:text-gray-600">
+                    <p className="font-bold text-black">{t('Create an avatar from a photo')}</p>
+                    <button onClick={() => setShowAvatarUpload(false)} className="text-black hover:text-black">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
@@ -707,17 +839,17 @@ export default function Amico() {
                     value={avatarName}
                     onChange={(e) => setAvatarName(e.target.value)}
                     placeholder={t('Avatar name (optional)')}
-                    className="w-full p-3 bg-white border-2 border-pink-200 rounded-xl font-semibold text-gray-700 focus:outline-none"
+                    className="w-full p-3 bg-white border-2 border-pink-200 rounded-xl font-semibold text-black focus:outline-none"
                   />
                   <input
                     type="text"
                     value={avatarStyle}
                     onChange={(e) => setAvatarStyle(e.target.value)}
                     placeholder={t('Art style (optional, e.g. "cartoon superhero")')}
-                    className="w-full p-3 bg-white border-2 border-pink-200 rounded-xl font-semibold text-gray-700 focus:outline-none"
+                    className="w-full p-3 bg-white border-2 border-pink-200 rounded-xl font-semibold text-black focus:outline-none"
                   />
                   {avatarUploading ? (
-                    <p className="text-center font-bold text-pink-500 py-4">{t('Generating your avatar')}...</p>
+                    <p className="text-center font-bold text-black py-4">{t('Generating your avatar')}...</p>
                   ) : (
                     <FileUpload accept="image/*" label={t('Upload a photo')} onUpload={handleAvatarUpload} />
                   )}
@@ -754,18 +886,18 @@ export default function Amico() {
                 <p className="text-pink-100 font-bold flex flex-wrap items-center gap-2">
                   {t('Your comic strip is ready to read!')}
                   {!savedNotice ? (
-                    <button onClick={() => setShowSaveModal(true)} className="inline-flex items-center gap-1.5 text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full transition-colors cursor-pointer font-bold ml-2">
+                    <button onClick={() => setShowSaveModal(true)} className="inline-flex items-center gap-1.5 text-sm bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full transition-colors cursor-pointer font-bold ml-2">
                       <CheckCircle2 className="w-3 h-3" /> Save to Library...
                     </button>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-500/20 text-emerald-100 px-3 py-1.5 rounded-full font-bold ml-2">
+                    <span className="inline-flex items-center gap-1.5 text-sm bg-emerald-500/20 text-emerald-100 px-3 py-1.5 rounded-full font-bold ml-2">
                       <CheckCircle2 className="w-3 h-3" /> Saved to {saveSpace} / {saveFolder}
                     </span>
                   )}
                 </p>
               </div>
             </div>
-            <button onClick={resetAmico} className="text-sm font-bold text-pink-100 hover:text-white underline">
+            <button onClick={resetAmico} className="text-base font-bold text-pink-100 hover:text-white underline">
               {t('Create Another Comic')}
             </button>
           </div>
@@ -774,7 +906,7 @@ export default function Amico() {
           {pages.length > 0 && (
             <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <h3 className="text-xl font-bold text-gray-800">
+                <h3 className="text-xl font-bold text-black">
                   📖 {t('Page')} {currentPage?.page_number} {t('of')} {pages.length}
                 </h3>
                 <div className="flex items-center gap-2">
@@ -840,7 +972,7 @@ export default function Amico() {
               dialogue, regenerating art, or adding/removing a panel. */}
           {result.panels?.length > 0 && (
             <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">🧩 {t('Manage Panels')}</h3>
+              <h3 className="text-xl font-bold text-black mb-4">🧩 {t('Manage Panels')}</h3>
               <div className="flex items-start gap-3 overflow-x-auto pb-2">
                 {result.panels.map((panel) => {
                   const isBusy = busyPanelNumber === panel.panel_number;
@@ -852,7 +984,7 @@ export default function Amico() {
                           alt={`Panel ${panel.panel_number}`}
                           className="w-full h-full object-cover"
                         />
-                        <span className="absolute top-1 left-1 bg-black/60 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                        <span className="absolute top-1 left-1 bg-black/60 text-white text-sm font-bold px-1.5 py-0.5 rounded-full">
                           {panel.panel_number}
                         </span>
                         {isBusy && (
@@ -905,8 +1037,8 @@ export default function Amico() {
       {mode === 'photostory' && !psProcessing && !psResult && (
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-8 flex flex-col">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">📷 {t('Upload a Photo')}</h2>
-            <p className="text-gray-500 font-bold mb-6">
+            <h2 className="text-2xl font-bold text-black mb-2">📷 {t('Upload a Photo')}</h2>
+            <p className="text-black font-bold mb-6">
               {t('Upload one photo and AMICO will turn it into a labeled diagram story — no characters, just clear step-by-step visuals, like a real science poster.')}
             </p>
 
@@ -922,7 +1054,7 @@ export default function Amico() {
                     setPsFile(null);
                     setPsPreviewUrl('');
                   }}
-                  className="absolute top-3 right-3 p-2 rounded-full bg-white/90 text-gray-500 hover:text-gray-700 shadow"
+                  className="absolute top-3 right-3 p-2 rounded-full bg-white/90 text-black hover:text-black shadow"
                   title={t('Remove photo')}
                 >
                   <X className="w-4 h-4" />
@@ -935,11 +1067,11 @@ export default function Amico() {
             )}
 
             <div className="mb-6">
-              <label className="text-sm font-bold text-gray-600 block mb-1">{t('Number of stages')}</label>
+              <label className="text-base font-bold text-black block mb-1">{t('Number of stages')}</label>
               <select
                 value={psPanelCount}
                 onChange={(e) => setPsPanelCount(Number(e.target.value))}
-                className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-bold text-gray-700 focus:outline-none"
+                className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-bold text-black focus:outline-none"
               >
                 {[4, 5, 6, 7, 8].map((n) => (
                   <option key={n} value={n}>{n}</option>
@@ -976,7 +1108,7 @@ export default function Amico() {
                 <p className="text-pink-100 font-bold">{t('Your diagram story is ready to read!')}</p>
               </div>
             </div>
-            <button onClick={resetPhotoStory} className="text-sm font-bold text-pink-100 hover:text-white underline">
+            <button onClick={resetPhotoStory} className="text-base font-bold text-pink-100 hover:text-white underline">
               {t('Create Another Photo Story')}
             </button>
           </div>
@@ -984,7 +1116,7 @@ export default function Amico() {
           {psPages.length > 0 && (
             <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <h3 className="text-xl font-bold text-gray-800">
+                <h3 className="text-xl font-bold text-black">
                   📖 {t('Page')} {psCurrentPage?.page_number} {t('of')} {psPages.length}
                 </h3>
                 <div className="flex items-center gap-2">
@@ -1085,7 +1217,7 @@ export default function Amico() {
           )}
 
           {pages.length > 1 && (
-            <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm font-bold">
+            <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-base font-bold">
               {t('Page')} {currentPage.page_number} {t('of')} {pages.length}
             </span>
           )}
@@ -1130,7 +1262,7 @@ export default function Amico() {
           )}
 
           {psPages.length > 1 && (
-            <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm font-bold">
+            <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-base font-bold">
               {t('Page')} {psCurrentPage.page_number} {t('of')} {psPages.length}
             </span>
           )}
@@ -1144,39 +1276,39 @@ export default function Amico() {
             onSubmit={handleEditSubmit}
             className="bg-white rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-lg"
           >
-            <h3 className="text-xl font-bold text-gray-800">
+            <h3 className="text-xl font-bold text-black">
               {t('Edit Panel')} {editingPanel.panel_number}
             </h3>
             <div>
-              <label className="text-sm font-bold text-gray-600 block mb-1">{t('Title')}</label>
+              <label className="text-base font-bold text-black block mb-1">{t('Title')}</label>
               <input
                 type="text"
                 value={editingPanel.title || ''}
                 onChange={(e) => setEditingPanel({ ...editingPanel, title: e.target.value })}
-                className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-semibold text-gray-700 focus:outline-none"
+                className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-semibold text-black focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-sm font-bold text-gray-600 block mb-1">{t('Dialogue')}</label>
+              <label className="text-base font-bold text-black block mb-1">{t('Dialogue')}</label>
               <textarea
                 value={editingPanel.dialogue || ''}
                 onChange={(e) => setEditingPanel({ ...editingPanel, dialogue: e.target.value })}
-                className="w-full min-h-[80px] p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-semibold text-gray-700 resize-none focus:outline-none"
+                className="w-full min-h-[80px] p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-semibold text-black resize-none focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-sm font-bold text-gray-600 block mb-1">{t('Caption / Learning Point')}</label>
+              <label className="text-base font-bold text-black block mb-1">{t('Caption / Learning Point')}</label>
               <textarea
                 value={editingPanel.learning_point || ''}
                 onChange={(e) => setEditingPanel({ ...editingPanel, learning_point: e.target.value })}
-                className="w-full min-h-[60px] p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-semibold text-gray-700 resize-none focus:outline-none"
+                className="w-full min-h-[60px] p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-semibold text-black resize-none focus:outline-none"
               />
             </div>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => setEditingPanel(null)}
-                className="flex-1 py-3 rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200"
+                className="flex-1 py-3 rounded-xl font-bold bg-gray-100 text-black hover:bg-gray-200"
               >
                 {t('Cancel')}
               </button>
@@ -1197,21 +1329,21 @@ export default function Amico() {
         <div className="fixed inset-0 z-[9999] bg-slate-900/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-xl font-extrabold text-slate-800">Save to Library</h3>
-              <button onClick={() => setShowSaveModal(false)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="text-xl font-extrabold text-black">Save to Library</h3>
+              <button onClick={() => setShowSaveModal(false)} className="text-black hover:text-black">
                 <X size={24} />
               </button>
             </div>
 
             <div className="p-6 space-y-6">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">1. Choose Library Space</label>
+                <label className="block text-base font-bold text-black mb-2">1. Choose Library Space</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['personal', 'group', 'class'].map(space => (
                     <button
                       key={space}
                       onClick={() => setSaveSpace(space)}
-                      className={`py-2 rounded-xl text-sm font-bold capitalize border-2 transition-colors ${saveSpace === space ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-slate-200 text-slate-500 hover:border-pink-300'
+                      className={`py-2 rounded-xl text-base font-bold capitalize border-2 transition-colors ${saveSpace === space ? 'border-pink-500 bg-pink-50 text-black' : 'border-slate-200 text-black hover:border-pink-300'
                         }`}
                     >
                       {space}
@@ -1221,13 +1353,13 @@ export default function Amico() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">2. Choose Subject Folder</label>
+                <label className="block text-base font-bold text-black mb-2">2. Choose Subject Folder</label>
                 <div className="grid grid-cols-2 gap-2">
                   {['Science', 'History', 'Geography', 'Math', 'Languages', 'Uncategorized'].map(folder => (
                     <button
                       key={folder}
                       onClick={() => setSaveFolder(folder)}
-                      className={`py-2 rounded-xl text-sm font-bold border-2 transition-colors ${saveFolder === folder ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-slate-200 text-slate-500 hover:border-pink-300'
+                      className={`py-2 rounded-xl text-base font-bold border-2 transition-colors ${saveFolder === folder ? 'border-pink-500 bg-pink-50 text-black' : 'border-slate-200 text-black hover:border-pink-300'
                         }`}
                     >
                       {folder}
@@ -1240,7 +1372,7 @@ export default function Amico() {
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
               <button
                 onClick={() => setShowSaveModal(false)}
-                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+                className="px-5 py-2.5 rounded-xl font-bold text-black hover:bg-slate-200 transition-colors"
               >
                 Cancel
               </button>
@@ -1260,12 +1392,12 @@ export default function Amico() {
 
       {/* 4-Step Flowchart */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-12 mb-8 bg-slate-50 py-6 rounded-2xl border border-slate-200">
-        <div className="px-4 py-2 bg-slate-200 rounded-xl shadow-sm border border-slate-300 font-bold text-slate-700">Complexity</div>
-        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
-        <div className="px-4 py-2 bg-blue-100 rounded-xl shadow-sm border border-blue-200 font-bold text-blue-700">Clarity</div>
-        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
-        <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-pink-700">Creativity</div>
-        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-slate-200 rounded-xl shadow-sm border border-slate-300 font-bold text-black">Complexity</div>
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-blue-100 rounded-xl shadow-sm border border-blue-200 font-bold text-black">Clarity</div>
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-black">Creativity</div>
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
         <div className="px-4 py-2 bg-purple-600 rounded-xl shadow-sm border border-purple-600 font-bold text-white">Mastery</div>
       </div>
 

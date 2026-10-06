@@ -43,7 +43,7 @@ function MicrobitPager({ page, totalPages, onChange }) {
         type="button"
         onClick={() => onChange(page - 1)}
         disabled={page === 0}
-        className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-300 transition-colors"
+        className="px-4 py-2 bg-white border-2 border-slate-200 text-black font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-300 transition-colors"
       >
         ← Previous
       </button>
@@ -54,10 +54,10 @@ function MicrobitPager({ page, totalPages, onChange }) {
             key={i}
             type="button"
             onClick={() => onChange(i)}
-            className={`w-9 h-9 rounded-full font-bold text-sm border-2 transition-colors ${
+            className={`w-9 h-9 rounded-full font-bold text-base border-2 transition-colors ${
               i === page
                 ? 'bg-indigo-500 border-indigo-500 text-white'
-                : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
+                : 'bg-white border-slate-200 text-black hover:border-indigo-300'
             }`}
           >
             {i + 1}
@@ -69,7 +69,7 @@ function MicrobitPager({ page, totalPages, onChange }) {
         type="button"
         onClick={() => onChange(page + 1)}
         disabled={page === totalPages - 1}
-        className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-300 transition-colors"
+        className="px-4 py-2 bg-white border-2 border-slate-200 text-black font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:border-indigo-300 transition-colors"
       >
         Next →
       </button>
@@ -546,7 +546,7 @@ export default function Amivi() {
       <button
         type="button"
         onClick={() => navigate('/explore')}
-        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+        className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
@@ -557,20 +557,10 @@ export default function Amivi() {
 
       <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-gradient-to-br from-blue-50 via-white to-purple-50">
 
-        <div className="w-full h-44 sm:h-56" style={{ background: 'linear-gradient(135deg, #dbeafe 0%, #ede9fe 100%)' }}>
-          <img
-            src="/vlq-amivi-card.jpg"
-            alt=""
-            aria-hidden="true"
-            className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-        </div>
-
         <div className="p-6 sm:p-10 max-w-2xl">
 
           <div
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-4 text-blue-700"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-4 text-black"
             style={{ background: '#eff6ff', border: '1px solid #dbeafe' }}
           >
             AMIVI
@@ -616,7 +606,7 @@ export default function Amivi() {
             onChange={(e) => setTextInput(e.target.value)}
             readOnly={isProcessing || !!result}
             placeholder={t(
-              'Paste your educational text here... e.g. Give this in 5 key points, and the pics should come with key points.'
+              'Paste your educational text here... AMIVI will break it into the key points the subject naturally calls for, each with its own picture.'
             )}
             className={`w-full flex-1 min-h-[220px] p-5 bg-blue-50/60 border border-blue-200 rounded-2xl text-black font-medium resize-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none mb-5 text-xl transition-all ${(isProcessing || !!result) ? 'opacity-60 cursor-not-allowed' : ''}`}
           />
@@ -674,7 +664,7 @@ export default function Amivi() {
           )}
 
           {result && !isProcessing && (
-            <p className="text-base text-black font-bold text-center mt-auto pt-2">
+            <p className="text-lg text-black font-bold text-center mt-auto pt-2">
               ✅ Done! Click "Start Over" below to create another.
             </p>
           )}
@@ -705,7 +695,7 @@ export default function Amivi() {
                 accept=".pdf,.docx,.txt"
                 onUpload={handleUpload}
               />
-              <p className="text-sm text-black font-semibold mt-3 text-center">
+              <p className="text-base text-black font-semibold mt-3 text-center">
                 Supported formats: PDF · DOCX · TXT
               </p>
             </div>
@@ -721,11 +711,11 @@ export default function Amivi() {
 
             <div className="flex items-center justify-center gap-2 mb-1">
               <Sparkles className="w-4 h-4 text-indigo-500" />
-              <p className="text-center text-sm font-extrabold uppercase tracking-widest text-indigo-700">
+              <p className="text-center text-base font-extrabold uppercase tracking-widest text-black">
                 Prompt Type
               </p>
             </div>
-            <p className="text-center text-sm font-semibold text-black mb-5">
+            <p className="text-center text-base font-semibold text-black mb-5">
               System / User
             </p>
 
@@ -744,15 +734,15 @@ export default function Amivi() {
               ].map((p) => (
                 <div key={p.n} className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-extrabold flex items-center justify-center flex-shrink-0">
+                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-sm font-extrabold flex items-center justify-center flex-shrink-0">
                       {p.n}
                     </span>
-                    <span className="text-base font-extrabold text-black">{p.name}</span>
-                    <span className="text-xs font-bold uppercase tracking-wide text-indigo-500 bg-white border border-indigo-200 rounded-full px-2 py-0.5">
+                    <span className="text-lg font-extrabold text-black">{p.name}</span>
+                    <span className="text-sm font-bold uppercase tracking-wide text-black bg-white border border-indigo-200 rounded-full px-2 py-0.5">
                       System Generated
                     </span>
                   </div>
-                  <p className="text-sm font-semibold text-black pl-8 leading-relaxed">
+                  <p className="text-base font-semibold text-black pl-8 leading-relaxed">
                     {p.description}
                   </p>
                 </div>
@@ -774,7 +764,7 @@ export default function Amivi() {
       <div className="bg-gradient-to-br from-slate-50 via-white to-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
 
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-2 text-amber-700" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-2 text-black" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
             {t('Box 1 · INTRODUCE')}
           </div>
           <h2 className="text-3xl font-extrabold text-black mb-1">Image</h2>
@@ -786,7 +776,7 @@ export default function Amivi() {
               : 'Your images appear here'}
           </p>
           {!isProcessing && !result && (
-            <p className="text-sm font-bold uppercase tracking-widest text-black mt-1">
+            <p className="text-base font-bold uppercase tracking-widest text-black mt-1">
               Example: Prompt 1
             </p>
           )}
@@ -802,11 +792,11 @@ export default function Amivi() {
             {result.chunks?.length > 0 && (
               <>
                 <div className="flex items-center justify-between mb-4 px-2">
-                  <p className="text-black font-bold text-base">Select cards to use below:</p>
+                  <p className="text-black font-bold text-lg">Select cards to use below:</p>
                   <button
                     type="button"
                     onClick={toggleSelectAll}
-                    className="px-3 py-1.5 bg-white border-2 border-indigo-200 text-indigo-600 text-sm font-bold rounded-lg hover:bg-indigo-50 transition-colors"
+                    className="px-3 py-1.5 bg-white border-2 border-indigo-200 text-black text-base font-bold rounded-lg hover:bg-indigo-50 transition-colors"
                   >
                     {selectedChunks.size === result.chunks.length ? 'Deselect All' : 'Select All'}
                   </button>
@@ -853,7 +843,7 @@ export default function Amivi() {
                           {chunk.key_point || chunk.text || `Chunk ${index + 1}`}
                         </p>
                         {chunk.slogan && (
-                          <p className="text-lg sm:text-xl font-bold text-amber-700 uppercase tracking-wide">
+                          <p className="text-lg sm:text-xl font-bold text-black uppercase tracking-wide">
                             {chunk.slogan}
                           </p>
                         )}
@@ -873,7 +863,7 @@ export default function Amivi() {
 
             {result.video_url && (
               <div className="w-full mt-6 pt-6 border-t-2 border-indigo-100 flex flex-col items-center justify-center text-center">
-                <p className="text-base font-bold text-black mb-3">This is the link of the video:</p>
+                <p className="text-lg font-bold text-black mb-3">This is the link of the video:</p>
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <a
                     href={getMediaUrl(result.video_url)}
@@ -886,7 +876,7 @@ export default function Amivi() {
                   </a>
                   <button
                     onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-black font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
                   >
                     <Download size={18} />
                     Download
@@ -900,11 +890,11 @@ export default function Amivi() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((n) => (
               <div key={n} className="bg-amber-50 rounded-2xl border-2 border-amber-200 flex flex-col overflow-hidden">
-                <div className="flex items-center justify-center text-amber-300 font-extrabold text-4xl" style={{ aspectRatio: '11.7/14.7' }}>
+                <div className="flex items-center justify-center text-black font-extrabold text-4xl" style={{ aspectRatio: '11.7/14.7' }}>
                   {n}
                 </div>
                 <div className="py-3 bg-amber-100 border-t-2 border-amber-200 text-center">
-                  <p className="text-sm font-extrabold uppercase tracking-wide text-amber-700">Slogan</p>
+                  <p className="text-base font-extrabold uppercase tracking-wide text-black">Slogan</p>
                 </div>
               </div>
             ))}
@@ -927,7 +917,7 @@ export default function Amivi() {
         <div className="bg-gradient-to-br from-amber-50/60 via-white to-white rounded-2xl border border-amber-200 shadow-sm p-6 sm:p-8">
 
           <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-2 text-amber-700" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-2 text-black" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
               {t('Box 2 · AMIVI EXPLAIN')}
             </div>
             <h2 className="text-3xl font-extrabold text-black mb-1">{t('Understand Each Microbit')}</h2>
@@ -965,7 +955,7 @@ export default function Amivi() {
                     {chunk.key_point || chunk.text || `Chunk ${index + 1}`}
                   </p>
                   {chunk.slogan && (
-                    <p className="text-lg sm:text-xl font-bold text-amber-700 uppercase tracking-wide">
+                    <p className="text-lg sm:text-xl font-bold text-black uppercase tracking-wide">
                       {chunk.slogan}
                     </p>
                   )}
@@ -976,7 +966,7 @@ export default function Amivi() {
                         {chunk.description}
                       </p>
                     ) : (
-                      <p className="text-base text-slate-400 italic w-full bg-white border border-amber-100 rounded-xl p-3">
+                      <p className="text-lg text-black italic w-full bg-white border border-amber-100 rounded-xl p-3">
                         {t('Explanation not available for this Microbit.')}
                       </p>
                     )}
@@ -1008,7 +998,7 @@ export default function Amivi() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
             <div className="text-center sm:text-left">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-2 text-purple-700" style={{ background: '#faf5ff', border: '1px solid #e9d5ff' }}>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-2 text-black" style={{ background: '#faf5ff', border: '1px solid #e9d5ff' }}>
                 {t('Optional')}
               </div>
               <h2 className="text-3xl font-extrabold text-black mb-1">{t('Complete Visual')}</h2>
@@ -1037,7 +1027,7 @@ export default function Amivi() {
           </div>
 
           {completeVisualError && (
-            <p className="text-red-500 font-bold text-sm text-center mb-4">{completeVisualError}</p>
+            <p className="text-red-500 font-bold text-base text-center mb-4">{completeVisualError}</p>
           )}
 
           {completeVisualUrl ? (
@@ -1106,7 +1096,7 @@ export default function Amivi() {
 
               <button
                 onClick={resetAmivi}
-                className="text-sm font-bold text-green-100 hover:text-white underline"
+                className="text-base font-bold text-green-100 hover:text-white underline"
               >
                 {t('Start Over')}
               </button>
@@ -1128,7 +1118,7 @@ export default function Amivi() {
                 <h3 className="text-3xl font-bold text-black flex items-center gap-2">
                   📖 {t('Photo Story')}
                 </h3>
-                <p className="text-base text-black font-semibold mt-1">
+                <p className="text-lg text-black font-semibold mt-1">
                   {t('Combine every chunk into one poster-style sheet you can print or share.')}
                 </p>
               </div>
@@ -1178,7 +1168,7 @@ export default function Amivi() {
                             `amivi-photo-story-page-${page.page_number}.png`
                           )
                         }
-                        className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm"
+                        className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-black font-bold rounded-xl flex items-center gap-2 transition-colors text-base"
                       >
                         <Download size={16} />
                         {t('Download Page')} {page.page_number}
@@ -1212,7 +1202,7 @@ export default function Amivi() {
               <button
                 type="button"
                 onClick={resetAmivi}
-                className="text-sm font-bold text-slate-500 hover:text-slate-800 underline"
+                className="text-base font-bold text-black hover:text-black underline"
               >
                 Start New AMIVI
               </button>
@@ -1222,7 +1212,7 @@ export default function Amivi() {
 
               <button
                 type="button"
-                className="py-4 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-200 text-emerald-700 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+                className="py-4 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-200 text-black rounded-2xl font-bold text-lg flex flex-col items-center justify-center gap-2 transition"
                 onClick={() => setShowSaveModal(true)}
               >
                 <CheckCircle2 size={24} className="text-emerald-500" />
@@ -1231,7 +1221,7 @@ export default function Amivi() {
 
               <button
                 type="button"
-                className="py-4 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-700 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+                className="py-4 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-black rounded-2xl font-bold text-lg flex flex-col items-center justify-center gap-2 transition"
                 onClick={() => alert(`Sharing ${selectedChunks.size || result?.chunks?.length || 0} items...`)}
               >
                 <div className="w-6 h-6 rounded-full border-2 border-current flex items-center justify-center">
@@ -1244,7 +1234,7 @@ export default function Amivi() {
               <button
                 type="button"
                 onClick={() => navigate('/quiz')}
-                className="py-4 bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 text-amber-700 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+                className="py-4 bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 text-black rounded-2xl font-bold text-lg flex flex-col items-center justify-center gap-2 transition"
               >
                 <span className="text-2xl">🧩</span>
                 Quiz
@@ -1255,7 +1245,7 @@ export default function Amivi() {
                 onClick={() => navigate('/amico', { state: { sourceProjectId: result.project_id } })}
                 disabled={!result?.project_id}
                 title="Sends this completed AMIVI package (Key Points, slogans, visuals and explanations) straight to AMICO — nothing needs retyping."
-                className="py-4 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-200 text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+                className="py-4 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-200 text-black disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-bold text-lg flex flex-col items-center justify-center gap-2 transition"
               >
                 <span className="text-2xl">🎨</span>
                 Send to AMICO
@@ -1264,7 +1254,7 @@ export default function Amivi() {
               <button
                 type="button"
                 onClick={() => navigate('/analytics')}
-                className="py-4 bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 text-purple-700 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-2 transition"
+                className="py-4 bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 text-black rounded-2xl font-bold text-lg flex flex-col items-center justify-center gap-2 transition"
               >
                 <span className="text-2xl">📈</span>
                 Analytics
@@ -1288,7 +1278,7 @@ export default function Amivi() {
             <h2 className="text-3xl font-bold text-black mb-4">Edit Micro-Bit</h2>
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
-                <label className="block text-base font-bold text-black mb-1">Text / Key Point</label>
+                <label className="block text-lg font-bold text-black mb-1">Text / Key Point</label>
                 <textarea
                   value={editingChunk.text || ''}
                   onChange={(e) => setEditingChunk({...editingChunk, text: e.target.value})}
@@ -1297,7 +1287,7 @@ export default function Amivi() {
                 />
               </div>
               <div>
-                <label className="block text-base font-bold text-black mb-1">Slogan (Optional)</label>
+                <label className="block text-lg font-bold text-black mb-1">Slogan (Optional)</label>
                 <input
                   type="text"
                   value={editingChunk.slogan || ''}
@@ -1306,7 +1296,7 @@ export default function Amivi() {
                 />
               </div>
               <div>
-                <label className="block text-base font-bold text-black mb-1">Description (Optional)</label>
+                <label className="block text-lg font-bold text-black mb-1">Description (Optional)</label>
                 <textarea
                   value={editingChunk.description || ''}
                   onChange={(e) => setEditingChunk({...editingChunk, description: e.target.value})}
@@ -1318,7 +1308,7 @@ export default function Amivi() {
                 <button
                   type="button"
                   onClick={() => setEditingChunk(null)}
-                  className="px-5 py-2.5 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200"
+                  className="px-5 py-2.5 rounded-xl font-bold text-black bg-gray-100 hover:bg-gray-200"
                 >
                   Cancel
                 </button>
@@ -1342,21 +1332,21 @@ export default function Amivi() {
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-2xl font-extrabold text-black">Save to Library</h3>
-              <button onClick={() => setShowSaveModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowSaveModal(false)} className="text-black hover:text-black">
                 <X size={24} />
               </button>
             </div>
             
             <div className="p-6 space-y-6">
               <div>
-                <label className="block text-base font-bold text-black mb-2">1. Choose Library Space</label>
+                <label className="block text-lg font-bold text-black mb-2">1. Choose Library Space</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['personal', 'group', 'class'].map(space => (
                     <button
                       key={space}
                       onClick={() => setSaveSpace(space)}
-                      className={`py-2 rounded-xl text-sm font-bold capitalize border-2 transition-colors ${
-                        saveSpace === space ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-emerald-300'
+                      className={`py-2 rounded-xl text-base font-bold capitalize border-2 transition-colors ${
+                        saveSpace === space ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-black hover:border-emerald-300'
                       }`}
                     >
                       {space}
@@ -1366,14 +1356,14 @@ export default function Amivi() {
               </div>
 
               <div>
-                <label className="block text-base font-bold text-black mb-2">2. Choose Subject Folder</label>
+                <label className="block text-lg font-bold text-black mb-2">2. Choose Subject Folder</label>
                 <div className="grid grid-cols-2 gap-2">
                   {['Science', 'History', 'Geography', 'Math', 'Languages', 'Uncategorized'].map(folder => (
                     <button
                       key={folder}
                       onClick={() => setSaveFolder(folder)}
-                      className={`py-2 rounded-xl text-sm font-bold border-2 transition-colors ${
-                        saveFolder === folder ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-emerald-300'
+                      className={`py-2 rounded-xl text-base font-bold border-2 transition-colors ${
+                        saveFolder === folder ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-black hover:border-emerald-300'
                       }`}
                     >
                       {folder}
@@ -1386,7 +1376,7 @@ export default function Amivi() {
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
               <button
                 onClick={() => setShowSaveModal(false)}
-                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+                className="px-5 py-2.5 rounded-xl font-bold text-black hover:bg-slate-200 transition-colors"
               >
                 Cancel
               </button>
@@ -1406,12 +1396,12 @@ export default function Amivi() {
 
       {/* 4-Step Flowchart */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-12 mb-8 bg-slate-50 py-6 rounded-2xl border border-slate-200">
-        <div className="px-4 py-2 bg-slate-200 rounded-xl shadow-sm border border-slate-300 font-bold text-slate-700">Complexity</div>
-        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
-        <div className="px-4 py-2 bg-blue-100 rounded-xl shadow-sm border border-blue-200 font-bold text-blue-700">Clarity</div>
-        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
-        <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-pink-700">Creativity</div>
-        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-slate-200 rounded-xl shadow-sm border border-slate-300 font-bold text-black">Complexity</div>
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-blue-100 rounded-xl shadow-sm border border-blue-200 font-bold text-black">Clarity</div>
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-black">Creativity</div>
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
         <div className="px-4 py-2 bg-purple-600 rounded-xl shadow-sm border border-purple-600 font-bold text-white">Mastery</div>
       </div>
 

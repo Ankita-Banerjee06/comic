@@ -46,7 +46,8 @@ function DeckPicker({ onSelect }) {
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8" style={{ minHeight: 160, background: '#eef2ff' }}>
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 bg-indigo-600/10 border border-indigo-200 rounded-full px-4 py-1.5 text-xs font-bold mb-4 text-indigo-700">
-            <Layers className="w-3.5 h-3.5" /> Essential Learning Quizzes
+            <img src="/vlq-badge-essential-learning-icon.png" alt="" className="w-3.5 h-3.5 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            Essential Learning Quizzes
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight text-slate-900">
             Generate Quiz

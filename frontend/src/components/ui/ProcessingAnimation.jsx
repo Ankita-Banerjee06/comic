@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Lightbulb, Sparkles, BookOpen, Palette, Target } from 'lucide-react';
 
 // ============================================================
 // PROCESSING ANIMATION — the "please wait" screen shown while
-// AMIVI / AMICO are generating. A rotating cast of cute mascots
-// (the bear + a set of sticker characters) "buffers" while a
-// rotating set of short quotes keeps the wait feeling light
-// instead of like a stalled spinner.
+// AMIVI / AMICO are generating. A rotating set of simple, brand-
+// colored icons "buffers" while a rotating set of short quotes
+// keeps the wait feeling light instead of like a stalled spinner.
+// Friendly, but not a children's-mascot cast — this app is used
+// by teachers and adult learners as much as by students.
 // ============================================================
 
 const DEFAULT_QUOTES = [
@@ -19,95 +21,28 @@ const DEFAULT_QUOTES = [
   'A picture is worth a thousand words, and yours are on the way.',
 ];
 
-function Bear() {
-  return (
-    <motion.svg
-      viewBox="0 0 200 200"
-      className="w-32 h-32 sm:w-36 sm:h-36"
-      animate={{ y: [0, -10, 0] }}
-      transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-    >
-      {/* shadow */}
-      <ellipse cx="100" cy="182" rx="46" ry="8" fill="#1d4ed8" opacity="0.12" />
-
-      {/* ears */}
-      <circle cx="60" cy="55" r="22" fill="#a9754f" />
-      <circle cx="140" cy="55" r="22" fill="#a9754f" />
-      <circle cx="60" cy="55" r="11" fill="#f0d9c0" />
-      <circle cx="140" cy="55" r="11" fill="#f0d9c0" />
-
-      {/* head */}
-      <circle cx="100" cy="88" r="58" fill="#c48a5a" />
-
-      {/* muzzle */}
-      <ellipse cx="100" cy="102" rx="30" ry="22" fill="#f0d9c0" />
-      <ellipse cx="100" cy="96" rx="7" ry="5.5" fill="#3b2417" />
-
-      {/* eyes */}
-      <motion.g
-        animate={{ scaleY: [1, 1, 0.1, 1] }}
-        transition={{ duration: 3.4, repeat: Infinity, times: [0, 0.9, 0.95, 1], ease: 'easeInOut' }}
-        style={{ transformOrigin: '100px 78px' }}
-      >
-        <circle cx="78" cy="78" r="6.5" fill="#241408" />
-        <circle cx="122" cy="78" r="6.5" fill="#241408" />
-        <circle cx="80.5" cy="75.5" r="2" fill="white" />
-        <circle cx="124.5" cy="75.5" r="2" fill="white" />
-      </motion.g>
-
-      {/* blush */}
-      <ellipse cx="66" cy="98" rx="8" ry="5" fill="#f4a56b" opacity="0.6" />
-      <ellipse cx="134" cy="98" rx="8" ry="5" fill="#f4a56b" opacity="0.6" />
-
-      {/* graduation cap */}
-      <g>
-        <rect x="72" y="36" width="56" height="10" rx="2" fill="#1d4ed8" />
-        <polygon points="100,18 146,38 100,48 54,38" fill="#2563eb" />
-        <circle cx="100" cy="38" r="3.5" fill="#facc15" />
-        <line x1="100" y1="38" x2="122" y2="52" stroke="#facc15" strokeWidth="2.5" />
-        <circle cx="122" cy="52" r="4" fill="#facc15" />
-      </g>
-
-      {/* body */}
-      <ellipse cx="100" cy="168" rx="52" ry="34" fill="#c48a5a" />
-      <ellipse cx="100" cy="172" rx="26" ry="20" fill="#f0d9c0" />
-
-      {/* waving arm */}
-      <motion.g
-        animate={{ rotate: [0, 22, 0] }}
-        transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
-        style={{ transformOrigin: '150px 150px' }}
-      >
-        <ellipse cx="152" cy="152" rx="12" ry="20" fill="#c48a5a" />
-        <circle cx="152" cy="136" r="10" fill="#f0d9c0" />
-      </motion.g>
-
-      {/* still arm */}
-      <ellipse cx="48" cy="160" rx="12" ry="20" fill="#c48a5a" />
-    </motion.svg>
-  );
-}
-
-// Rotating cast of buffering mascots — the bear plus the sticker set.
-const MASCOTS = [
-  { key: 'bear', render: () => <Bear /> },
-  { key: 'cupcake', src: '/vlq-sticker-cupcake.png', alt: 'Cupcake' },
-  { key: 'penguin', src: '/vlq-sticker-penguin.png', alt: 'Penguin' },
-  { key: 'frog', src: '/vlq-sticker-frog.png', alt: 'Frog' },
-  { key: 'star', src: '/vlq-sticker-star.png', alt: 'Star' },
+// Rotating set of simple icon badges standing in for the buffering
+// mascot — each a plain, universally-readable symbol rather than a
+// cartoon character, in the app's existing brand colors.
+const ICONS = [
+  { key: 'idea', icon: Lightbulb, bg: '#2563eb' },
+  { key: 'sparkle', icon: Sparkles, bg: '#7c3aed' },
+  { key: 'learn', icon: BookOpen, bg: '#0d9488' },
+  { key: 'create', icon: Palette, bg: '#db2777' },
+  { key: 'focus', icon: Target, bg: '#d97706' },
 ];
 
 function Mascot({ mascot }) {
-  if (mascot.render) return mascot.render();
+  const Icon = mascot.icon;
   return (
-    <motion.img
-      src={mascot.src}
-      alt={mascot.alt}
-      className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-md"
+    <motion.div
+      className="w-28 h-28 sm:w-32 sm:h-32 rounded-full flex items-center justify-center shadow-lg"
+      style={{ background: mascot.bg }}
       animate={{ y: [0, -10, 0] }}
       transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-    />
+    >
+      <Icon className="w-14 h-14 sm:w-16 sm:h-16 text-white" strokeWidth={1.75} />
+    </motion.div>
   );
 }
 
@@ -124,7 +59,7 @@ export default function ProcessingAnimation({
     return () => clearInterval(id);
   }, []);
 
-  const mascot = MASCOTS[step % MASCOTS.length];
+  const mascot = ICONS[step % ICONS.length];
   const quote = quotes[step % quotes.length];
 
   return (

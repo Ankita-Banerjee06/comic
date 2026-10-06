@@ -33,15 +33,15 @@ const FIVE_STEPS = [
 const QUIZ_CARDS = [
   { title: 'Teacher Generated', desc: 'Assign quizzes to your class.', icon: UserRound, tint: '#ecfdf5', border: '#a7f3d0', dot: '#059669', action: 'Start' },
   { title: 'Learner Generated', desc: 'Create quizzes to self-test.', icon: GraduationCap, tint: '#f0fdfa', border: '#99f6e4', dot: '#0d9488', action: 'Start' },
-  { title: 'Retake Quizzes', desc: 'Practice what you missed.', icon: RotateCcw, tint: '#fdf2f8', border: '#fbcfe8', dot: '#db2777', action: 'Start' },
+  { title: 'Retake Quizzes', desc: 'Practice what you missed.', icon: RotateCcw, badge: '/vlq-badge-retakers-quiz-icon.png', tint: '#fdf2f8', border: '#fbcfe8', dot: '#db2777', action: 'Start' },
   { title: 'Other Quizzes', desc: 'Explore more quiz formats.', icon: HelpCircle, tint: '#f5f3ff', border: '#ddd6fe', dot: '#7c3aed', action: 'Start' },
   { title: 'Quiz Templates', desc: 'MCQ, True/False, Mix & Match, Maps.', icon: ClipboardList, tint: '#eff6ff', border: '#bfdbfe', dot: '#2563eb', action: 'Explore' },
 ];
 
 const LEARNING_RESOURCES = [
-  { key: 'library', title: 'Library', description: 'Access learning resources and materials.', color: '#2563eb', tint: '#dbeafe', to: '/library', image: '/vlq-cat-library.jpg' },
-  { key: 'collaborative-learning', title: 'Collaborative Learning', description: 'Learn and grow together.', color: '#7c3aed', tint: '#ede9fe', to: '/collaborative', image: '/vlq-cat-collaborative.jpg' },
-  { key: 'homework', title: 'Homework', description: 'Practice, assign, and track homework.', color: '#d97706', tint: '#fef3c7', to: '/classroom', image: '/vlq-cat-homework.jpg' },
+  { key: 'library', title: 'Library', description: 'Access learning resources and materials.', color: '#2563eb', tint: '#dbeafe', to: '/library', image: '/vlq-badge-digital-library.png' },
+  { key: 'collaborative-learning', title: 'Collaborative Learning', description: 'Learn and grow together.', color: '#7c3aed', tint: '#ede9fe', to: '/collaborative', image: '/vlq-badge-collaborative-learning.png' },
+  { key: 'homework', title: 'Homework', description: 'Practice, assign, and track homework.', color: '#d97706', tint: '#fef3c7', to: '/classroom', image: '/vlq-badge-homework-quiz.png' },
 ];
 
 const ADDITIONAL_CATEGORIES = [
@@ -133,11 +133,17 @@ export default function Explore() {
               to="/amivi"
               className="group bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-1 hover:shadow-xl transition-all border border-slate-100"
             >
-              <div className="h-80 sm:h-96 bg-blue-50 overflow-hidden flex items-center justify-center p-6">
+              <div className="h-80 sm:h-96 bg-blue-50 overflow-hidden flex items-center justify-center p-6 relative">
                 <img
                   src="/vlq-amivi-overview.png"
                   alt="AMIVI"
                   className="h-full w-full object-contain mx-auto group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+                <img
+                  src="/vlq-badge-visual-learning-icon.png"
+                  alt="Visual Learning"
+                  className="absolute top-4 left-4 w-14 h-14 rounded-full shadow-lg ring-2 ring-white bg-white object-cover"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
               </div>
@@ -192,12 +198,21 @@ export default function Explore() {
                   className="group rounded-2xl p-5 flex flex-col gap-3 border bg-white hover:-translate-y-0.5 hover:shadow-lg transition-all"
                   style={{ borderColor: q.border }}
                 >
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm"
-                    style={{ background: q.dot }}
-                  >
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
+                  {q.badge ? (
+                    <img
+                      src={q.badge}
+                      alt=""
+                      className="w-12 h-12 rounded-full shadow-sm object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm"
+                      style={{ background: q.dot }}
+                    >
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
+                  )}
                   <div className="flex-1">
                     <h4 className="text-lg font-extrabold text-black leading-tight mb-1.5">{q.title}</h4>
                     <p className="text-base font-semibold text-black leading-snug">{q.desc}</p>

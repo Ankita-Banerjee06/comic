@@ -134,6 +134,32 @@ Fix: that rule now asks for both at once — stay focused on this Key Point's ow
 
 ---
 
+## 5. AMICO — MVP Scope
+
+**Status: implemented.**
+
+- KEEP the existing Comic controls: AMIVI import, Paste Text, Panels, Pages, Layout and optional Character Avatar.
+- Comic generation must work reliably from the transferred AMIVI package.
+- Activate/connect Photo Story so it can be tested end-to-end.
+- Use one consistent name for the feature; recommended MVP label: PHOTO STORY.
+- Clean duplicate or unclear AMIVI package names in the selection list where practical.
+
+### How this was implemented
+
+- **Existing Comic controls** (Import from AMIVI / Paste Text source tabs, Panels per page, Pages, Layout, optional Character Avatar) were checked against `Amico.jsx` and are all still present and untouched — nothing here needed to change.
+- **Comic generation from the transferred AMIVI package** was already made reliable earlier this session (see section 4 above): `/api/amico/generate` builds a structured package from the AMIVI project's saved Microbits (Subject + Key Points in sequence + slogans + explanations), auto-fills any Microbit that was never individually explained so the package is always complete, and falls back to the project's raw text only if it somehow has no saved Microbits at all.
+- **Photo Story was already fully built and wired end-to-end** on inspection — upload a photo → `/api/amico/photostory/generate` → Terra describes the photo and picks an educational process/cycle to diagram → writes a panel-by-panel diagram story → Sol reviews it → each panel's image generates in parallel → the pages compose and save, same pattern as the AMICO comic pipeline. It just hadn't been given a trial run; nothing in the code needed fixing for it to work. What *was* actually missing was findability: the tab that opens it was labeled **"Visual Story"** everywhere in the UI while every other label, button, and message for the same feature (`"Generate Photo Story"`, `"Photo Story Generated!"`, download filenames, etc.) called it **"Photo Story"** — the one mismatched tab made the feature look like it might not exist. Renamed that tab to "Photo Story" so the whole feature now uses one consistent name throughout, as asked.
+- **Duplicate/unclear AMIVI package names**: the "Select AMIVI Material" dropdown showed each project's auto-generated title as-is. Since AMIVI titles are short 2-word summaries, two different lessons can easily land on the exact same title (e.g. two separate "Photosynthesis" projects from different classes or test runs), making them impossible to tell apart in the list. The dropdown now detects when a title repeats and appends that project's own id to disambiguate it (e.g. "Photosynthesis (#12)" / "Photosynthesis (#15)"); a project with no title at all still falls back to "Learning Package #<id>" as before. Titles that aren't duplicated stay exactly as they were — clean and unchanged.
+
+### Photo Story page follow-up fixes (from direct feedback on the rendered output)
+
+Three rounds of feedback on the actual generated Photo Story sheet (`render_photostory_page()` in `main.py`), each fixed in turn:
+- Text and photos read as too small → panel title and caption fonts both increased substantially (~70% larger than the original), with more canvas room added so neither got clipped.
+- Panel titles ("Plan the Story", "Choose Meaningful Gestures", etc.) were showing in a rotating color palette (pink, blue, orange, green, purple, teal) instead of black, even though the rest of the page had already been fixed to black — the per-panel palette color was still being used for just that one piece of text. Now pure black, matching the caption beneath it; the now-unused color palette was removed.
+- The page was shaped like a tall A4 sheet, so on a normal screen it rendered as a narrow strip with large empty margins on either side. Panels now arrange 3-per-row instead of 2 (a Photo Story's panels, unlike a comic's, have no strict left-to-right reading pair-up, so this is safe), and the page's height is now calculated directly from how much room its own content needs rather than forced into A4 proportions — a 6-panel story now comes out close to square, filling a normal screen's width instead of leaving it mostly empty.
+
+---
+
 ## 6. Language — Keep the MVP Simple
 
 **Status: implemented.**
@@ -158,6 +184,103 @@ Fixed with the smallest change that makes both controls real and keeps them in s
 - `Settings.jsx`'s language `<select>` is now wired to the same `language`/`setLanguage`, also rendering from `SUPPORTED_LANGUAGES` — so French is gone, and picking a language here actually changes it.
 
 Multilingual audio/video was deliberately left untouched (narration already passes `language` through to voice generation, best-effort, same as before) — per the spec, that's explicitly not required for MVP completion, and widening language support further wasn't pursued, per "must not delay the core AMIVI → AMICO journey."
+
+---
+
+## 7. AMICO — Visual Storytelling Engine (vision)
+
+**Status: first MVP slice implemented** (the launcher screen). The rest of the vision below is captured but deliberately not built yet — see "What was built" at the end of this section for exactly where the line was drawn, and why.
+
+> AMICO isn't merely a comic generator. It is a visual storytelling engine. Choose what you want to create. Choose how you want it to look. AMICO helps you bring the story to life.
+
+Proposed flow:
+
+- **AMICO >> begin >> "What would you like to create?"** — a choice of content type: **Comic | Photo Story | Biography | Diary | My Own Story**.
+- **Creation tools**, in sequence: 1. choose number of panels → 2. choose layout → 3. choose/create avatars → 4. choose background → 5. preview → Use/Discard → 6. create.
+- Every one of those choices should be made **visual rather than textual** — e.g. a small photograph representing Biography, a comic panel representing Comic, a diary-style image for Diary, and beautiful thumbnails for background options like Seaside, Garden, Breakfast Table, etc. — not plain dropdown text.
+- Explicitly called out: keep the MVP version **deliberately small and beautiful** — demonstrate the possibility, don't try to build every creation tool right now.
+- Preserve the **USE / DISCARD** step and "see it before you create it" — i.e. a preview the teacher can accept or throw away before the final comic/story is generated.
+
+What this means against what exists today: Comic and Photo Story already exist as working content types (panels, layout, and avatars already exist as controls for Comic). **Biography, Diary, and "My Own Story" do not exist yet** — no backend generation path, no UI — and neither does a **background chooser** or a **preview-before-create / Use-Discard step**; today's flow goes straight from the generate button to the final result. A unified "what would you like to create?" launcher screen, with visual tiles instead of the current two text tabs, also doesn't exist yet.
+
+This is a meaningfully larger build than the fixes made elsewhere in this document today, and the note itself says to keep the MVP slice small rather than build the whole thing at once, so this was scoped deliberately rather than attempted all at once.
+
+### What was built
+
+Asked where to start, the direction given back was "where it would look good" — read as: prioritize whichever slice makes the vision itself visible and demonstrable, since that's literally what "we demonstrate the possibility" calls for. That pointed at the launcher screen over the other two candidates (a Use/Discard preview step, or swapping today's existing text controls for visual pickers) — the launcher is the one piece that shows the *whole* vision (all 5 content types, presented visually) in a single screen, rather than deepening just the one path that already existed.
+
+Built in `Amico.jsx`:
+- AMICO now opens on a **"What would you like to create?"** launcher — five tiles in a visual grid (Comic, Photo Story, Biography, Diary, My Own Story), each with its own color gradient and a representative emoji standing in for the "carefully selected images" the vision asks for (a real curated photo per tile can replace these later without changing the structure).
+- **Comic** and **Photo Story** tiles are fully live — clicking one goes straight into that existing flow, same as the two tabs they replaced.
+- **Biography**, **Diary**, and **My Own Story** tiles are visually present (not hidden or stubbed out of sight) but marked "Coming soon"; clicking one shows a short inline note rather than pretending to work. This is what "demonstrate the possibility, don't build every tool now" meant in practice — the full 5-way vision is visible and real to look at, but only 2 of the 5 are actually functional underneath.
+- AMIVI's "Send to AMICO" button and opening a saved comic from the Library both still skip straight past the launcher into the Comic flow, exactly as before — the launcher only appears when someone arrives at AMICO with no destination already decided for them.
+- A small "← Choose a different way to create" link inside each flow returns to the launcher.
+
+Deliberately NOT built in this slice (left for a future, separately-scoped pass): the Biography/Diary/My Own Story generation engines themselves, the background chooser, the avatar/layout/panel pickers becoming visual thumbnails instead of dropdowns, and the preview-before-create Use/Discard step. Each of those was also a candidate starting point and remains open for whenever it's prioritized next.
+
+---
+
+---
+
+## 8. Category logos (Visual Learning, Essential Learning, Collaborative Learning, Digital Library, Retakers Quiz, Homework Quiz)
+
+**Status: implemented.**
+
+A single composite image with 6 circular badge logos (icon + label) was provided — one each for Visual Learning, Essential Learning, Collaborative Learning, Digital Library, Retakers Quiz, and Homework Quiz — with the instruction to add each to its respective area in the app.
+
+### How this was implemented
+
+Cropped the composite into 6 individual PNGs (circle artwork + label, tightly trimmed) and added them to `frontend/public/` as `vlq-badge-<name>.png`. Placed each where that exact name already appears as a section/page identity in the app, replacing the generic lucide-react icon or emoji that stood in for it before:
+
+- **Visual Learning** — corner badge on the AMIVI engine card on the Explore hub (`Explore.jsx`), since AMIVI is the app's visual-learning engine (its own default project title is literally "AMIVI Visual Learning").
+- **Essential Learning** — header badge on the Courses page (`Courses.jsx`, the `/courses` destination behind the Navbar's "Essential Learning" link), the Quiz Decks picker header (`QuizDecks.jsx`, "Essential Learning Quizzes"), and the Essential Learning heading inside the Quiz page's deck picker (`Quiz.jsx`).
+- **Collaborative Learning** — Explore hub's Learning Resources tile image, plus the Collaborative Learning room header badge (`CollaborativeLearning.jsx`).
+- **Digital Library** — Explore hub's Learning Resources tile image, plus the Library page's own header (`Library.jsx`, replacing the 📚 emoji).
+- **Retakers Quiz** — Explore hub's quiz-card icon (replacing the generic retry icon), plus the Retakers Quiz section header inside the Quiz page (`Quiz.jsx`, replacing the 📕 emoji).
+- **Homework Quiz** — Explore hub's Learning Resources tile image (the Homework card).
+
+Every placement already had a dedicated icon/image slot before this change (a card image, a header pill icon, or an emoji in a heading) — logos replace those placeholders rather than being bolted on as new UI elements, so no layout changed.
+
+---
+
+---
+
+## 9. Aesthetic / UI Finishing
+
+**Status: implemented.**
+
+- Replace unnecessary decorative space with the AMIVI–AMICO visual learning journey where agreed.
+- Keep typography, button sizes, spacing, card treatment and terminology consistent.
+- AMIVI should feel clear and structured; AMICO may feel slightly more creative while remaining part of the same VLQ family.
+- Keep the journey visible and memorable: Complexity → Clarity → Creativity → Mastery.
+- Remove wording that encourages an arbitrary fixed number of key points; the subject should determine the natural number.
+- Keep loading messages/characters friendly but professional and not limited to a children's audience.
+
+### How this was implemented
+
+**Decorative space → the journey strip.** Both `Amivi.jsx` and `Amico.jsx` opened with a tall (h-44/h-56) generic stock-style photo banner above the page title — `vlq-amivi-card.jpg` on AMIVI, `vlq-understand-tool.png` on AMICO. Neither photo said anything about what the app does. First pass replaced both with a new shared component, `LearningJourney.jsx`, showing the four-stage strip **Complexity → Clarity → Creativity → Mastery** at the top of the page. Turned out both pages already had this exact flowchart — labelled identically — as a "4-Step Flowchart" footer near the bottom of the page (`Amivi.jsx` ~line 1400, `Amico.jsx` ~line 1381, built in an earlier session), so the new header strip was a straight duplicate once both were on the page together. Removed the new header component from both pages — the photo banner is simply gone now, no replacement — and kept the original footer flowchart as the one place the journey appears on each page. `LearningJourney.jsx` itself is left in `components/ui/` unused (not imported anywhere) in case it's wanted later; safe to delete.
+
+**Consistency pass.** While working the header, found and fixed a couple of small drifts between the two pages: AMICO's `<h1>` was a size smaller than AMIVI's (`text-3xl sm:text-4xl` vs `text-4xl sm:text-5xl`) and its intro paragraph was missing the `text-lg` AMIVI's had — both now match.
+
+**AMIVI clear/structured vs. AMICO slightly more creative.** The existing footer flowcharts on both pages are already identical in structure (same four pills, same colors, same order) — that sameness itself is the "same VLQ family" consistency. The AMICO-specific "slightly more creative" feel comes from elsewhere on the page (its pink/rose accent color, its emoji-tiled launcher), not from this flowchart, so it was left untouched on both pages.
+
+**Fixed-number wording.** The AMIVI "Insert Subject" textarea's placeholder text read *"Paste your educational text here... e.g. Give this in 5 key points, and the pics should come with key points."* — directly suggesting a fixed count of 5, which contradicts the INTRODUCE spec (section 2) that already made the backend choose a natural number. Reworded to *"Paste your educational text here... AMIVI will break it into the key points the subject naturally calls for, each with its own picture."* A full search of both the backend prompts and the frontend copy turned up no other fixed-number wording — the generation prompt itself had already been corrected in an earlier session (section 2), this placeholder was the one remaining spot still telling a teacher to ask for a specific number.
+
+**Loading characters.** `ProcessingAnimation.jsx` (the "please wait" screen shown while AMIVI/AMICO generate) rotated through a cast of cute mascots — a bear wearing a graduation cap, plus cupcake/penguin/frog/star stickers — which reads as a children's-app mascot set, not matching an app used by teachers and adult learners. Replaced the mascot cast with a rotating set of plain icon badges (lightbulb, sparkles, book, palette, target) in the app's existing brand colors, keeping the same gentle bounce animation and fade transition so the "something is happening" feeling is unchanged. The rotating quotes underneath (e.g. "Every expert was once a beginner.") were already friendly-but-professional and needed no change — only the character art was the issue.
+
+---
+
+---
+
+## 10. AMICO launcher — visual polish
+
+**Status: implemented.**
+
+Direct feedback on the "What would you like to create?" launcher tiles (section 7's first MVP slice): make it "little good with icons colours enlarge it with enlarging icons and tabs."
+
+### How this was implemented
+
+In `Amico.jsx`'s `CREATION_TYPES` list, swapped the placeholder emoji (🦸 📷 📜 📔 🪄) for real `lucide-react` icons in a white/translucent rounded badge — `Drama` (Comic), `Camera` (Photo Story), `ScrollText` (Biography), `NotebookText` (Diary), `Wand2` (My Own Story) — so they render crisp and consistent instead of depending on the OS's emoji font. Deepened each tile's gradient slightly (e.g. Comic: violet→fuchsia instead of purple→pink) for more contrast against the white icon badge. Enlarged the tiles themselves (more padding, a `min-h` so all five are a consistent taller size, bigger gap between them), the icon badge (16×16 up to 20×20 on larger screens, icon itself 9×9/11×11), and the type/heading text (title bumped a size, the "What would you like to create?" heading bumped a size) so the whole launcher reads as a more substantial set of five choices rather than small buttons.
 
 ---
 

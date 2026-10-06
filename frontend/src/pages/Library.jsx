@@ -247,8 +247,9 @@ export default function Library() {
       >
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1.5">
-              📚 Digital Library
+            <h1 className="flex items-center gap-2.5 text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1.5">
+              <img src="/vlq-badge-digital-library-icon.png" alt="" className="w-9 h-9 rounded-full object-cover shadow-md" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              Digital Library
             </h1>
             <p className="text-white/90 font-medium">
               A personal home for visual learning materials. Learners can save, revisit and reinforce important knowledge. Learning remains available whenever it is needed.

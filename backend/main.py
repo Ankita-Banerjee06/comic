@@ -3692,6 +3692,38 @@ def split_into_rows(panel_count):
     return rows
 
 
+def split_into_rows_wide(panel_count, max_per_row=3):
+
+    """
+    Like split_into_rows, but allows up to 3 panels per row instead
+    of 2. Used only for the Photo Story diagram sheet: unlike a
+    comic, which reads panel-by-panel in a fixed left-to-right
+    order (so a narrower 2-wide grid matches how it's meant to be
+    read), a Photo Story's panels are independent diagram stages
+    with no strict reading pair-up, so a wider grid is fine — and
+    keeps the overall page closer to landscape/square instead of a
+    tall, narrow A4-like strip. A page that shape fits a normal
+    screen's display area much better: when a viewer's screen fits
+    the page to its height, a landscape/square page also fills
+    most of the available width, where a tall strip leaves large
+    empty margins on either side.
+    """
+
+    rows = []
+
+    remaining = panel_count
+
+    while remaining > 0:
+
+        take = min(max_per_row, remaining)
+
+        rows.append(take)
+
+        remaining -= take
+
+    return rows
+
+
 def distribute(total, count):
 
     """
@@ -4276,13 +4308,12 @@ def render_photostory_page(
     row_plan = (
         [1] * len(panels)
         if layout == "vertical"
-        else split_into_rows(len(panels))
+        # 3-wide instead of the comic page's 2-wide — see
+        # split_into_rows_wide's docstring: this is what keeps the
+        # finished sheet close to landscape/square instead of a
+        # tall A4-shaped strip.
+        else split_into_rows_wide(len(panels))
     )
-
-    # Sized up well past a real A4 sheet (like the character
-    # comic page) so the diagram and its captions fill more of
-    # the screen and stay sharp when viewed full screen or
-    # zoomed in.
 
     frame_thickness = 86
     frame_radius = 110
@@ -4290,33 +4321,48 @@ def render_photostory_page(
     outer_padding = frame_thickness + 34
     gap = 29
 
-    header_height = 220 if story_title else 0
-    footer_height = 196
+    # header_height/footer_height sized to comfortably fit the
+    # larger title_font/footer_font below (a plain size bump here
+    # without also bumping these would just crowd/clip the text).
+    header_height = 280 if story_title else 0
+    footer_height = 210
 
     if layout == "vertical":
 
-        content_width = 2190
-        row_heights = [940] * len(row_plan)
+        content_width = 2450
+        row_heights = [1140] * len(row_plan)
 
     else:
 
-        page_width = 3400
-        page_height = round(page_width * 297 / 210)
+        # The page's shape now follows its own content instead of
+        # being forced into an A4 ratio and then squeezed to fit:
+        # pick a page width, work out how tall one row needs to be
+        # to comfortably hold its image plus its caption at these
+        # font sizes, and let the page's total height be whatever
+        # that adds up to. For a 6-panel story (3-per-row x 2 rows)
+        # this lands close to landscape/square, so it actually
+        # fills a normal screen's width instead of rendering as a
+        # tall, narrow strip with empty space on either side.
+        page_width = 3800
 
         content_width = page_width - outer_padding * 2
 
-        page_content_height = (
-            page_height
-            - outer_padding * 2
-            - header_height
-            - footer_height
-        )
+        max_cols = max(row_plan) if row_plan else 1
 
-        row_heights = distribute(
-            page_content_height
-            - (len(row_plan) - 1) * gap,
-            len(row_plan),
-        )
+        col_width = (
+            content_width - (max_cols - 1) * gap
+        ) // max_cols
+
+        # A squarish-to-slightly-tall illustration area per panel,
+        # plus a fixed caption block sized to comfortably fit the
+        # panel title and 2-3 lines of caption at caption_font.
+        image_height = round(col_width * 0.95)
+        caption_height = 640
+
+        row_heights = [
+            image_height + caption_height + 10
+            for _ in row_plan
+        ]
 
     content_height = (
         sum(row_heights)
@@ -4359,28 +4405,33 @@ def render_photostory_page(
         fill="#FFFFFF",
     )
 
+    # Bumped up noticeably from the original sizes — the first
+    # version of this page read as too small both on a projector
+    # and on a printed page, so every piece of text here is
+    # deliberately large and bold rather than merely "readable".
+
     title_font = get_font(
-        98,
+        140,
         bold=True,
     )
 
     subtitle_font = get_font(
-        50,
+        64,
         bold=False,
     )
 
     panel_title_font = get_font(
-        78,
+        132,
         bold=True,
     )
 
     caption_font = get_font(
-        58,
+        98,
         bold=False,
     )
 
     footer_font = get_font(
-        52,
+        60,
         bold=True,
     )
 
@@ -4407,7 +4458,7 @@ def render_photostory_page(
             draw.text(
                 (
                     canvas_width // 2,
-                    outer_padding + 144,
+                    outer_padding + 198,
                 ),
                 f"Page {page_number} of {total_pages}",
                 fill="#555555",
@@ -4424,12 +4475,6 @@ def render_photostory_page(
 
     panels_top = outer_padding + header_height
 
-    palette = [
-        "#E64980", "#1E88E5", "#F5A623",
-        "#43A047", "#8E24AA", "#00897B",
-        "#EF5350", "#5C6BC0",
-    ]
-
     panel_index = 0
     y = panels_top
 
@@ -4437,9 +4482,16 @@ def render_photostory_page(
 
         row_height = row_heights[row_index]
 
-        caption_height = max(
-            225,
-            round(row_height * 0.40),
+        # Matches the fixed caption_height used to size row_heights
+        # above (vertical layout's single fixed row_height needs
+        # its own split, since it never went through that sizing).
+        caption_height = (
+            640
+            if layout != "vertical"
+            else max(
+                360,
+                round(row_height * 0.36),
+            )
         )
 
         image_height = (
@@ -4465,10 +4517,6 @@ def render_photostory_page(
             this_width = row_widths[column]
 
             image, panel = panel_images[panel_index]
-
-            color = palette[
-                panel_index % len(palette)
-            ]
 
             panel_index += 1
 
@@ -4531,11 +4579,15 @@ def render_photostory_page(
                         text_y,
                     ),
                     panel_title,
-                    fill=color,
+                    # Was the per-panel palette color — made every
+                    # stage title a different color, which read as
+                    # "not black" even though everything else was.
+                    # Pure black now, matching the caption below it.
+                    fill="#000000",
                     font=panel_title_font,
                 )
 
-                text_y += 100
+                text_y += 168
 
             # Clip the caption to however many lines actually fit
             # inside the caption box (rather than trusting the
@@ -4543,7 +4595,7 @@ def render_photostory_page(
             # caption can never visually collide with the next
             # row of panels — it just ends with an ellipsis.
 
-            caption_line_spacing = 14
+            caption_line_spacing = 26
 
             line_bbox = draw.textbbox(
                 (0, 0),
@@ -4595,7 +4647,7 @@ def render_photostory_page(
                     ),
                     line,
                     font=caption_font,
-                    fill="#222222",
+                    fill="#000000",
                 )
 
                 caption_y += caption_line_height

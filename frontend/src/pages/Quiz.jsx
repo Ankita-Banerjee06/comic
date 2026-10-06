@@ -117,7 +117,10 @@ function DeckPicker({ onSelect }) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Essential Learning</h2>
+        <h2 className="text-2xl font-extrabold text-slate-900 mb-2 flex items-center gap-2">
+          <img src="/vlq-badge-essential-learning-icon.png" alt="" className="w-8 h-8 rounded-full object-cover shadow-sm" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          Essential Learning
+        </h2>
         <p className="text-slate-600 font-medium max-w-xl mb-6">
           Focuses learners on important knowledge rather than unnecessary trivia.
         </p>
@@ -778,7 +781,8 @@ export default function Quiz() {
         {view === 'bank' ? (
           <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5 sm:p-8">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-              📕 Retakers Quiz
+              <img src="/vlq-badge-retakers-quiz-icon.png" alt="" className="w-8 h-8 rounded-full object-cover shadow-sm" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              Retakers Quiz
             </h2>
             <div className="mb-6 space-y-0.5">
               <p className="text-gray-500 font-bold">A second opportunity focused on areas needing improvement.</p>
