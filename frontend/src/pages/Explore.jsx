@@ -33,7 +33,7 @@ const FIVE_STEPS = [
 const QUIZ_CARDS = [
   { title: 'Teacher Generated', desc: 'Assign quizzes to your class.', icon: UserRound, tint: '#ecfdf5', border: '#a7f3d0', dot: '#059669', action: 'Start' },
   { title: 'Learner Generated', desc: 'Create quizzes to self-test.', icon: GraduationCap, tint: '#f0fdfa', border: '#99f6e4', dot: '#0d9488', action: 'Start' },
-  { title: 'Retake Quizzes', desc: 'Practice what you missed.', icon: RotateCcw, badge: '/vlq-badge-retakers-quiz-icon.png', tint: '#fdf2f8', border: '#fbcfe8', dot: '#db2777', action: 'Start' },
+  { title: 'Retake Quizzes', desc: 'Practice what you missed.', icon: RotateCcw, tint: '#fdf2f8', border: '#fbcfe8', dot: '#db2777', action: 'Start' },
   { title: 'Other Quizzes', desc: 'Explore more quiz formats.', icon: HelpCircle, tint: '#f5f3ff', border: '#ddd6fe', dot: '#7c3aed', action: 'Start' },
   { title: 'Quiz Templates', desc: 'MCQ, True/False, Mix & Match, Maps.', icon: ClipboardList, tint: '#eff6ff', border: '#bfdbfe', dot: '#2563eb', action: 'Explore' },
 ];
@@ -133,17 +133,11 @@ export default function Explore() {
               to="/amivi"
               className="group bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-1 hover:shadow-xl transition-all border border-slate-100"
             >
-              <div className="h-80 sm:h-96 bg-blue-50 overflow-hidden flex items-center justify-center p-6 relative">
+              <div className="aspect-[2171/724] bg-blue-50 overflow-hidden relative">
                 <img
                   src="/vlq-amivi-overview.png"
                   alt="AMIVI"
-                  className="h-full w-full object-contain mx-auto group-hover:scale-105 transition-transform duration-500"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-                <img
-                  src="/vlq-badge-visual-learning-icon.png"
-                  alt="Visual Learning"
-                  className="absolute top-4 left-4 w-14 h-14 rounded-full shadow-lg ring-2 ring-white bg-white object-cover"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
               </div>
@@ -161,11 +155,11 @@ export default function Explore() {
               to="/amico"
               className="group bg-white rounded-3xl overflow-hidden shadow-sm flex flex-col hover:-translate-y-1 hover:shadow-xl transition-all border border-slate-100"
             >
-              <div className="h-80 sm:h-96 bg-purple-50 overflow-hidden flex items-center justify-center p-6">
+              <div className="aspect-[2172/724] bg-purple-50 overflow-hidden relative">
                 <img
                   src="/vlq-amico-overview.png"
                   alt="AMICO"
-                  className="h-full w-full object-contain mx-auto group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
               </div>

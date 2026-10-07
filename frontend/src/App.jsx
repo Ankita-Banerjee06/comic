@@ -29,6 +29,7 @@ import Collaborate from './pages/Collaborate';
 import Classroom from './pages/Classroom';
 import Courses from './pages/Courses';
 import Tutorials from './pages/Tutorials';
+import CoreEcosystems from './pages/CoreEcosystems';
 
 // Auth Pages
 import Login from './pages/Auth/Login';
@@ -89,6 +90,7 @@ function App() {
           <Route path="/introduction" element={<Introduction />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/how-we-do-it" element={<HowWeDoIt />} />
+          <Route path="/core-ecosystems" element={<CoreEcosystems />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/gamification" element={<Gamification />} />
           <Route path="/plans" element={<Plans />} />

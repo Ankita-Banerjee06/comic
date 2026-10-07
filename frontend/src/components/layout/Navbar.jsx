@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, User, Globe, ChevronDown, GraduationCap, Video, LogOut, Home, Compass, CreditCard, Lightbulb, Info } from 'lucide-react';
+import { Menu, X, User, Globe, ChevronDown, GraduationCap, Video, LogOut, Home, Compass, CreditCard, Lightbulb, Info, Sparkles } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage, SUPPORTED_LANGUAGES } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,6 +9,7 @@ const navLinks = [
   { name: 'Introduction',  path: '/introduction',  icon: Info },
   { name: 'Explore',       path: '/explore',       icon: Compass },
   { name: 'How We Do It',  path: '/how-we-do-it',  icon: Lightbulb },
+  { name: 'Core Ecosystems', path: '/core-ecosystems', icon: Sparkles },
   { name: 'Essential Learning',       path: '/courses',       icon: GraduationCap },
   { name: 'Video Tutorials', path: '/tutorials',   icon: Video },
   { name: 'Plans',          path: '/plans',         icon: CreditCard },

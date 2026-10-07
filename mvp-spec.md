@@ -336,4 +336,123 @@ This affects the loading screen everywhere `ProcessingAnimation` is used: AMIVI'
 
 ---
 
+## 14. AMIVI — auto-generated Subject description (no manual "insert heading" control)
+
+**Status: implemented.**
+
+A mockup was shared showing a "Subject:" box with a full one-sentence description (e.g. "Photosynthesis is the process by which green plants transform light energy into chemical energy.") above the Key Point cards, alongside an "Insert new Subject/Heading" button. Clarified: no button is wanted — "according to the topic this type of heading should be generated," i.e. AMIVI should generate this description automatically, the same way it already auto-generates the short subject title (section 12).
+
+### How this was implemented
+
+- **Backend** (`main.py`, `generate_amivi_content()`): added a new `subject_description` field to the INTRODUCE prompt's JSON schema, alongside the existing `title` field — one standalone sentence introducing the subject as a whole (in the style of the example sentence above), generated in the same request as the Key Points, not a separate step or manual entry.
+- **Backend** (`amivi_generate`): added `"subject_description"` to the endpoint's live response (same fix pattern as `title` in section 12 — already saved via the project's `data`, just not returned immediately on first generation).
+- **Frontend** (`Amivi.jsx`): the existing "Subject Heading / Title" box (section 12) now also shows this description, in a bordered box beneath the subject title, whenever AMIVI has generated one. No insert/edit control of any kind — it only ever shows what was auto-generated.
+
+---
+
+## 15. "Core Ecosystems" page — AMIVI / AMICO overview graphics
+
+**Status: implemented, and live in the navbar as "Core Ecosystems" (between "How We Do It" and "Essential Learning").**
+
+"Create this page, We shall insert it in the proper location later. Images should be LARGE." — a mockup was supplied showing a centered heading ("At the core of VLQ... are two proprietary ecosystems AMIVI and AMICO...") above two large side-by-side overview graphics (one for AMIVI, one for AMICO).
+
+### How this was implemented
+
+Created `frontend/src/pages/CoreEcosystems.jsx` as a new, self-contained page — matching the existing marketing-page styling (`HowWeDoIt.jsx`'s header and large rounded/shadowed image-panel treatment) — with the two overview graphics displayed large, side by side on wide screens and stacked on narrow ones. The heading was rewritten from the mockup's literal text into a sharper version tying into both graphics' own taglines: eyebrow "THE VLQ ENGINE", heading "Two Proprietary Ecosystems. One Learning Platform.", subtext "AMIVI turns complexity into clarity. AMICO turns learning into creativity."
+
+The two graphics themselves were cropped directly out of the supplied mockup image (there was no separate source file) and added as `frontend/public/ecosystems/amivi-overview.png` and `amico-overview.png`. These are screenshot-resolution, not the original production artwork — if higher-resolution versions of these two graphics exist, swapping them into those same two file paths is all that's needed; nothing else in the page would need to change.
+
+Initially shipped as a standalone component reachable only by typing `/core-ecosystems` directly, per the request to build it first and place it later. Follow-up: added a permanent route at `/core-ecosystems` and a matching "Core Ecosystems" entry in `Navbar.jsx`'s `navLinks` (both desktop and mobile menus render from that same list), placed right after "How We Do It" since both introduce how VLQ works.
+
+---
+
+## 16. AMIVI page header — "Flightpath" description copy
+
+**Status: implemented.**
+
+An annotated screenshot of the AMIVI page was supplied with new copy written directly over the existing header paragraph, specifying exactly what to put there:
+
+> AMIVI–AMICO Ecosystems: Flightpath to the continuous learning journey.
+> AMIVI → turns complex information into clear visual learning.
+> AMICO → transforms that learning into creative engagement.
+> Complexity → Clarity → Creativity → Mastery
+
+### How this was implemented
+
+Replaced the AMIVI page header's description paragraph (`Amivi.jsx`, directly under the "AMIVI" title, above the "Insert Subject" / "Upload File" cards) with this copy, kept as plain text (bold intro line, the two arrow sentences, then the Complexity → Clarity → Creativity → Mastery line in indigo) rather than rebuilt as a graphical flowchart — the page already has a flowchart widget for that same phrase further down (section 9), and a second one at the top would reintroduce the duplicate-flowchart issue fixed earlier in this document.
+
+---
+
+## 17. AMIVI page — 5-panel journey strip
+
+**Status: implemented.**
+
+A 5-panel illustrated strip was supplied — a learner overwhelmed by information ("So much information! How can I make sense of it?"), then 1/4 AMIVI creates the learning chunks, 2/4 AMICO puts them in order, 3/4 AMICO turns the ordered chunks into a story ("The Journey of a Plant"), 4/4 Learner understands and remembers — with the instruction to add it "like it was in the pic."
+
+### How this was implemented
+
+Added the strip as a single image at the very top of the AMIVI page (`Amivi.jsx`), directly below the "← Back" link and above the header card — matching where it appeared in the reference screenshot. It's shown as one wide image (`frontend/public/amivi-journey/amivi-journey-strip.png`) rather than rebuilt panel-by-panel in code, so its speech bubbles, captions and layout render exactly as designed. It scales full-width and down on smaller screens.
+
+---
+
+## 18. AMIVI page — journey flowchart moved from bottom to top
+
+**Status: implemented.**
+
+"create this as a flowchart and remove the flowchart from the bottom — Complexity → Clarity → Creativity → Mastery." The plain-text "Complexity → Clarity → Creativity → Mastery" line added to the header in section 16 was to become the same visual pill-and-arrow flowchart already used at the bottom of the page, with that bottom copy removed so there's only one.
+
+### How this was implemented
+
+Moved the existing 4-step pill/arrow flowchart (Complexity → Clarity → Creativity → Mastery, same colors as before: grey, blue, pink, purple) from the bottom of `Amivi.jsx` up into the header card, replacing the plain-text line. Deleted the original copy at the bottom of the page. The page now shows this flowchart exactly once, in the header, instead of once at the bottom.
+
+(AMICO's own page still has its matching footer flowchart, untouched — this change was scoped to AMIVI's page only, where the request was made.)
+
+---
+
+## 19. AMIVI & AMICO page headers — respective circular logo badges
+
+**Status: implemented.**
+
+A mockup was supplied showing both the AMIVI and AMICO pages, each restructured into a two-column header: a circular logo badge on the left ("AMIVI — TURN COMPLEXITY INTO CLARITY" in green, "AMICO — TURN LEARNING INTO CREATIVITY" in blue) beside the existing Flightpath text block + flowchart on the right. Instruction: "do it with respective logos" — each page gets its own matching badge, and the same structure applies to both pages.
+
+### How this was implemented
+
+- **New logo badge assets**: no existing circular AMIVI/AMICO badge artwork was found anywhere in `frontend/public/` (checked directly on the device first), so both badges were cropped straight out of the supplied mockup screenshot — alpha-masked (transparent background, largest-connected-component filtering to drop stray bleed-in text from neighboring UI in the screenshot) and upscaled for display. Saved as `frontend/public/ecosystems/amivi-logo-badge.png` (green) and `amico-logo-badge.png` (blue).
+- **`Amivi.jsx` header**: restructured into a two-column flex layout — the AMIVI badge image on the left (stacking above on narrow screens), and on the right a small bold "AMIVI" label followed by the Flightpath text (AMIVI's own line bolded) and the Complexity → Clarity → Creativity → Mastery flowchart (already moved into the header in section 18).
+- **`Amico.jsx` header**: brought up to the same structure as AMIVI's, which it didn't have yet — added the 5-panel journey strip image (section 17) above its header (reusing the same strip file), then replaced its separate pill+heading header with the same two-column layout using the AMICO badge, bolding the AMICO line of the Flightpath text instead. Its own pre-existing footer flowchart was removed, since the flowchart now lives in its header — mirroring the exact fix already applied to AMIVI in section 18, so neither page ends up with the flowchart shown twice.
+
+Both pages now follow one shared template (journey strip → two-column header with respective badge, text, and flowchart), differing only in which badge and which Flightpath line is bolded.
+
+---
+
+## 20. Explore page — removed stray category badges
+
+**Status: implemented.**
+
+Direct feedback with two screenshots: remove the small circular badge overlapping the top-left corner of the AMIVI card image on the Explore page's "THE VLQ ENGINES" zone, then remove the matching badge on the "Retake Quizzes" card in the Quizzes zone below it.
+
+### How this was implemented
+
+Both were corner-badge touches added in section 8 (category logos) that, once seen live on the page, read as clutter rather than useful identification — both cards already say what they are via their own heading/tag, so the badge was redundant.
+
+- **AMIVI card** (`Explore.jsx`): removed the `/vlq-badge-visual-learning-icon.png` `<img>` that was absolutely positioned over the top-left corner of the AMIVI overview image. The image itself is untouched.
+- **Retake Quizzes card** (`Explore.jsx`): removed the `badge: '/vlq-badge-retakers-quiz-icon.png'` field from that card's entry in `QUIZ_CARDS`. The card's icon tile now falls back to the same plain icon-in-a-colored-circle treatment every other quiz card already uses (`RotateCcw` icon on a pink circle), so all five quiz cards are visually consistent again.
+
+---
+
+## 21. Landing page hero photo + Explore page AMIVI/AMICO images shown full-size
+
+**Status: implemented.**
+
+Two separate pieces of feedback:
+- A new classroom photo was supplied (teacher at a smartboard showing VLQ's visual teaching tools, branding, and "Learn at the Speed of Sight", with students following along on tablets) to replace the landing page's hero background photo.
+- On the Explore page's "THE VLQ ENGINES" cards, the AMIVI and AMICO overview graphics were floating small in the middle of their boxes with a lot of empty background showing above and below — asked to insert the full-size image instead.
+
+### How this was implemented
+
+- **Landing page hero** (`Landing.jsx`): the hero section's full-bleed background image now points to the newly supplied photo (`frontend/public/vlq-hero-classroom-v2.jpg`), replacing `vlq-hero-classroom.jpg`. Same full-bleed treatment as before (`object-cover`, slight top-weighted crop) — only the photo itself changed.
+- **Explore page AMIVI/AMICO cards** (`Explore.jsx`): these cards previously showed the overview image inside a tall, fixed-height box (`h-80 sm:h-96`) with padding, scaled to fit (`object-contain`) — since the images are wide banner graphics (roughly 3:1), that left visible empty space above and below the actual artwork. The box is now sized to the image's own aspect ratio and the image fills it edge to edge (`object-cover`, no padding), so the full graphic reads clearly at full size instead of floating in a mostly-empty card.
+
+---
+
 *(Add further numbered items / system prompts below as they're provided.)*

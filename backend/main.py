@@ -1969,6 +1969,7 @@ def generate_amivi_content(
 
         "Rules:\n"
         "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the material.\n"
+        "- Also write a one-sentence subject_description that plainly introduces the subject as a whole — a single, clear sentence a teacher could read aloud to open the lesson, in the style of 'Photosynthesis is the process by which green plants transform light energy into chemical energy.' It must stand alone (no 'this subject' or 'in this lesson' framing) and must not repeat or list the individual Key Points — it introduces the topic in general, before any Key Point is shown.\n"
         "- Each Microbit should contain exactly: one essential Key Point Name, one relevant image, and one memorable slogan of maximum 4 words.\n"
         "- Generate each Microbit separately so it can be individually selected and presented for teaching.\n"
         "- Do NOT combine the Microbits into one poster or image here — every Microbit stays its own separate, standalone card. (A connected 'Complete Visual' may be generated separately afterward, as its own later step — never as part of this set.)\n"
@@ -1991,6 +1992,7 @@ def generate_amivi_content(
         "Return ONLY valid JSON in this exact structure:\n"
         "{\n"
         '  "title": "...",\n'
+        '  "subject_description": "...",\n'
         '  "chunks": [\n'
         "    {\n"
         '      "chunk_number": 1,\n'
@@ -4864,6 +4866,7 @@ async def amivi_generate(
         # -----------------------------------------------------
 
         final_title = content.get("title") or source_title
+        subject_description = content.get("subject_description") or ""
 
         project_id = save_project(
             project_type="amivi",
@@ -5169,6 +5172,7 @@ async def amivi_generate(
             "status": "success",
             "project_id": project_id,
             "title": final_title,
+            "subject_description": subject_description,
             "source_url": source_url,
             "video_id": video_id,
             "video_url": (
