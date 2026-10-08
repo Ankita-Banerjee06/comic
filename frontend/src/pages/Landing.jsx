@@ -41,7 +41,8 @@ const features = [
     desc: 'Turn any learning material into clear diagrams and visual summaries instantly.',
     color: '#1d4ed8',
     tint: '#eff6ff',
-    border: '#bfdbfe',
+    soft: '#bfdbfe',
+    border: '#60a5fa',
     to: '/amivi',
     cta: 'Create Visuals',
     image: '/vlq-see-tool.png',
@@ -52,7 +53,8 @@ const features = [
     desc: 'Transform concepts into multi-panel comic stories with scenes and dialogue.',
     color: '#be185d',
     tint: '#fdf2f8',
-    border: '#f9a8d4',
+    soft: '#fbcfe8',
+    border: '#f472b6',
     to: '/amico',
     cta: 'Create Comic',
     image: '/vlq-understand-tool.png',
@@ -63,7 +65,8 @@ const features = [
     desc: 'Test your understanding with image-backed interactive quizzes and explanations.',
     color: '#7c3aed',
     tint: '#f5f3ff',
-    border: '#c4b5fd',
+    soft: '#ddd6fe',
+    border: '#a78bfa',
     to: '/quiz',
     cta: 'Start Quiz',
     image: '/vlq-quiz-tool.png',
@@ -99,7 +102,7 @@ export default function Landing() {
       ═══════════════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden" style={{ background: 'linear-gradient(90deg, #dbeafe 0%, #dcfce7 33%, #fce7f3 66%, #ede9fe 100%)' }}>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
-          <p className="text-center text-base sm:text-lg font-extrabold uppercase tracking-widest mb-8" style={{ color: '#000000' }}>
+          <p className="text-center text-lg sm:text-xl font-extrabold uppercase tracking-widest mb-8" style={{ color: '#000000' }}>
             Built for every kind of learner
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
@@ -111,8 +114,8 @@ export default function Landing() {
                   <div className="w-14 h-14 rounded-full flex items-center justify-center mb-1" style={{ background: a.tint }}>
                     <Icon className="w-6 h-6" style={{ color: a.color }} strokeWidth={2.5} />
                   </div>
-                  <div className="font-extrabold text-lg sm:text-xl" style={{ color: '#000000' }}>{a.label}</div>
-                  <div className="text-base sm:text-lg font-bold" style={{ color: '#000000' }}>{a.desc}</div>
+                  <div className="font-extrabold text-xl sm:text-2xl" style={{ color: '#000000' }}>{a.label}</div>
+                  <div className="text-lg sm:text-xl font-bold" style={{ color: '#000000' }}>{a.desc}</div>
                 </div>
               );
             })}
@@ -132,14 +135,14 @@ export default function Landing() {
         <div className="relative max-w-7xl mx-auto">
 
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-base sm:text-lg font-extrabold uppercase tracking-widest mb-6"
+            <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-lg sm:text-xl font-extrabold uppercase tracking-widest mb-6"
               style={{ background: '#eef2ff', color: '#000000', border: '2px solid #c7d2fe' }}>
               The VLQ Method
             </div>
-            <h2 className="font-black leading-tight" style={{ fontSize: 'clamp(36px,5vw,56px)', color: '#000000' }}>
+            <h2 className="font-black leading-tight" style={{ fontSize: 'clamp(40px,5.5vw,64px)', color: '#000000' }}>
               Three tools. One learning journey.
             </h2>
-            <p className="mt-5 text-xl sm:text-2xl font-bold max-w-4xl mx-auto" style={{ color: '#000000' }}>
+            <p className="mt-5 text-2xl sm:text-3xl font-bold max-w-4xl mx-auto" style={{ color: '#000000' }}>
               Whether you're a student, a teacher, or learning something new for work — the same method helps you see, understand, and master any subject.
             </p>
           </div>
@@ -149,37 +152,45 @@ export default function Landing() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {features.map((card) => (
               <div key={card.tag}
-                className="rounded-3xl p-8 flex flex-col transition-all duration-300 hover:-translate-y-2 shadow-sm hover:shadow-xl bg-white"
-                style={{ border: `2px solid ${card.color}` }}>
-                <div className="inline-flex items-center gap-2 self-start px-4 py-1.5 rounded-full font-black text-base sm:text-lg uppercase tracking-wider mb-6"
-                  style={{ background: card.tint, color: '#000000' }}>
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: card.color }} />
-                  {card.tag}
+                className="rounded-3xl overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-2 shadow-lg hover:shadow-2xl"
+                style={{
+                  border: `3px solid ${card.color}`,
+                  background: `linear-gradient(165deg, ${card.soft} 0%, ${card.tint} 38%, #ffffff 72%)`,
+                  boxShadow: `0 16px 36px -14px ${card.color}80`,
+                }}>
+                <div className="h-3" style={{ background: `linear-gradient(90deg, ${card.color}, ${card.border})` }} />
+
+                <div className="p-8 flex flex-col flex-1">
+                  <div className="inline-flex items-center gap-2 self-start px-4 py-1.5 rounded-full font-black text-lg sm:text-xl uppercase tracking-wider mb-6 shadow-sm"
+                    style={{ background: card.soft, color: '#000000', border: `2px solid ${card.color}` }}>
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: card.color }} />
+                    {card.tag}
+                  </div>
+
+                  <h3 className="text-4xl sm:text-5xl font-black mb-3 tracking-tight" style={{ color: '#000000' }}>
+                    {card.title}
+                  </h3>
+
+                  <p className="text-xl sm:text-2xl font-bold mb-8 flex-1 leading-relaxed" style={{ color: '#000000' }}>
+                    {card.desc}
+                  </p>
+
+                  <div className="rounded-2xl mb-8 overflow-hidden aspect-video sm:aspect-square border-[3px] shadow-inner" style={{ borderColor: card.color }}>
+                    <img
+                      src={card.image}
+                      alt={card.title}
+                      className="w-full h-full object-cover"
+                      style={{ display: 'block' }}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  </div>
+
+                  <Link to={card.to}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black transition-all hover:-translate-y-1 shadow-md"
+                    style={{ background: card.soft, color: '#000000', border: `2px solid ${card.color}`, fontSize: '1.35rem' }}>
+                    {card.cta} <ArrowRight className="w-6 h-6" />
+                  </Link>
                 </div>
-                
-                <h3 className="text-3xl sm:text-4xl font-black mb-3 tracking-tight" style={{ color: '#000000' }}>
-                  {card.title}
-                </h3>
-                
-                <p className="text-lg sm:text-xl font-bold mb-8 flex-1 leading-relaxed" style={{ color: '#000000' }}>
-                  {card.desc}
-                </p>
-                
-                <div className="rounded-2xl mb-8 overflow-hidden aspect-video sm:aspect-square border-2 shadow-inner" style={{ borderColor: card.border }}>
-                  <img
-                    src={card.image}
-                    alt={card.title}
-                    className="w-full h-full object-cover"
-                    style={{ display: 'block' }}
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                </div>
-                
-                <Link to={card.to}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black transition-all hover:-translate-y-1 shadow-md"
-                  style={{ background: card.color, color: '#000000', fontSize: '1.25rem' }}>
-                  {card.cta} <ArrowRight className="w-6 h-6" />
-                </Link>
               </div>
             ))}
           </div>
@@ -190,15 +201,15 @@ export default function Landing() {
           CTA BANNER
       ═══════════════════════════════════════════════════════════ */}
       <section className="relative py-12 md:py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto rounded-3xl text-center relative overflow-hidden shadow-sm border border-slate-200" style={{ minHeight: 300, background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 55%, #cbd5e1 100%)' }}>
-          <div aria-hidden className="absolute inset-0 opacity-40" style={{ background: 'radial-gradient(circle at 20% 30%, white 0%, transparent 35%), radial-gradient(circle at 80% 70%, white 0%, transparent 30%)' }} />
+        <div className="max-w-5xl mx-auto rounded-3xl text-center relative overflow-hidden shadow-xl border-2" style={{ minHeight: 300, background: 'linear-gradient(120deg, #dbeafe 0%, #ede9fe 50%, #fce7f3 100%)', borderColor: '#c7d2fe' }}>
+          <div aria-hidden className="absolute inset-0 opacity-60" style={{ background: 'radial-gradient(circle at 15% 20%, rgba(255,255,255,0.6) 0%, transparent 40%), radial-gradient(circle at 85% 80%, rgba(255,255,255,0.5) 0%, transparent 35%)' }} />
           <div className="relative z-10 p-8 sm:p-16 flex flex-col items-center justify-center h-full" style={{ minHeight: 300 }}>
-            <h2 className="font-black mb-8 leading-tight tracking-tight" style={{ fontSize: 'clamp(36px,5vw,56px)', color: '#000000' }}>
+            <h2 className="font-black mb-8 leading-tight tracking-tight" style={{ fontSize: 'clamp(40px,5.5vw,64px)', color: '#000000' }}>
               Ready to learn at the speed of sight?
             </h2>
             <Link to="/amivi"
-              className="inline-flex items-center gap-3 px-10 py-5 rounded-2xl font-black transition-all hover:-translate-y-1 hover:shadow-xl"
-              style={{ background: '#000000', color: '#ffffff', fontSize: '1.25rem' }}>
+              className="inline-flex items-center gap-3 px-10 py-5 rounded-2xl font-black transition-all hover:-translate-y-1 hover:shadow-2xl border-2"
+              style={{ background: '#ffffff', color: '#000000', borderColor: '#7c3aed', fontSize: '1.35rem' }}>
               Start Your Journey <ArrowRight className="w-6 h-6" />
             </Link>
           </div>

@@ -455,4 +455,18 @@ Two separate pieces of feedback:
 
 ---
 
+## 22. Library — fixed items silently missing, removed the "All" filter
+
+**Status: implemented.**
+
+Report: "fix the library, save what is generated in AMIVI and vice versa for the rest, remove the all option."
+
+### How this was implemented
+
+- **Root cause found**: the backend already saves every AMIVI, AMICO and Quiz generation to the database the moment it's created — nothing was actually failing to save. The bug was in `Library.jsx`'s display logic: a leftover MVP-demo feature split every library item across three fake tabs ("Personal Library" / "Group Library" / "Class Library") by hashing a digit off the end of the item's own id — there's no real personal/group/class data behind this anywhere in the backend. In practice this meant roughly two out of every three things a teacher generated in AMIVI, AMICO or Quiz landed on a tab nobody was looking at, by default ("Personal Library"), making freshly generated content look like it never saved at all.
+- **Fix**: removed that fake space split entirely, along with the three tabs and the breadcrumb logic tied to it. The Library now simply shows everything that's actually saved, same as the underlying data — so content generated in AMIVI shows up, and the same is true for AMICO and Quiz ("the rest").
+- **Removed the "All" filter**: the type filter row (AMIVI / AMICO / Quiz) no longer has an "All" option — it now defaults to the AMIVI tab on load, same filter behavior otherwise (search and sort unaffected).
+
+---
+
 *(Add further numbered items / system prompts below as they're provided.)*
