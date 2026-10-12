@@ -50,6 +50,7 @@ const TYPE_META = {
 };
 
 const FILTERS = [
+  { key: 'all', label: 'All' },
   { key: 'amivi', label: 'AMIVI' },
   { key: 'amico', label: 'AMICO' },
   { key: 'quiz', label: 'Quiz' },
@@ -67,8 +68,9 @@ export default function Library() {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('amivi');
+  const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('newest');
+  const [librarySpace, setLibrarySpace] = useState('personal'); // personal | group | class
   const [activeSubject, setActiveSubject] = useState(null); // for folder navigation demo
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -129,7 +131,18 @@ export default function Library() {
     const query = search.trim().toLowerCase();
 
     let result = items.filter((item) => {
-      if (item.type !== filter) return false;
+      // Mock library space filtering for MVP demonstration.
+      // We'll deterministically assign items to spaces based on their ID.
+      const idStr = String(item.id || item.project_id || '');
+      const charCode = idStr.length > 0 ? idStr.charCodeAt(idStr.length - 1) : 0;
+      
+      let assignedSpace = 'personal';
+      if (charCode % 3 === 1) assignedSpace = 'group';
+      if (charCode % 3 === 2) assignedSpace = 'class';
+      
+      if (assignedSpace !== librarySpace) return false;
+
+      if (filter !== 'all' && item.type !== filter) return false;
 
       if (!query) return true;
 
@@ -151,7 +164,7 @@ export default function Library() {
     });
 
     return result;
-  }, [items, filter, search, sort]);
+  }, [items, filter, search, sort, librarySpace]);
 
   // --------------------------------------------------------
   // PREVIEW (opens before navigating into the full page)
@@ -256,12 +269,33 @@ export default function Library() {
           </div>
         </div>
 
+        {/* Spaces Tabs */}
+        <div className="flex gap-6 mt-8 border-b border-white/20">
+          {[
+            { id: 'personal', label: 'Personal Library' },
+            { id: 'group', label: 'Group Library' },
+            { id: 'class', label: 'Class Library' },
+          ].map(space => (
+            <button
+              key={space.id}
+              onClick={() => { setLibrarySpace(space.id); setActiveSubject(null); }}
+              className={`pb-3 font-bold text-sm transition-colors relative ${
+                librarySpace === space.id ? 'text-white' : 'text-white/60 hover:text-white/80'
+              }`}
+            >
+              {space.label}
+              {librarySpace === space.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white rounded-t-full" />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Path / Breadcrumbs */}
       <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
         <button onClick={() => setActiveSubject(null)} className={`${!activeSubject ? 'text-slate-800' : 'hover:text-indigo-600'}`}>
-          My Library
+          {librarySpace === 'personal' ? 'My Library' : librarySpace === 'group' ? 'Group Space' : 'Classroom'}
         </button>
         {activeSubject && (
           <>
@@ -683,7 +717,7 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
             onClick={onOpenFull}
             className="inline-flex items-center gap-2 py-2 px-4 rounded-lg font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
           >
-            {item.type === 'quiz' ? 'Retake Quiz' : 'Use Again'} <ChevronRight className="w-4 h-4" />
+            {item.type === 'quiz' ? 'Retake Quiz' : 'Click Here to See It Again'} <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>

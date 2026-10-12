@@ -27,6 +27,8 @@ import {
   FileText,
   UploadCloud,
   Loader2,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 
 import { useLanguage } from '../contexts/LanguageContext';
@@ -112,6 +114,57 @@ export default function Amivi() {
   // project's results load (see useEffect below).
   const [chunkPage, setChunkPage] = useState(0);
   const CHUNKS_PER_PAGE = 6;
+
+  // ---- AMIVI ACTIONS: Generations + Displays (display-only
+  // preferences — they never change what AMIVI generated, only how
+  // Box 1 / Box 2 render it; not persisted with the project). ----
+  // 'slogan' = Box 1 only (Image + Slogan). 'full' = Box 1 + Box 2
+  // (Image + Slogan + Description) — the existing default behaviour.
+  // 'other' = placeholder, not yet defined; falls back to 'full'.
+  const [cardGeneration, setCardGeneration] = useState('full');
+  const [displayStyle, setDisplayStyle] = useState('horizontal'); // 'horizontal' | 'vertical'
+  const [cardShape, setCardShape] = useState('rectangle'); // 'square' | 'rectangle' | 'circle'
+  const [cardSize, setCardSize] = useState('medium'); // 'small' | 'medium' | 'large'
+  const [cardColor, setCardColor] = useState('blue');
+  const [cardFont, setCardFont] = useState('default');
+
+  // objectFit matters here: with 'contain' (the app's original default),
+  // the photo is letterboxed to fit inside whatever box shape is set, so
+  // it rarely reaches the corners — which makes square vs. circle nearly
+  // indistinguishable. Square/circle use 'cover' so the image actually
+  // fills the shape edge-to-edge and the rounding is unmistakable;
+  // rectangle keeps 'contain' so it still matches the original framing.
+  const CARD_SHAPE_STYLE = {
+    square: { aspectRatio: '1/1', borderRadius: '0.75rem', objectFit: 'cover' },
+    rectangle: { aspectRatio: '11.7/14.7', borderRadius: '0.75rem', objectFit: 'contain' },
+    circle: { aspectRatio: '1/1', borderRadius: '9999px', objectFit: 'cover' },
+  };
+  const CARD_SIZE_MAXWIDTH = { small: 220, medium: 320, large: 400 };
+  // Same five swatches as the approved preview — picking one here also
+  // recolors every active control in the settings panel below (pills,
+  // shape boxes, badges), not just the card accent.
+  const CARD_COLOR_PALETTE = {
+    blue: { badge: '#1d4ed8', panelBg: '#eff6ff', panelBorder: '#bfdbfe' },
+    magenta: { badge: '#be185d', panelBg: '#fdf2f8', panelBorder: '#fbcfe8' },
+    purple: { badge: '#7c3aed', panelBg: '#f5f3ff', panelBorder: '#ddd6fe' },
+    green: { badge: '#16a34a', panelBg: '#f0fdf4', panelBorder: '#bbf7d0' },
+    orange: { badge: '#ea580c', panelBg: '#fff7ed', panelBorder: '#fed7aa' },
+  };
+  const accent = CARD_COLOR_PALETTE[cardColor];
+  // Shared active-state style for the settings panel's own pills/boxes —
+  // driven by the chosen Color swatch, same as the approved preview.
+  const activeControlStyle = { borderColor: accent.badge, background: accent.panelBg, color: accent.badge };
+  const CARD_FONT_STACK = {
+    default: undefined,
+    rounded: '"Comic Sans MS", "Segoe UI Rounded", "Trebuchet MS", sans-serif',
+    serif: 'Georgia, "Times New Roman", serif',
+    mono: '"Courier New", Courier, monospace',
+  };
+  const microbitGridClass = `grid gap-6 ${
+    displayStyle === 'vertical'
+      ? 'grid-cols-1 max-w-md mx-auto'
+      : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+  }`;
 
   // Complete Visual — optional Stage 3, one new connected illustration
   // generated from the already-saved Microbits.
@@ -541,7 +594,7 @@ export default function Amivi() {
   // ============================================================
 
   return (
-    <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 py-6 px-3 sm:px-5 -mx-3 sm:-mx-5 rounded-3xl bg-gradient-to-br from-blue-50 via-white to-purple-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       <button
         type="button"
@@ -739,7 +792,7 @@ export default function Amivi() {
               </p>
             </div>
           ) : (
-            <div className="bg-cyan-50/50 border-2 border-dashed border-cyan-100 rounded-2xl p-6 mb-6 flex-1 flex items-center justify-center text-cyan-400 font-bold text-center">
+            <div className="bg-cyan-50/50 border-2 border-dashed border-cyan-100 rounded-2xl p-6 mb-6 flex-1 flex items-center justify-center text-black font-bold text-center">
               File upload locked while generating
             </div>
           )}
@@ -796,6 +849,125 @@ export default function Amivi() {
 
 
       {/* ======================================================
+          AMIVI ACTIONS — GENERATIONS + DISPLAYS
+          "Generations" (how much detail each Microbit card shows)
+          and "Displays" (layout/shape/size/color/font). Purely a
+          display preference for Box 1 / Box 2 below — it never
+          changes what AMIVI generated. Always visible, even before
+          you generate anything, so it's never hidden behind a step.
+      ======================================================= */}
+
+      <div className="grid grid-cols-1">
+
+          {/* Displays */}
+          <div
+            className="rounded-2xl border-2 shadow-sm p-5 sm:p-6 border-t-4 transition-colors"
+            style={{ background: `linear-gradient(to bottom right, ${accent.panelBg}, #ffffff 60%)`, borderColor: accent.panelBorder, borderTopColor: accent.badge }}
+          >
+            <p className="text-base font-extrabold uppercase tracking-wide text-black mb-1">{t('Displays')}</p>
+            <p className="text-sm text-black font-semibold mb-4">
+              {t('Layout & styling of the generated cards')}
+            </p>
+
+            <div className="space-y-4">
+
+              <div>
+                <p className="text-sm font-bold text-black mb-2">{t('Display style')}</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: 'horizontal', label: t('Horizontal (3/row)'), Icon: LayoutGrid },
+                    { key: 'vertical', label: t('Vertical'), Icon: List },
+                  ].map(({ key, label, Icon }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setDisplayStyle(key)}
+                      className="px-4 py-2 rounded-xl text-sm font-bold border-2 flex items-center gap-2 transition-colors text-black hover:border-slate-300"
+                      style={displayStyle === key ? activeControlStyle : { borderColor: '#e2e8f0' }}
+                    >
+                      <Icon size={16} /> {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-bold text-black mb-2">{t('Shape')}</p>
+                <div className="flex gap-2">
+                  {[
+                    { key: 'square', label: t('Square') },
+                    { key: 'rectangle', label: t('Rectangle') },
+                    { key: 'circle', label: t('Circle') },
+                  ].map(({ key: shape, label }) => (
+                    <button
+                      key={shape}
+                      type="button"
+                      onClick={() => setCardShape(shape)}
+                      className="flex-1 flex flex-col items-center gap-1.5 py-2.5 border-2 transition-colors rounded-xl hover:border-slate-300"
+                      style={cardShape === shape ? activeControlStyle : { borderColor: '#e2e8f0' }}
+                    >
+                      <span
+                        className={`block bg-slate-400 ${shape === 'circle' ? 'w-6 h-6 rounded-full' : shape === 'square' ? 'w-6 h-6 rounded-sm' : 'w-5 h-7 rounded-sm'}`}
+                      />
+                      <span className="text-xs font-bold" style={{ color: cardShape === shape ? accent.badge : '#000000' }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-bold text-black mb-2">{t('Size')}</p>
+                <div className="flex gap-2">
+                  {['small', 'medium', 'large'].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setCardSize(size)}
+                      className="px-3 py-2 rounded-xl text-sm font-bold border-2 capitalize transition-colors text-black hover:border-slate-300"
+                      style={cardSize === size ? activeControlStyle : { borderColor: '#e2e8f0' }}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-bold text-black mb-2">{t('Color')}</p>
+                <div className="flex gap-2">
+                  {Object.entries(CARD_COLOR_PALETTE).map(([key, pal]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setCardColor(key)}
+                      title={key}
+                      className="w-8 h-8 rounded-full"
+                      style={{
+                        background: pal.badge,
+                        boxShadow: cardColor === key ? '0 0 0 2px #fff, 0 0 0 4px #0f172a' : 'none',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-bold text-black mb-2">{t('Text font')}</p>
+                <select
+                  value={cardFont}
+                  onChange={(e) => setCardFont(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border-2 border-slate-200 text-black font-bold text-sm"
+                >
+                  <option value="default">{t('Modern (default)')}</option>
+                </select>
+              </div>
+
+            </div>
+          </div>
+
+      </div>
+
+      {/* ======================================================
           SUBJECT HEADING / TITLE — the short subject title AMIVI
           generates alongside the Key Points (e.g. "Photosynthesis"),
           plus a one-sentence subject_description it also generates
@@ -803,8 +975,8 @@ export default function Amivi() {
           the process by which green plants transform light energy
           into chemical energy."). Both are generated, never typed in
           manually — there is no "insert heading" control here.
-          Sits above Box 1 so the subject is identified at a glance
-          once results are in; not shown before generation.
+          Sits directly above Box 1 so the subject is identified at a
+          glance right before the cards; not shown before generation.
       ======================================================= */}
 
       {result?.title && (
@@ -870,15 +1042,22 @@ export default function Amivi() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className={microbitGridClass}>
                   {pagedChunks.map((chunk, pageIndex) => {
                     const index = chunkPage * CHUNKS_PER_PAGE + pageIndex;
                     return (
                     <div
                       key={chunk.chunk_id || index}
                       className={`bg-white rounded-2xl border-2 shadow-sm relative flex flex-col overflow-hidden ${
-                        selectedChunks.has(chunk.chunk_id) ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-indigo-300'
+                        selectedChunks.has(chunk.chunk_id) ? 'ring-2 ring-indigo-100' : 'hover:border-indigo-300'
                       }`}
+                      style={{
+                        maxWidth: CARD_SIZE_MAXWIDTH[cardSize],
+                        width: '100%',
+                        margin: '0 auto',
+                        borderColor: CARD_COLOR_PALETTE[cardColor].badge,
+                        fontFamily: CARD_FONT_STACK[cardFont],
+                      }}
                     >
                       <div className="absolute top-3 left-3 z-20">
                         <div
@@ -893,8 +1072,11 @@ export default function Amivi() {
 
                       <div className="relative bg-gray-100">
                         <div
-                          className="absolute -bottom-2 -left-2 z-20 w-10 h-10 bg-red-700 text-white font-extrabold flex items-center justify-center shadow-md drop-shadow-md"
-                          style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                          className="absolute -bottom-2 -left-2 z-20 w-10 h-10 text-white font-extrabold flex items-center justify-center shadow-md drop-shadow-md"
+                          style={{
+                            background: CARD_COLOR_PALETTE[cardColor].badge,
+                            clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                          }}
                         >
                           {index + 1}
                         </div>
@@ -902,11 +1084,18 @@ export default function Amivi() {
                           src={getMediaUrl(chunk.image_url)}
                           alt={chunk.text || `Chunk ${index + 1}`}
                           className="w-full object-contain cursor-pointer"
-                          style={{ aspectRatio: '11.7/14.7' }}
+                          style={{
+                            aspectRatio: CARD_SHAPE_STYLE[cardShape].aspectRatio,
+                            borderRadius: CARD_SHAPE_STYLE[cardShape].borderRadius,
+                            objectFit: CARD_SHAPE_STYLE[cardShape].objectFit,
+                          }}
                           onClick={() => openImageInNewTab(chunk.image_url, chunk.slogan)}
                         />
                       </div>
-                      <div className="p-4 flex-1 flex flex-col items-center justify-center text-center bg-amber-50 border-t-2 border-amber-100 gap-1">
+                      <div
+                        className="p-4 flex-1 flex flex-col items-center justify-center text-center border-t-2 gap-1"
+                        style={{ background: CARD_COLOR_PALETTE[cardColor].panelBg, borderColor: CARD_COLOR_PALETTE[cardColor].panelBorder }}
+                      >
                         <p className="text-2xl sm:text-3xl font-extrabold text-black leading-tight">
                           {chunk.key_point || chunk.text || `Chunk ${index + 1}`}
                         </p>
@@ -955,13 +1144,32 @@ export default function Amivi() {
 
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={microbitGridClass}>
             {[1, 2, 3, 4, 5, 6].map((n) => (
-              <div key={n} className="bg-amber-50 rounded-2xl border-2 border-amber-200 flex flex-col overflow-hidden">
-                <div className="flex items-center justify-center text-black font-extrabold text-4xl" style={{ aspectRatio: '11.7/14.7' }}>
+              <div
+                key={n}
+                className="rounded-2xl border-2 flex flex-col overflow-hidden"
+                style={{
+                  maxWidth: CARD_SIZE_MAXWIDTH[cardSize],
+                  width: '100%',
+                  margin: '0 auto',
+                  borderColor: CARD_COLOR_PALETTE[cardColor].badge,
+                  fontFamily: CARD_FONT_STACK[cardFont],
+                }}
+              >
+                <div
+                  className="flex items-center justify-center text-black font-extrabold text-4xl bg-gray-100"
+                  style={{
+                    aspectRatio: CARD_SHAPE_STYLE[cardShape].aspectRatio,
+                    borderRadius: CARD_SHAPE_STYLE[cardShape].borderRadius,
+                  }}
+                >
                   {n}
                 </div>
-                <div className="py-3 bg-amber-100 border-t-2 border-amber-200 text-center">
+                <div
+                  className="py-3 border-t-2 text-center"
+                  style={{ background: CARD_COLOR_PALETTE[cardColor].panelBg, borderColor: CARD_COLOR_PALETTE[cardColor].panelBorder }}
+                >
                   <p className="text-base font-extrabold uppercase tracking-wide text-black">Slogan</p>
                 </div>
               </div>
@@ -981,7 +1189,7 @@ export default function Amivi() {
           Explain" click any more.
       ======================================================= */}
 
-      {result && !isProcessing && result.chunks?.length > 0 && (
+      {result && !isProcessing && result.chunks?.length > 0 && cardGeneration !== 'slogan' && (
         <div className="bg-gradient-to-br from-amber-50/60 via-white to-white rounded-2xl border border-amber-200 shadow-sm p-6 sm:p-8">
 
           <div className="text-center mb-8">
@@ -994,18 +1202,28 @@ export default function Amivi() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={microbitGridClass}>
             {pagedChunks.map((chunk, pageIndex) => {
               const index = chunkPage * CHUNKS_PER_PAGE + pageIndex;
               return (
               <div
                 key={chunk.chunk_id || index}
-                className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm relative flex flex-col overflow-hidden"
+                className="bg-white rounded-2xl border-2 shadow-sm relative flex flex-col overflow-hidden"
+                style={{
+                  maxWidth: CARD_SIZE_MAXWIDTH[cardSize],
+                  width: '100%',
+                  margin: '0 auto',
+                  borderColor: CARD_COLOR_PALETTE[cardColor].badge,
+                  fontFamily: CARD_FONT_STACK[cardFont],
+                }}
               >
                 <div className="relative bg-gray-100">
                   <div
-                    className="absolute -bottom-2 -left-2 z-20 w-10 h-10 bg-red-700 text-white font-extrabold flex items-center justify-center shadow-md drop-shadow-md"
-                    style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                    className="absolute -bottom-2 -left-2 z-20 w-10 h-10 text-white font-extrabold flex items-center justify-center shadow-md drop-shadow-md"
+                    style={{
+                      background: CARD_COLOR_PALETTE[cardColor].badge,
+                      clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                    }}
                   >
                     {index + 1}
                   </div>
@@ -1013,12 +1231,19 @@ export default function Amivi() {
                     src={getMediaUrl(chunk.image_url)}
                     alt={chunk.text || `Chunk ${index + 1}`}
                     className="w-full object-contain cursor-pointer"
-                    style={{ aspectRatio: '11.7/14.7' }}
+                    style={{
+                      aspectRatio: CARD_SHAPE_STYLE[cardShape].aspectRatio,
+                      borderRadius: CARD_SHAPE_STYLE[cardShape].borderRadius,
+                      objectFit: CARD_SHAPE_STYLE[cardShape].objectFit,
+                    }}
                     onClick={() => openImageInNewTab(chunk.image_url, chunk.slogan)}
                   />
                 </div>
 
-                <div className="p-4 flex flex-col items-center text-center bg-amber-50 border-t-2 border-amber-100 gap-1">
+                <div
+                  className="p-4 flex flex-col items-center text-center border-t-2 gap-1"
+                  style={{ background: CARD_COLOR_PALETTE[cardColor].panelBg, borderColor: CARD_COLOR_PALETTE[cardColor].panelBorder }}
+                >
                   <p className="text-2xl sm:text-3xl font-extrabold text-black leading-tight">
                     {chunk.key_point || chunk.text || `Chunk ${index + 1}`}
                   </p>
