@@ -91,7 +91,8 @@ export async function generateAmivi(
   text,
   language = 'en',
   generateVideo = true,
-  videoUrl = ''
+  videoUrl = '',
+  sourceProjectId = null
 ) {
   const response = await fetch(
     `${API_URL}/api/amivi/generate`,
@@ -106,6 +107,7 @@ export async function generateAmivi(
         language,
         generate_video: generateVideo,
         video_url: videoUrl || null,
+        source_project_id: sourceProjectId || null,
       }),
     }
   );
@@ -281,6 +283,7 @@ export async function generateQuiz({
   numQuestions = 5,
   generateImages = true,
   generateVideos = true,
+  sourceProjectId = null,
 } = {}) {
   const formData = new FormData();
   formData.append('mode', mode);
@@ -290,6 +293,7 @@ export async function generateQuiz({
   formData.append('num_questions', numQuestions);
   formData.append('generate_images', generateImages);
   formData.append('generate_videos', generateVideos);
+  if (sourceProjectId) formData.append('source_project_id', sourceProjectId);
   if (file) formData.append('file', file);
 
   const response = await fetch(
@@ -624,6 +628,42 @@ export async function deleteLibraryProject(id) {
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.detail || 'Failed to delete project.');
+  }
+  return response.json();
+}
+
+
+// ============================================================
+// ESSENTIAL LEARNING
+// (Subject -> Chapter -> Chapter hub, derived from the Library's
+// own saved AMIVI / AMICO / Quiz projects)
+// ============================================================
+
+export async function getChapterSubjects() {
+  const response = await fetch(`${API_URL}/api/chapters`, {
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) throw new Error('Unable to load subjects.');
+  return response.json();
+}
+
+export async function getSubjectChapters(subject) {
+  const response = await fetch(
+    `${API_URL}/api/chapters/${encodeURIComponent(subject)}`,
+    { headers: { ...authHeaders() } }
+  );
+  if (!response.ok) throw new Error('Unable to load chapters.');
+  return response.json();
+}
+
+export async function getChapterHub(subject, chapterKey) {
+  const response = await fetch(
+    `${API_URL}/api/chapters/${encodeURIComponent(subject)}/${encodeURIComponent(chapterKey)}`,
+    { headers: { ...authHeaders() } }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Unable to load this chapter.');
   }
   return response.json();
 }

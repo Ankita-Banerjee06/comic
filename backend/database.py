@@ -106,3 +106,14 @@ def _run_lightweight_migrations():
         conn.execute(
             text("ALTER TABLE amivi_chunks ADD COLUMN IF NOT EXISTS mcq_correct VARCHAR(1)")
         )
+        # Essential Learning: Subject/Chapter grouping for saved
+        # AMIVI/AMICO/Quiz projects (see models.Project).
+        conn.execute(
+            text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS subject VARCHAR(50)")
+        )
+        conn.execute(
+            text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS chapter VARCHAR(255)")
+        )
+        conn.execute(
+            text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS chapter_key VARCHAR(255)")
+        )

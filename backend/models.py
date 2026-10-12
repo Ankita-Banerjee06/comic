@@ -101,6 +101,21 @@ class Project(Base):
     input_text = Column(Text, nullable=True)
     language = Column(String(10), nullable=False, default="en")
 
+    # Essential Learning grouping (AMIVI / AMICO / Quiz only — see
+    # LIBRARY_PROJECT_TYPES in main.py). `subject` is one of the
+    # fixed SUBJECT_CATEGORIES buckets. `chapter` is the human-
+    # readable chapter name shown in the UI (e.g. "Photosynthesis
+    # Basics"). `chapter_key` is the normalized, deterministic
+    # grouping key (see normalize_chapter_key() in main.py) used to
+    # silently merge near-duplicate chapter names like
+    # "Photosynthesis" / "photosynthesis" / "Photosynthesis Basics"
+    # into the same chapter without fuzzy matching. All three are
+    # nullable so projects saved before this feature existed stay
+    # fully intact and simply show up as "Unsorted".
+    subject = Column(String(50), nullable=True)
+    chapter = Column(String(255), nullable=True)
+    chapter_key = Column(String(255), nullable=True, index=True)
+
     # Stores structured AMIVI/AMICO/Quiz JSON data.
     data = Column(JSON, nullable=True)
 

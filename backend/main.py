@@ -162,6 +162,12 @@ class AmiviRequest(BaseModel):
     generate_video: bool = True
     video_url: str | None = None
 
+    # When set and no text/video is supplied, AMIVI is generated
+    # from this existing project's own material (e.g. "Generate
+    # AMIVI" from a chapter hub that already has an AMICO or Quiz),
+    # and the new project inherits that project's subject/chapter.
+    source_project_id: int | None = None
+
 
 class AmiviRegenerateImageRequest(BaseModel):
     project_id: int | None = None
@@ -862,6 +868,9 @@ def save_project(
     language,
     data,
     user_id=None,
+    subject=None,
+    chapter=None,
+    chapter_key=None,
 ):
 
     db = SessionLocal()
@@ -875,6 +884,9 @@ def save_project(
             language=language,
             data=data,
             user_id=user_id,
+            subject=subject,
+            chapter=chapter,
+            chapter_key=chapter_key,
         )
 
         db.add(row)
@@ -885,6 +897,140 @@ def save_project(
 
     finally:
         db.close()
+
+
+# ============================================================
+# ESSENTIAL LEARNING — Subject / Chapter grouping
+#
+# Deliberately conservative: exact-match-only normalization, no
+# fuzzy similarity. "Photosynthesis", "photosynthesis" and
+# "Photosynthesis Basics" all collapse to the same chapter_key,
+# but two genuinely different topics never get silently merged.
+# ============================================================
+
+SUBJECT_CATEGORIES = (
+    "Science",
+    "Math",
+    "History",
+    "Language",
+    "Arts",
+    "Technology",
+    "Other",
+)
+
+_CHAPTER_KEY_FILLER_PREFIXES = (
+    "introduction to ",
+    "intro to ",
+    "basics of ",
+    "overview of ",
+    "understanding ",
+    "what is ",
+    "fundamentals of ",
+    "the ",
+)
+
+_CHAPTER_KEY_FILLER_SUFFIXES = (
+    " basics",
+    " fundamentals",
+    " explained",
+    " overview",
+    " 101",
+    " for beginners",
+    " introduction",
+)
+
+
+def normalize_chapter_key(name):
+    """
+    Turns a chapter display name into a deterministic grouping key,
+    so "Photosynthesis", "photosynthesis" and "Photosynthesis
+    Basics" all land in the same chapter while "Photosynthesis" and
+    "Cellular Respiration" never accidentally merge.
+    """
+
+    import re
+
+    key = (name or "").strip().lower()
+
+    # Strip punctuation, collapse whitespace.
+    key = re.sub(r"[^\w\s]", " ", key)
+    key = re.sub(r"\s+", " ", key).strip()
+
+    if not key:
+        return ""
+
+    # Strip known filler prefixes/suffixes in a loop until stable,
+    # so "Introduction to Photosynthesis Basics" fully reduces to
+    # "photosynthesis" rather than stopping after one pass.
+    changed = True
+
+    while changed:
+
+        changed = False
+
+        for prefix in _CHAPTER_KEY_FILLER_PREFIXES:
+
+            if key.startswith(prefix):
+                key = key[len(prefix):].strip()
+                changed = True
+
+        for suffix in _CHAPTER_KEY_FILLER_SUFFIXES:
+
+            if key.endswith(suffix):
+                key = key[: -len(suffix)].strip()
+                changed = True
+
+    return key
+
+
+def resolve_chapter_metadata(
+    source_project_id=None,
+    llm_subject_category=None,
+    chapter_display_name=None,
+):
+    """
+    Decides the (subject, chapter, chapter_key) to save on a new
+    AMIVI/AMICO/Quiz project.
+
+    - If this generation was explicitly derived from an existing
+      sibling project (source_project_id set — "Send to AMICO",
+      "Generate Quiz from this chapter", etc.), inherit that
+      project's subject/chapter/chapter_key directly. This
+      guarantees perfect grouping with zero risk of the inherited
+      content landing in a different chapter than its source,
+      since no fresh normalization is involved at all.
+    - Otherwise, classify fresh: subject comes from the LLM's own
+      subject_category guess (falling back to "Other"), chapter is
+      the display name as generated, and chapter_key is its
+      normalized form.
+    """
+
+    if source_project_id:
+
+        try:
+            source_project = get_project(source_project_id)
+
+        except HTTPException:
+            source_project = None
+
+        if source_project is not None and source_project.chapter_key:
+
+            return (
+                source_project.subject,
+                source_project.chapter,
+                source_project.chapter_key,
+            )
+
+    subject = (
+        llm_subject_category
+        if llm_subject_category in SUBJECT_CATEGORIES
+        else "Other"
+    )
+
+    chapter = (chapter_display_name or "").strip() or "Untitled"
+    chapter_key = normalize_chapter_key(chapter) or chapter.lower()
+
+    return (subject, chapter, chapter_key)
 
 
 def save_media(
@@ -1970,6 +2116,7 @@ def generate_amivi_content(
         "Rules:\n"
         "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the material.\n"
         "- Also write a one-sentence subject_description that plainly introduces the subject as a whole — a single, clear sentence a teacher could read aloud to open the lesson, in the style of 'Photosynthesis is the process by which green plants transform light energy into chemical energy.' It must stand alone (no 'this subject' or 'in this lesson' framing) and must not repeat or list the individual Key Points — it introduces the topic in general, before any Key Point is shown.\n"
+        "- Classify the overall subject into exactly one of these fixed categories and return it as subject_category: Science, Math, History, Language, Arts, Technology, Other. Pick the single best fit; use Other only if none genuinely apply.\n"
         "- Each Microbit should contain exactly: one essential Key Point Name, one relevant image, and one memorable slogan of maximum 4 words.\n"
         "- Generate each Microbit separately so it can be individually selected and presented for teaching.\n"
         "- Do NOT combine the Microbits into one poster or image here — every Microbit stays its own separate, standalone card. (A connected 'Complete Visual' may be generated separately afterward, as its own later step — never as part of this set.)\n"
@@ -1993,6 +2140,7 @@ def generate_amivi_content(
         "{\n"
         '  "title": "...",\n'
         '  "subject_description": "...",\n'
+        '  "subject_category": "...",\n'
         '  "chunks": [\n'
         "    {\n"
         '      "chunk_number": 1,\n'
@@ -2371,10 +2519,17 @@ def generate_amico_comic(
         "panel's image_prompt so they can talk and react to each "
         "other throughout the whole comic.\n\n"
 
+        "Also classify the overall topic into exactly one of these "
+        "fixed categories and return it as subject_category: "
+        "Science, Math, History, Language, Arts, Technology, "
+        "Other. Pick the single best fit; use Other only if none "
+        "genuinely apply.\n\n"
+
         "Return ONLY valid JSON using exactly this structure:\n\n"
 
         "{\n"
         '  "title": "...",\n'
+        '  "subject_category": "...",\n'
         '  "learning_objective": "...",\n'
         '  "characters": [\n'
         "    {\n"
@@ -2779,8 +2934,15 @@ def generate_quiz_from_source(
         "illustration or labeled map/diagram that supports the "
         "correct answer).\n\n"
 
+        "Also classify the overall topic into exactly one of these "
+        "fixed categories and return it as subject_category: "
+        "Science, Math, History, Language, Arts, Technology, "
+        "Other. Pick the single best fit; use Other only if none "
+        "genuinely apply.\n\n"
+
         'Return ONLY JSON in this structure: '
-        '{"quiz":{"title":"...","questions":[...]}}\n\n'
+        '{"quiz":{"title":"...","subject_category":"...",'
+        '"questions":[...]}}\n\n'
 
         + get_language_instruction(
             language
@@ -4775,6 +4937,62 @@ def compose_amico_photostory(
 
 
 # ============================================================
+# AMIVI FILE UPLOAD / EXTRACTION
+#
+# The "Upload a PDF, Word document or TXT file" button on the
+# AMIVI page has always posted here — this route just didn't
+# exist yet, so every upload silently 404'd. Reuses the same
+# extract_text_from_file() helper Quiz's file-upload path already
+# relies on, so PDF/DOCX/TXT all work identically to Quiz.
+# ============================================================
+
+@app.post("/api/amivi/extract")
+async def amivi_extract(
+    file: UploadFile = File(...),
+):
+
+    try:
+
+        file_bytes = await file.read()
+
+        if not file_bytes:
+
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded file is empty.",
+            )
+
+        text = extract_text_from_file(
+            file_bytes,
+            file.filename or "upload.txt",
+        )
+
+        text = (text or "").strip()
+
+        if not text:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No readable text was found in "
+                    "that file."
+                ),
+            )
+
+        return {"text": text}
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to extract content from file: {exc}",
+        )
+
+
+# ============================================================
 # AMIVI GENERATE
 # ============================================================
 
@@ -4822,6 +5040,29 @@ async def amivi_generate(
                 request.video_url
             )
 
+        # If no text/video was supplied but an existing sibling
+        # project was given as the source (e.g. "Generate AMIVI"
+        # from a chapter hub that already has an AMICO or Quiz),
+        # fall back to that project's own saved material.
+        if not source_text and request.source_project_id:
+
+            try:
+                sibling_project = get_project(
+                    request.source_project_id
+                )
+
+                source_text = (
+                    sibling_project.input_text
+                    or sibling_project.title
+                    or ""
+                ).strip()
+
+                if sibling_project.title:
+                    source_title = f"AMIVI - {sibling_project.title}"
+
+            except HTTPException:
+                pass
+
         if not source_text:
 
             raise HTTPException(
@@ -4868,6 +5109,12 @@ async def amivi_generate(
         final_title = content.get("title") or source_title
         subject_description = content.get("subject_description") or ""
 
+        chapter_subject, chapter_name, chapter_key = resolve_chapter_metadata(
+            source_project_id=request.source_project_id,
+            llm_subject_category=content.get("subject_category"),
+            chapter_display_name=final_title,
+        )
+
         project_id = save_project(
             project_type="amivi",
             title=final_title,
@@ -4878,6 +5125,9 @@ async def amivi_generate(
                 "source_url": source_url,
             },
             user_id=current_user.id,
+            subject=chapter_subject,
+            chapter=chapter_name,
+            chapter_key=chapter_key,
         )
 
         processed_chunks = [None] * len(chunks)
@@ -5617,6 +5867,7 @@ async def amico_generate(
         # explanations), never raw, unanalysed text — tells Terra
         # not to re-analyse/re-derive the Key Points itself.
         source_is_amivi_package = False
+        source_project = None
 
         if request.source_project_id:
 
@@ -5838,16 +6089,31 @@ async def amico_generate(
         # Save project
         # -----------------------------------------------------
 
+        comic_title = comic.get(
+            "title",
+            "AMICO Comic",
+        )
+
+        chapter_subject, chapter_name, chapter_key = resolve_chapter_metadata(
+            source_project_id=request.source_project_id,
+            llm_subject_category=comic.get("subject_category"),
+            chapter_display_name=(
+                source_project.title
+                if source_project is not None
+                else comic_title
+            ),
+        )
+
         project_id = save_project(
             project_type="amico",
-            title=comic.get(
-                "title",
-                "AMICO Comic",
-            ),
+            title=comic_title,
             input_text=topic,
             language=request.language,
             data=comic,
             user_id=current_user.id,
+            subject=chapter_subject,
+            chapter=chapter_name,
+            chapter_key=chapter_key,
         )
 
         # -----------------------------------------------------
@@ -7073,6 +7339,182 @@ def library_project_delete(project_id: int, current_user=Depends(get_current_use
 
 
 # ============================================================
+# ESSENTIAL LEARNING — Subjects → Chapters → Chapter hub
+#
+# Entirely derived from the Library's own saved AMIVI/AMICO/Quiz
+# projects via their subject/chapter/chapter_key columns — no
+# separate chapter table. Projects saved before this feature
+# existed have no subject/chapter metadata and are grouped under
+# a single "Unsorted" bucket rather than being hidden, so nothing
+# a user already saved ever disappears from here.
+# ============================================================
+
+@app.get("/api/chapters")
+def list_chapter_subjects(current_user=Depends(get_current_user)):
+
+    projects = list_library_projects(user_id=current_user.id)
+
+    subjects = {}
+
+    for row in projects:
+
+        subject = row.subject or "Unsorted"
+        key = row.chapter_key or f"__unsorted_{row.id}"
+
+        subjects.setdefault(subject, set()).add(key)
+
+    result = [
+        {
+            "subject": subject,
+            "chapter_count": len(keys),
+        }
+        for subject, keys in subjects.items()
+    ]
+
+    # Unsorted last, otherwise biggest subject first.
+    result.sort(
+        key=lambda s: (
+            s["subject"] == "Unsorted",
+            -s["chapter_count"],
+        )
+    )
+
+    return {"subjects": result}
+
+
+@app.get("/api/chapters/{subject}")
+def list_subject_chapters(subject: str, current_user=Depends(get_current_user)):
+
+    projects = list_library_projects(user_id=current_user.id)
+
+    if subject == "Unsorted":
+        projects = [p for p in projects if not p.subject]
+    else:
+        projects = [p for p in projects if p.subject == subject]
+
+    chapters = {}
+
+    for row in projects:
+
+        key = row.chapter_key or f"__unsorted_{row.id}"
+        display = row.chapter or row.title or "Untitled"
+
+        bucket = chapters.setdefault(
+            key,
+            {
+                "chapter_key": key,
+                "chapter": display,
+                "amivi": None,
+                "amico": None,
+                "quiz": None,
+                "updated_at": None,
+            },
+        )
+
+        row_data = row.data or {}
+        thumbnail_media_id = row_data.get("thumbnail_media_id")
+
+        bucket[row.project_type] = {
+            "id": row.id,
+            "title": row.title,
+            "thumbnail_url": (
+                f"/api/media/{thumbnail_media_id}"
+                if thumbnail_media_id
+                else None
+            ),
+        }
+
+        timestamp = (
+            row.created_at.isoformat()
+            if row.created_at
+            else None
+        )
+
+        if timestamp and (
+            not bucket["updated_at"]
+            or timestamp > bucket["updated_at"]
+        ):
+            bucket["updated_at"] = timestamp
+
+    chapter_list = sorted(
+        chapters.values(),
+        key=lambda c: c["updated_at"] or "",
+        reverse=True,
+    )
+
+    return {
+        "subject": subject,
+        "chapters": chapter_list,
+    }
+
+
+@app.get("/api/chapters/{subject}/{chapter_key}")
+def get_chapter_hub(
+    subject: str,
+    chapter_key: str,
+    current_user=Depends(get_current_user),
+):
+
+    projects = list_library_projects(user_id=current_user.id)
+
+    if subject == "Unsorted":
+        projects = [p for p in projects if not p.subject]
+    else:
+        projects = [p for p in projects if p.subject == subject]
+
+    rows = [
+        p
+        for p in projects
+        if (p.chapter_key or f"__unsorted_{p.id}") == chapter_key
+    ]
+
+    if not rows:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Chapter not found.",
+        )
+
+    content = {}
+    chapter_display = None
+
+    for row in rows:
+
+        chapter_display = chapter_display or row.chapter or row.title
+
+        # Each sibling slot keeps only the most recent project of
+        # that type (rows already come back newest-first).
+        if row.project_type not in content:
+
+            data = row.data or {}
+            thumbnail_media_id = data.get("thumbnail_media_id")
+
+            content[row.project_type] = {
+                "id": row.id,
+                "title": row.title,
+                "created_at": (
+                    row.created_at.isoformat()
+                    if row.created_at
+                    else None
+                ),
+                "thumbnail_url": (
+                    f"/api/media/{thumbnail_media_id}"
+                    if thumbnail_media_id
+                    else None
+                ),
+            }
+
+    return {
+        "subject": subject,
+        "chapter_key": chapter_key,
+        "chapter": chapter_display,
+        "amivi": content.get("amivi"),
+        "amico": content.get("amico"),
+        "quiz": content.get("quiz"),
+    }
+
+
+# ============================================================
 # QUIZ
 # ============================================================
 
@@ -7085,6 +7527,7 @@ async def quiz_generate(
     num_questions: int = Form(5),
     generate_images: bool = Form(True),
     generate_videos: bool = Form(True),
+    source_project_id: int | None = Form(None),
     file: UploadFile | None = File(None),
     current_user=Depends(get_current_user),
 ):
@@ -7095,6 +7538,27 @@ async def quiz_generate(
 
         source_text = material_text.strip()
         topic_clean = topic.strip()
+
+        # If no topic/material was supplied but an existing sibling
+        # project was given as the source (e.g. "Generate Quiz" from
+        # a chapter hub that already has an AMIVI or AMICO), fall
+        # back to that project's own saved material/title.
+        if not source_text and not topic_clean and source_project_id:
+
+            try:
+                sibling_project = get_project(source_project_id)
+
+                source_text = (
+                    sibling_project.input_text or ""
+                ).strip()
+
+                topic_clean = (sibling_project.title or "").strip()
+
+                if source_text:
+                    mode = "material"
+
+            except HTTPException:
+                pass
 
         if file is not None:
 
@@ -7159,6 +7623,12 @@ async def quiz_generate(
             topic_clean or "Quiz",
         )
 
+        chapter_subject, chapter_name, chapter_key = resolve_chapter_metadata(
+            source_project_id=source_project_id,
+            llm_subject_category=quiz.get("subject_category"),
+            chapter_display_name=quiz_title,
+        )
+
         project_id = save_project(
             project_type="quiz",
             title=quiz_title,
@@ -7166,6 +7636,9 @@ async def quiz_generate(
             language=language,
             data=quiz,
             user_id=current_user.id,
+            subject=chapter_subject,
+            chapter=chapter_name,
+            chapter_key=chapter_key,
         )
 
         processed_questions = []
