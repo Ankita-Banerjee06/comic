@@ -92,7 +92,13 @@ export default function Amivi() {
   const [processingChunkId, setProcessingChunkId] = useState(null);
   const [editingChunk, setEditingChunk] = useState(null);
   const [selectedChunks, setSelectedChunks] = useState(new Set());
-  
+
+  // Full-screen image preview — an index into result.chunks (not the
+  // current page), so Next/Prev glide across every generated Microbit
+  // regardless of which page of Box 1/Box 2 you opened it from. null
+  // means the lightbox is closed.
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+
   // Save Modal State
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveSpace, setSaveSpace] = useState('personal');
@@ -235,75 +241,45 @@ export default function Amivi() {
     return `${API_URL}${path}`;
   };
 
-  // Clicking a visual card opens its photo full-size in a new browser
-  // tab (not an in-page popup) — a teacher can drag that tab onto a
-  // projector/second screen, like a slide, instead of being stuck
-  // inside this app window. The slogan comes along with it, shown
-  // under the enlarged photo, so the "slide" still carries its
-  // message rather than being a bare image.
-  const escapeHtml = (str) =>
-    String(str || '').replace(/[&<>"']/g, (ch) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }[ch]));
-
-  const openImageInNewTab = (imagePath, slogan) => {
-    const url = getMediaUrl(imagePath);
-    if (!url) return;
-
-    // NOTE: deliberately NOT passing 'noopener' here — when that flag
-    // is set, window.open() returns null (the browser won't hand back
-    // a reference), and we need the reference below to write this
-    // tab's content. Sever the back-reference manually instead, right
-    // after opening, so the new tab still can't reach this page via
-    // window.opener.
-    const tab = window.open('', '_blank');
-    if (!tab) return;
-    tab.opener = null;
-
-    tab.document.write(`<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>${escapeHtml(slogan) || 'Microbit'}</title>
-    <style>
-      html, body {
-        margin: 0;
-        min-height: 100%;
-        background: #000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        font-family: 'Nunito', Arial, sans-serif;
-      }
-      img {
-        max-width: 100vw;
-        max-height: 85vh;
-        object-fit: contain;
-      }
-      .slogan {
-        margin-top: 1.5rem;
-        padding: 0 2rem;
-        color: #fcd34d;
-        font-size: clamp(1.75rem, 4.5vw, 3.5rem);
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        text-align: center;
-      }
-    </style>
-  </head>
-  <body>
-    <img src="${url}" alt="${escapeHtml(slogan) || 'Microbit visual'}" />
-    ${slogan ? `<div class="slogan">${escapeHtml(slogan)}</div>` : ''}
-  </body>
-</html>`);
-    tab.document.close();
+  // Clicking a visual card opens its photo full-size in an in-app
+  // lightbox (overlaying this page, not a separate browser tab), with
+  // Next/Prev arrows so a teacher can step through every generated
+  // Microbit's photo without closing and reopening each one. Opens to
+  // that Microbit's absolute position in result.chunks (not its
+  // position on the current page), so Next/Prev glides across every
+  // page's photos in order.
+  const openImageLightbox = (index) => {
+    setLightboxIndex(index);
   };
+
+  const closeLightbox = () => setLightboxIndex(null);
+
+  const showPrevImage = () => {
+    const total = result?.chunks?.length || 0;
+    if (!total) return;
+    setLightboxIndex((i) => (i - 1 + total) % total);
+  };
+
+  const showNextImage = () => {
+    const total = result?.chunks?.length || 0;
+    if (!total) return;
+    setLightboxIndex((i) => (i + 1) % total);
+  };
+
+  // Left/Right arrow keys mirror the on-screen Prev/Next buttons;
+  // Escape closes, same as clicking the backdrop or the X.
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowRight') showNextImage();
+      else if (e.key === 'ArrowLeft') showPrevImage();
+      else if (e.key === 'Escape') closeLightbox();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, result?.chunks?.length]);
 
   const handleDownload = async (url, filename) => {
     try {
@@ -757,7 +733,7 @@ export default function Amivi() {
 
           {result && !isProcessing && (
             <p className="text-lg text-black font-bold text-center mt-auto pt-2">
-              ✅ Done! Click "Start Over" below to create another.
+              ✅ Done! Click "Create Again" below to make another.
             </p>
           )}
 
@@ -980,7 +956,15 @@ export default function Amivi() {
       ======================================================= */}
 
       {result?.title && (
-        <div className="bg-gradient-to-br from-indigo-50 via-white to-white rounded-2xl border border-indigo-200 shadow-sm p-6 sm:p-8 text-center">
+        <div className="relative bg-gradient-to-br from-indigo-50 via-white to-white rounded-2xl border border-indigo-200 shadow-sm p-6 sm:p-8 text-center">
+          <button
+            type="button"
+            onClick={resetAmivi}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center gap-2 transition-colors shadow-sm text-sm sm:text-base"
+          >
+            <RefreshCw size={16} />
+            {t('Create Again')}
+          </button>
           <div
             className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-base sm:text-lg font-bold uppercase tracking-[0.25em] mb-3 text-black"
             style={{ background: '#eef2ff', border: '1px solid #c7d2fe' }}
@@ -1089,7 +1073,7 @@ export default function Amivi() {
                             borderRadius: CARD_SHAPE_STYLE[cardShape].borderRadius,
                             objectFit: CARD_SHAPE_STYLE[cardShape].objectFit,
                           }}
-                          onClick={() => openImageInNewTab(chunk.image_url, chunk.slogan)}
+                          onClick={() => openImageLightbox(index)}
                         />
                       </div>
                       <div
@@ -1236,7 +1220,7 @@ export default function Amivi() {
                       borderRadius: CARD_SHAPE_STYLE[cardShape].borderRadius,
                       objectFit: CARD_SHAPE_STYLE[cardShape].objectFit,
                     }}
-                    onClick={() => openImageInNewTab(chunk.image_url, chunk.slogan)}
+                    onClick={() => openImageLightbox(index)}
                   />
                 </div>
 
@@ -1387,13 +1371,6 @@ export default function Amivi() {
                 🧩 {t('Go to Quiz')}
               </button>
 
-              <button
-                onClick={resetAmivi}
-                className="text-base font-bold text-green-100 hover:text-white underline"
-              >
-                {t('Start Over')}
-              </button>
-
             </div>
 
           </div>
@@ -1495,9 +1472,10 @@ export default function Amivi() {
               <button
                 type="button"
                 onClick={resetAmivi}
-                className="text-base font-bold text-black hover:text-black underline"
+                className="px-4 py-2 border-2 border-slate-300 hover:border-black text-black rounded-xl font-bold text-base flex items-center gap-2 transition-colors"
               >
-                Start New AMIVI
+                <RefreshCw size={16} />
+                Create Again
               </button>
             </div>
 
@@ -1684,6 +1662,71 @@ export default function Amivi() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ======================================================
+          IMAGE LIGHTBOX — full-screen preview of a generated
+          Microbit photo, opened by clicking any card's image in
+          Box 1 or Box 2. Prev/Next step through every photo in
+          result.chunks in order (not just the current page), via
+          the on-screen arrow buttons, the left/right arrow keys,
+          or (closing) the Escape key / clicking the backdrop.
+      ======================================================= */}
+      {lightboxIndex !== null && result?.chunks?.[lightboxIndex] && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center p-4"
+          onClick={closeLightbox}
+        >
+          <button
+            type="button"
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            aria-label="Close"
+          >
+            <X size={22} />
+          </button>
+
+          {result.chunks.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); showPrevImage(); }}
+              className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+              aria-label="Previous photo"
+            >
+              <ArrowLeft size={26} />
+            </button>
+          )}
+
+          {result.chunks.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); showNextImage(); }}
+              className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+              aria-label="Next photo"
+            >
+              <ArrowRight size={26} />
+            </button>
+          )}
+
+          <img
+            src={getMediaUrl(result.chunks[lightboxIndex].image_url)}
+            alt={result.chunks[lightboxIndex].text || `Chunk ${lightboxIndex + 1}`}
+            className="max-w-full max-h-[85vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {result.chunks[lightboxIndex].slogan && (
+            <div className="mt-6 px-8 text-center text-amber-300 font-extrabold uppercase tracking-wide text-2xl sm:text-4xl">
+              {result.chunks[lightboxIndex].slogan}
+            </div>
+          )}
+
+          {result.chunks.length > 1 && (
+            <div className="mt-4 text-white/50 font-bold text-sm">
+              {lightboxIndex + 1} / {result.chunks.length}
+            </div>
+          )}
         </div>
       )}
 

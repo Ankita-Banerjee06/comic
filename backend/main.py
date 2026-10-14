@@ -3513,24 +3513,30 @@ def create_amivi_video(
                         font_size = max(32, int(width * 0.075))
                         font = get_font(font_size, bold=True)
 
-                        char_width = draw.textlength("A", font=font) if hasattr(draw, 'textlength') else 15
-                        max_chars = int((width * 0.9) / (char_width or 10))
-                        max_chars = max(15, max_chars)
-                        lines = textwrap.wrap(text_to_draw, width=max_chars)
-                        
+                        def _text_width(text, f):
+                            return (
+                                draw.textlength(text, font=f)
+                                if hasattr(draw, 'textlength')
+                                else len(text) * (font_size * 0.6)
+                            )
+
+                        # One line, like the card slogans — shrink the
+                        # font (down to a sane floor) to fit the frame
+                        # width instead of wrapping across multiple
+                        # lines, which read small and cluttered.
+                        max_text_width = int(width * 0.9)
+                        while font_size > 18 and _text_width(text_to_draw, font) > max_text_width:
+                            font_size -= 2
+                            font = get_font(font_size, bold=True)
+
                         line_height = draw.textbbox((0,0), "A", font=font)[3] if hasattr(draw, 'textbbox') else font_size
-                        line_spacing = int(line_height * 0.2)
-                        total_text_height = (line_height * len(lines)) + (line_spacing * (len(lines) - 1))
-                        
-                        current_y = height - total_text_height - int(height * 0.05)
+                        line_w = _text_width(text_to_draw, font)
+                        x = (width - line_w) / 2
+                        current_y = height - line_height - int(height * 0.05)
                         stroke_width = max(2, int(font_size * 0.05))
-                        
-                        for line in lines:
-                            line_w = draw.textlength(line, font=font) if hasattr(draw, 'textlength') else len(line)*char_width
-                            x = (width - line_w) / 2
-                            draw.text((x, current_y), line, font=font, fill="white", stroke_width=stroke_width, stroke_fill="black")
-                            current_y += line_height + line_spacing
-                        
+
+                        draw.text((x, current_y), text_to_draw, font=font, fill="black", stroke_width=stroke_width, stroke_fill="white")
+
                         img.save(image_file.name)
                 except Exception as e:
                     print("Error overlaying text on video image:", e)
