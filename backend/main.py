@@ -3500,12 +3500,19 @@ def create_amivi_video(
                         img = img.convert("RGB")
                         draw = ImageDraw.Draw(img)
                         width, height = img.size
-                        font_size = max(24, int(width * 0.06))
-                        try:
-                            font = ImageFont.truetype("arialbd.ttf", font_size)
-                        except IOError:
-                            font = ImageFont.load_default()
-                        
+                        # Bigger + bolder, to read like the card slogans
+                        # do. The old "arialbd.ttf" lookup only ever
+                        # resolved on Windows — on Render (Linux) it
+                        # silently failed and fell back to PIL's
+                        # built-in default font, which ignores the
+                        # requested size entirely (always ~10px no
+                        # matter what font_size is), which is why the
+                        # caption rendered tiny in the deployed video.
+                        # get_font() is the same cross-platform helper
+                        # the AMICO/Photo Story cards already use.
+                        font_size = max(32, int(width * 0.075))
+                        font = get_font(font_size, bold=True)
+
                         char_width = draw.textlength("A", font=font) if hasattr(draw, 'textlength') else 15
                         max_chars = int((width * 0.9) / (char_width or 10))
                         max_chars = max(15, max_chars)
