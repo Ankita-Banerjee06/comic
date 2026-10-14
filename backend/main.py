@@ -22,6 +22,8 @@ import secrets
 import shutil
 import uuid
 import textwrap
+import threading
+import time
 
 from urllib.parse import urlparse
 
@@ -3191,14 +3193,97 @@ def generate_avatar_image(
 
 # ============================================================
 # PIPER
+#
+# Piper runs as a separate OS subprocess per call (it's a CLI
+# binary, not a Python-loaded model), so its memory doesn't show
+# up as "our" process — but it still counts against Render's
+# per-instance memory ceiling. Nothing here used to cap how many
+# of those subprocesses could run at once: /api/amivi/generate
+# processes up to 8 chunks in parallel (ThreadPoolExecutor,
+# max_workers=8) and each chunk fires its own voice generation
+# as one of 4 concurrent per-chunk tasks, so a single multi-chunk
+# lesson could spawn up to 8 Piper subprocesses simultaneously,
+# each loading its own full copy of the onnx voice model
+# (~60-80MB on disk; comfortably more than that once onnxruntime
+# allocates its execution graph/buffers). 8 x 200-300MB+ is enough
+# on its own to blow past a 2GB instance, which matches the "Piper
+# voice models loading almost simultaneously" pattern in the
+# Render logs. PIPER_MAX_CONCURRENCY below bounds that process-
+# wide (not just per-request), without touching the existing
+# chunk-level parallelism for the cheaper explanation/image work.
 # ============================================================
+
+# How many Piper subprocesses may be running at once, across ALL
+# requests this instance is handling. Tune via env var without a
+# code change; 2 is a conservative default for a 2GB instance.
+# NOTE: if Render ever runs more than one uvicorn/gunicorn worker
+# PROCESS for this service, this limit applies per worker process
+# (each gets its own Semaphore) — total concurrent Piper
+# subprocesses across the instance would then be roughly
+# PIPER_MAX_CONCURRENCY x worker_count, so keep that in mind if a
+# worker count is ever configured in the Render start command.
+PIPER_MAX_CONCURRENCY = int(
+    os.getenv("PIPER_MAX_CONCURRENCY", "2")
+)
+
+# Piper normally finishes a short clip in a few seconds; if a
+# subprocess ever hangs (bad input, corrupt model file, etc.) it
+# would otherwise hold its concurrency slot forever and eventually
+# starve every other voice generation. subprocess.run() kills the
+# child process itself when this fires.
+PIPER_TIMEOUT_SECONDS = int(
+    os.getenv("PIPER_TIMEOUT_SECONDS", "30")
+)
+
+_piper_semaphore = threading.Semaphore(
+    PIPER_MAX_CONCURRENCY
+)
+_piper_active_count = 0
+_piper_active_lock = threading.Lock()
+
+try:
+    # Unix-only (Render runs Linux); the dev machine here is
+    # Windows, where this simply isn't available, so memory
+    # logging below degrades to a no-op rather than failing.
+    import resource as _resource
+except ImportError:
+    _resource = None
+
+
+def _piper_rss_mb():
+    """
+    Best-effort current process memory (RSS, in MB), for the
+    diagnostic logs below. Returns None where unsupported (e.g.
+    local Windows dev) instead of raising.
+    """
+
+    if _resource is None:
+        return None
+
+    try:
+
+        usage_kb = _resource.getrusage(
+            _resource.RUSAGE_SELF
+        ).ru_maxrss
+
+        # ru_maxrss is KB on Linux, bytes on macOS.
+        divisor = 1024 if platform.system() != "Darwin" else (1024 * 1024)
+
+        return round(usage_kb / divisor, 1)
+
+    except Exception:
+        return None
+
 
 def generate_voice(
     text,
     filename,
     language="en",
     project_id=None,
+    correlation_id=None,
 ):
+
+    global _piper_active_count
 
     if not text:
 
@@ -3244,9 +3329,30 @@ def generate_voice(
             f"Piper model not found: {model_path}"
         )
 
+    job_id = correlation_id or f"{project_id or 'no-project'}:{filename}"
+
     temp_path = None
+    acquired = False
+    start_time = time.monotonic()
 
     try:
+
+        # Blocks here (in this worker thread, not the asyncio
+        # event loop — generate_voice always runs inside a
+        # ThreadPoolExecutor) until a Piper slot is free, instead
+        # of letting an unbounded number of subprocesses start.
+        _piper_semaphore.acquire()
+        acquired = True
+
+        with _piper_active_lock:
+            _piper_active_count += 1
+            active_now = _piper_active_count
+
+        print(
+            f"[piper] start job={job_id} lang={language} "
+            f"active={active_now}/{PIPER_MAX_CONCURRENCY} "
+            f"rss_mb={_piper_rss_mb()}"
+        )
 
         with tempfile.NamedTemporaryFile(
             suffix=".wav",
@@ -3255,19 +3361,37 @@ def generate_voice(
 
             temp_path = temp_file.name
 
-        subprocess.run(
-            [
-                piper_path,
-                "--model",
-                model_path,
-                "--output_file",
-                temp_path,
-            ],
-            input=text.encode(
-                "utf-8"
-            ),
-            check=True,
-        )
+        try:
+
+            subprocess.run(
+                [
+                    piper_path,
+                    "--model",
+                    model_path,
+                    "--output_file",
+                    temp_path,
+                ],
+                input=text.encode(
+                    "utf-8"
+                ),
+                check=True,
+                timeout=PIPER_TIMEOUT_SECONDS,
+            )
+
+        except subprocess.TimeoutExpired:
+
+            # subprocess.run() already killed the child and
+            # reaped it before raising this, so there's no
+            # orphaned process left behind here.
+            print(
+                f"[piper] TIMEOUT job={job_id} "
+                f"after {PIPER_TIMEOUT_SECONDS}s"
+            )
+
+            raise Exception(
+                f"Piper voice generation timed out "
+                f"after {PIPER_TIMEOUT_SECONDS}s."
+            )
 
         with open(
             temp_path,
@@ -3278,13 +3402,33 @@ def generate_voice(
                 audio_file.read()
             )
 
-        return save_media(
+        result = save_media(
             data=audio_data,
             filename=filename,
             mime_type="audio/wav",
             asset_type="audio",
             project_id=project_id,
         )
+
+        duration = round(time.monotonic() - start_time, 2)
+
+        print(
+            f"[piper] done job={job_id} duration_s={duration} "
+            f"rss_mb={_piper_rss_mb()}"
+        )
+
+        return result
+
+    except Exception as exc:
+
+        duration = round(time.monotonic() - start_time, 2)
+
+        print(
+            f"[piper] FAILED job={job_id} duration_s={duration} "
+            f"error={exc}"
+        )
+
+        raise
 
     finally:
 
@@ -3294,6 +3438,13 @@ def generate_voice(
         ):
 
             os.remove(temp_path)
+
+        if acquired:
+
+            with _piper_active_lock:
+                _piper_active_count -= 1
+
+            _piper_semaphore.release()
 
 
 # ============================================================
@@ -5295,6 +5446,10 @@ async def amivi_generate(
                         ),
                         language=request.language,
                         project_id=project_id,
+                        correlation_id=(
+                            f"amivi_generate:project={project_id}"
+                            f":chunk={index}"
+                        ),
                     )
 
                 except Exception as audio_exc:
