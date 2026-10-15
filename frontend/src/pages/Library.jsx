@@ -584,11 +584,7 @@ function LibraryCard({ item, onPreview, onDelete }) {
           <Icon className="w-3.5 h-3.5" /> {meta.label}
         </div>
 
-        <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/25 flex items-center justify-center transition-colors">
-          <span className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1.5 bg-white/95 text-slate-800 text-xs font-bold px-3 py-1.5 rounded-full">
-            <Eye className="w-3.5 h-3.5" /> Preview
-          </span>
-        </div>
+        <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/25 transition-colors" />
       </button>
 
       <h3
@@ -725,11 +721,44 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
   );
 }
 
+const AMIVI_CHUNKS_PER_PAGE = 6;
+
 function AmiviPreview({ item, data }) {
   const project = data.data || {};
   const chunks = project.chunks || [];
   const [imgFailed, setImgFailed] = useState(false);
   const hasThumbnail = item?.thumbnail_url && !imgFailed;
+  const [chunkPage, setChunkPage] = useState(0);
+  const totalChunkPages = Math.max(1, Math.ceil(chunks.length / AMIVI_CHUNKS_PER_PAGE));
+  const visibleChunks = chunks.slice(
+    chunkPage * AMIVI_CHUNKS_PER_PAGE,
+    chunkPage * AMIVI_CHUNKS_PER_PAGE + AMIVI_CHUNKS_PER_PAGE
+  );
+
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+  const openLightbox = (globalIndex) => setLightboxIndex(globalIndex);
+  const closeLightbox = () => setLightboxIndex(null);
+  const showPrevChunk = useCallback(
+    () => setLightboxIndex((i) => (i === null ? i : Math.max(0, i - 1))),
+    []
+  );
+  const showNextChunk = useCallback(
+    () => setLightboxIndex((i) => (i === null ? i : Math.min(chunks.length - 1, i + 1))),
+    [chunks.length]
+  );
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') showPrevChunk();
+      if (e.key === 'ArrowRight') showNextChunk();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, showPrevChunk, showNextChunk]);
+
+  const lightboxChunk = lightboxIndex !== null ? chunks[lightboxIndex] : null;
 
   return (
     <div className="space-y-5">
@@ -755,32 +784,123 @@ function AmiviPreview({ item, data }) {
       {chunks.length === 0 ? (
         <EmptyPreviewNote text="No visual micro-bits were saved for this project." />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {chunks.map((chunk, i) => (
-            <div key={chunk.chunk_id || i} className="rounded-xl overflow-hidden border border-slate-200">
-              <div className="aspect-square bg-slate-50 flex items-center justify-center overflow-hidden">
-                {chunk.image_url ? (
-                  <img
-                    src={mediaUrl(chunk.image_url)}
-                    alt={chunk.text || `Chunk ${i + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <ImageOff className="w-6 h-6 text-slate-300" />
-                )}
-              </div>
-              <div className="p-2.5">
-                <p className="text-xs font-bold text-slate-700 truncate">
-                  {chunk.text || chunk.key_point || `Chunk ${i + 1}`}
-                </p>
-                {chunk.slogan && (
-                  <p className="text-[11px] text-orange-600 font-semibold truncate mt-0.5">
-                    ✨ {chunk.slogan}
-                  </p>
-                )}
-              </div>
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            {visibleChunks.map((chunk, i) => {
+              const globalIndex = chunkPage * AMIVI_CHUNKS_PER_PAGE + i;
+              return (
+                <button
+                  key={chunk.chunk_id || globalIndex}
+                  type="button"
+                  onClick={() => openLightbox(globalIndex)}
+                  className="rounded-xl overflow-hidden border border-slate-200 text-left hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
+                >
+                  <div className="aspect-square bg-slate-50 flex items-center justify-center overflow-hidden">
+                    {chunk.image_url ? (
+                      <img
+                        src={mediaUrl(chunk.image_url)}
+                        alt={chunk.text || `Chunk ${globalIndex + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageOff className="w-6 h-6 text-slate-300" />
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-xs font-bold text-slate-700 truncate">
+                      {chunk.text || chunk.key_point || `Chunk ${globalIndex + 1}`}
+                    </p>
+                    {chunk.slogan && (
+                      <p className="text-[11px] text-orange-600 font-semibold truncate mt-0.5">
+                        ✨ {chunk.slogan}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {totalChunkPages > 1 && (
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => setChunkPage((p) => Math.max(0, p - 1))}
+                disabled={chunkPage === 0}
+                className="w-9 h-9 rounded-full bg-slate-100 shadow flex items-center justify-center text-slate-600 disabled:opacity-30"
+              >
+                <ChevronLeft className="w-4.5 h-4.5" />
+              </button>
+              <p className="text-xs font-bold text-slate-400">
+                Page {chunkPage + 1} of {totalChunkPages}
+              </p>
+              <button
+                onClick={() => setChunkPage((p) => Math.min(totalChunkPages - 1, p + 1))}
+                disabled={chunkPage === totalChunkPages - 1}
+                className="w-9 h-9 rounded-full bg-slate-100 shadow flex items-center justify-center text-slate-600 disabled:opacity-30"
+              >
+                <ChevronRight className="w-4.5 h-4.5" />
+              </button>
             </div>
-          ))}
+          )}
+        </>
+      )}
+
+      {lightboxChunk && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/85" onClick={closeLightbox} />
+
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center text-slate-700 hover:bg-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {lightboxIndex > 0 && (
+            <button
+              onClick={showPrevChunk}
+              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 shadow flex items-center justify-center text-slate-700 hover:bg-white transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+          {lightboxIndex < chunks.length - 1 && (
+            <button
+              onClick={showNextChunk}
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 shadow flex items-center justify-center text-slate-700 hover:bg-white transition-colors"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
+
+          <div className="relative bg-white rounded-2xl overflow-hidden shadow-xl max-w-6xl w-full max-h-[92vh] flex flex-col">
+            <div className="bg-slate-50 flex items-center justify-center overflow-hidden flex-1">
+              {lightboxChunk.image_url ? (
+                <img
+                  src={mediaUrl(lightboxChunk.image_url)}
+                  alt={lightboxChunk.text || `Chunk ${lightboxIndex + 1}`}
+                  className="w-full max-h-[78vh] object-contain"
+                />
+              ) : (
+                <div className="w-full h-96 flex items-center justify-center">
+                  <ImageOff className="w-12 h-12 text-slate-300" />
+                </div>
+              )}
+            </div>
+            <div className="p-6 text-center">
+              <p className="text-4xl sm:text-5xl font-extrabold text-slate-800">
+                {lightboxChunk.text || lightboxChunk.key_point || `Chunk ${lightboxIndex + 1}`}
+              </p>
+              {lightboxChunk.slogan && (
+                <p className="text-2xl sm:text-3xl text-orange-600 font-bold mt-3">
+                  ✨ {lightboxChunk.slogan}
+                </p>
+              )}
+              <p className="text-sm font-bold text-slate-400 mt-4">
+                {lightboxIndex + 1} of {chunks.length}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>

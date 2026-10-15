@@ -99,6 +99,11 @@ export default function Amivi() {
   // means the lightbox is closed.
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
+  // Click-to-enlarge for a Microbit's slogan or description text —
+  // separate from the image lightbox above. null means closed;
+  // otherwise { label, text } for whichever line was clicked.
+  const [textLightbox, setTextLightbox] = useState(null);
+
   // Save Modal State
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveSpace, setSaveSpace] = useState('personal');
@@ -254,6 +259,13 @@ export default function Amivi() {
 
   const closeLightbox = () => setLightboxIndex(null);
 
+  const openTextLightbox = (label, text, title = null) => {
+    if (!text) return;
+    setTextLightbox({ label, text, title });
+  };
+
+  const closeTextLightbox = () => setTextLightbox(null);
+
   const showPrevImage = () => {
     const total = result?.chunks?.length || 0;
     if (!total) return;
@@ -280,6 +292,18 @@ export default function Amivi() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightboxIndex, result?.chunks?.length]);
+
+  // Escape also closes the enlarged slogan/description text popup.
+  useEffect(() => {
+    if (!textLightbox) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') closeTextLightbox();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [textLightbox]);
 
   const handleDownload = async (url, filename) => {
     try {
@@ -1077,8 +1101,9 @@ export default function Amivi() {
                         />
                       </div>
                       <div
-                        className="p-4 flex-1 flex flex-col items-center justify-center text-center border-t-2 gap-1"
+                        className="p-4 flex-1 flex flex-col items-center justify-center text-center border-t-2 gap-1 cursor-pointer rounded-b-2xl hover:bg-black/5 transition-colors"
                         style={{ background: CARD_COLOR_PALETTE[cardColor].panelBg, borderColor: CARD_COLOR_PALETTE[cardColor].panelBorder }}
+                        onClick={() => openTextLightbox(t('Slogan'), chunk.slogan, chunk.key_point || chunk.text || `Chunk ${index + 1}`)}
                       >
                         <p className="text-2xl sm:text-3xl font-extrabold text-black leading-tight">
                           {chunk.key_point || chunk.text || `Chunk ${index + 1}`}
@@ -1228,18 +1253,26 @@ export default function Amivi() {
                   className="p-4 flex flex-col items-center text-center border-t-2 gap-1"
                   style={{ background: CARD_COLOR_PALETTE[cardColor].panelBg, borderColor: CARD_COLOR_PALETTE[cardColor].panelBorder }}
                 >
-                  <p className="text-2xl sm:text-3xl font-extrabold text-black leading-tight">
-                    {chunk.key_point || chunk.text || `Chunk ${index + 1}`}
-                  </p>
-                  {chunk.slogan && (
-                    <p className="text-lg sm:text-xl font-bold text-black uppercase tracking-wide">
-                      {chunk.slogan}
+                  <div
+                    className="w-full cursor-pointer rounded-xl hover:bg-black/5 transition-colors py-1"
+                    onClick={() => openTextLightbox(t('Slogan'), chunk.slogan, chunk.key_point || chunk.text || `Chunk ${index + 1}`)}
+                  >
+                    <p className="text-2xl sm:text-3xl font-extrabold text-black leading-tight">
+                      {chunk.key_point || chunk.text || `Chunk ${index + 1}`}
                     </p>
-                  )}
+                    {chunk.slogan && (
+                      <p className="text-lg sm:text-xl font-bold text-black uppercase tracking-wide">
+                        {chunk.slogan}
+                      </p>
+                    )}
+                  </div>
 
                   <div className="w-full mt-2">
                     {chunk.description ? (
-                      <p className="text-xl sm:text-2xl text-black font-medium text-left w-full bg-white border border-amber-200 rounded-xl p-3">
+                      <p
+                        className="text-xl sm:text-2xl text-black font-medium text-left w-full bg-white border border-amber-200 rounded-xl p-3 cursor-pointer hover:bg-amber-50 hover:border-amber-400 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); openTextLightbox(t('Description'), chunk.description); }}
+                      >
                         {chunk.description}
                       </p>
                     ) : (
@@ -1727,6 +1760,48 @@ export default function Amivi() {
               {lightboxIndex + 1} / {result.chunks.length}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Enlarged slogan / description popup — opened by clicking
+          either line on a Microbit card, separate from the photo
+          lightbox above. */}
+      {textLightbox && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4 sm:p-8"
+          onClick={closeTextLightbox}
+        >
+          <button
+            type="button"
+            onClick={closeTextLightbox}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            aria-label="Close"
+          >
+            <X size={22} />
+          </button>
+
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-10 sm:p-16 max-w-6xl w-full max-h-[92vh] overflow-y-auto text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-base font-bold uppercase tracking-widest mb-6 text-black bg-amber-50 border border-amber-200">
+              {textLightbox.label}
+            </div>
+            {textLightbox.title && (
+              <p className="text-5xl sm:text-7xl font-extrabold text-black leading-snug mb-4">
+                {textLightbox.title}
+              </p>
+            )}
+            <p
+              className={
+                textLightbox.title
+                  ? 'text-3xl sm:text-6xl font-bold text-black uppercase tracking-wide leading-snug'
+                  : 'text-4xl sm:text-6xl font-extrabold text-black leading-snug text-left'
+              }
+            >
+              {textLightbox.text}
+            </p>
+          </div>
         </div>
       )}
 

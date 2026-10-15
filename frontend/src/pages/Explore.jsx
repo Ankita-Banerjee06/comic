@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid,
   Box,
@@ -68,32 +68,30 @@ function ZoneHeader({ icon: Icon, iconColor, iconTint, title, subtitle, tagline 
   );
 }
 
-function CategoryTile({ category }) {
-  return (
-    <Link
-      to={category.to}
-      className="group text-left bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col hover:shadow-lg hover:-translate-y-0.5 transition-all"
-    >
-      <div className="h-36 flex items-center justify-center p-4" style={{ background: category.tint }}>
-        <img
-          src={category.image}
-          alt={category.title}
-          className="w-full h-full object-contain"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
-      </div>
-      <div className="p-5 flex flex-col flex-1">
-        <h3 className="font-extrabold text-black text-xl leading-tight mb-1.5">{category.title}</h3>
-        <p className="text-base font-semibold text-black mb-3 flex-1">{category.description}</p>
-        <span className="inline-flex items-center gap-1.5 text-base font-bold text-black group-hover:gap-2.5 transition-all">
-          Explore <ArrowRight className="w-4 h-4" />
-        </span>
-      </div>
-    </Link>
-  );
-}
-
 export default function Explore() {
+  const navigate = useNavigate();
+  const [resourceChoice, setResourceChoice] = useState('');
+  const [quizChoice, setQuizChoice] = useState('');
+  const [categoryChoice, setCategoryChoice] = useState('');
+
+  const handleResourceChoice = (e) => {
+    const to = e.target.value;
+    setResourceChoice(to);
+    if (to) navigate(to);
+  };
+
+  const handleQuizChoice = (e) => {
+    const title = e.target.value;
+    setQuizChoice(title);
+    if (title) navigate('/quiz');
+  };
+
+  const handleCategoryChoice = (e) => {
+    const to = e.target.value;
+    setCategoryChoice(to);
+    if (to) navigate(to);
+  };
+
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="text-center max-w-3xl mx-auto">
@@ -182,42 +180,16 @@ export default function Explore() {
             title="Quizzes" subtitle="Practice, test and challenge yourself with interactive quizzes."
             tagline="Different ways to quiz, learn and improve"
           />
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {QUIZ_CARDS.map((q) => {
-              const Icon = q.icon;
-              return (
-                <Link
-                  key={q.title}
-                  to="/quiz"
-                  className="group rounded-2xl p-5 flex flex-col gap-3 border bg-white hover:-translate-y-0.5 hover:shadow-lg transition-all"
-                  style={{ borderColor: q.border }}
-                >
-                  {q.badge ? (
-                    <img
-                      src={q.badge}
-                      alt=""
-                      className="w-12 h-12 rounded-full shadow-sm object-cover"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                  ) : (
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm"
-                      style={{ background: q.dot }}
-                    >
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <h4 className="text-lg font-extrabold text-black leading-tight mb-1.5">{q.title}</h4>
-                    <p className="text-base font-semibold text-black leading-snug">{q.desc}</p>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-base font-bold text-black group-hover:gap-1.5 transition-all">
-                    {q.action} <ArrowRight className="w-3.5 h-3.5" />
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+          <select
+            value={quizChoice}
+            onChange={handleQuizChoice}
+            className="w-full sm:w-auto px-6 py-4 rounded-xl border-2 border-teal-300 bg-white text-black font-extrabold text-xl cursor-pointer"
+          >
+            <option value="">{'Choose a quiz…'}</option>
+            {QUIZ_CARDS.map((q) => (
+              <option key={q.title} value={q.title}>{q.title}</option>
+            ))}
+          </select>
         </div>
 
         {/* Learning Resources */}
@@ -227,11 +199,16 @@ export default function Explore() {
             title="Learning Resources" subtitle="Access materials, collaborate and manage your learning activities."
             tagline="Everything you need to learn better"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {LEARNING_RESOURCES.map((category) => (
-              <CategoryTile key={category.key} category={category} />
+          <select
+            value={resourceChoice}
+            onChange={handleResourceChoice}
+            className="w-full sm:w-auto px-6 py-4 rounded-xl border-2 border-orange-300 bg-white text-black font-extrabold text-xl cursor-pointer"
+          >
+            <option value="">{'Choose a resource…'}</option>
+            {LEARNING_RESOURCES.map((r) => (
+              <option key={r.key} value={r.to}>{r.title}</option>
             ))}
-          </div>
+          </select>
         </div>
 
         {/* Additional Categories */}
@@ -241,11 +218,16 @@ export default function Explore() {
             title="Additional Categories" subtitle="Explore more tools to make your learning journey exciting and productive."
             tagline="More ways to learn and grow"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {ADDITIONAL_CATEGORIES.map((category) => (
-              <CategoryTile key={category.key} category={category} />
+          <select
+            value={categoryChoice}
+            onChange={handleCategoryChoice}
+            className="w-full sm:w-auto px-6 py-4 rounded-xl border-2 border-purple-300 bg-white text-black font-extrabold text-xl cursor-pointer"
+          >
+            <option value="">{'Choose a category…'}</option>
+            {ADDITIONAL_CATEGORIES.map((c) => (
+              <option key={c.key} value={c.to}>{c.title}</option>
             ))}
-          </div>
+          </select>
         </div>
 
         {/* Bottom CTA */}
