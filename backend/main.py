@@ -24,6 +24,8 @@ import uuid
 import textwrap
 import threading
 import time
+import socket
+import ipaddress
 
 from urllib.parse import urlparse
 
@@ -38,6 +40,7 @@ from moviepy.editor import (
 # pyrefly: ignore [missing-import]
 from pypdf import PdfReader
 from docx import Document
+from bs4 import BeautifulSoup
 
 import requests
 import yt_dlp
@@ -85,6 +88,12 @@ LUNA_MODEL = "gpt-5.6-luna"
 
 IMAGE_MODEL = "gpt-image-2"
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
+
+# Narration (video voiceover) — an expressive, instructable TTS model,
+# unlike the old local Piper engine it replaces. Voice + delivery style
+# are both tunable below without touching the call sites.
+NARRATOR_MODEL = "gpt-4o-mini-tts"
+NARRATOR_VOICE = os.getenv("AMIVI_NARRATOR_VOICE", "fable")
 
 
 client = (
@@ -169,6 +178,11 @@ class AmiviRequest(BaseModel):
     # AMIVI" from a chapter hub that already has an AMICO or Quiz),
     # and the new project inherits that project's subject/chapter.
     source_project_id: int | None = None
+
+
+class AmiviUrlExtractRequest(BaseModel):
+    url: str
+    language: str = "en"
 
 
 class AmiviRegenerateImageRequest(BaseModel):
@@ -2095,6 +2109,210 @@ def extract_video_text(
 
 
 # ============================================================
+# WEBPAGE URL EXTRACTION
+# (the Uploads box's "paste a website URL" option — a teacher
+# pastes an article link, e.g. a Wikipedia page, and this pulls
+# out just the readable educational text so they don't have to
+# copy/paste the whole page by hand.)
+# ============================================================
+
+# Hosts/IP ranges a pasted URL must never be allowed to reach —
+# this endpoint makes a server-side request to whatever URL the
+# user supplies, so without this check a pasted URL could be used
+# to probe the backend's own network (localhost, cloud metadata
+# endpoints, other internal services) rather than a real public
+# webpage.
+def _is_safe_external_url(url: str) -> bool:
+
+    parsed = urlparse(url)
+
+    if parsed.scheme not in {"http", "https"}:
+        return False
+
+    hostname = parsed.hostname
+
+    if not hostname:
+        return False
+
+    if hostname.lower() in {"localhost"}:
+        return False
+
+    try:
+        resolved_ips = {
+            info[4][0]
+            for info in socket.getaddrinfo(hostname, None)
+        }
+    except socket.gaierror:
+        return False
+
+    for ip_text in resolved_ips:
+
+        try:
+            ip = ipaddress.ip_address(ip_text)
+        except ValueError:
+            return False
+
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+        ):
+            return False
+
+    return True
+
+
+def extract_webpage_text(url: str) -> dict:
+    """
+    Fetches a public webpage and pulls out its main readable text
+    (stripping navigation, ads, scripts, etc.) — this is the generic
+    "any article/educational page" path, e.g. a Wikipedia article.
+    Separate from extract_video_text() above, which is specifically
+    for video platforms (YouTube, etc.) and reads captions/audio
+    instead of page text.
+    """
+
+    url = (url or "").strip()
+
+    if not url:
+        raise HTTPException(
+            status_code=400,
+            detail="Please paste a website URL.",
+        )
+
+    if not _is_safe_external_url(url):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Please provide a valid, public http/https "
+                "website URL."
+            ),
+        )
+
+    try:
+        response = requests.get(
+            url,
+            timeout=20,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (compatible; VLQ-AMIVI/1.0; "
+                    "+https://vlq.app)"
+                )
+            },
+            allow_redirects=True,
+            stream=True,
+        )
+
+        response.raise_for_status()
+
+        content_type = response.headers.get("content-type", "")
+
+        if "html" not in content_type.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "That URL doesn't look like a webpage "
+                    "(expected HTML content)."
+                ),
+            )
+
+        # Cap how much of the response we read — enough for even a
+        # long article, without downloading an unbounded page body.
+        max_bytes = 3_000_000
+        raw = response.raw.read(max_bytes + 1, decode_content=True)
+
+        if len(raw) > max_bytes:
+            raw = raw[:max_bytes]
+
+        html = raw.decode(
+            response.encoding or "utf-8",
+            errors="ignore",
+        )
+
+    except HTTPException:
+        raise
+
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not open that URL: {exc}",
+        )
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    for tag in soup(
+        [
+            "script",
+            "style",
+            "noscript",
+            "nav",
+            "header",
+            "footer",
+            "aside",
+            "form",
+            "iframe",
+            "svg",
+        ]
+    ):
+        tag.decompose()
+
+    title_tag = soup.find("title")
+    title = (
+        title_tag.get_text(strip=True)
+        if title_tag
+        else urlparse(url).hostname or "Webpage"
+    )
+
+    # Prefer the page's main content container when there is one —
+    # falls back to the whole (already-stripped) page otherwise.
+    main_content = (
+        soup.find("article")
+        or soup.find("main")
+        or soup.find(id=re.compile(r"content", re.I))
+        or soup.find(
+            class_=re.compile(r"(article|content|main)", re.I)
+        )
+        or soup.body
+        or soup
+    )
+
+    raw_text = main_content.get_text(separator="\n")
+
+    lines = [
+        line.strip()
+        for line in raw_text.splitlines()
+        if line.strip()
+    ]
+
+    text = "\n".join(lines)
+
+    # Plenty for even a long Wikipedia-style article, while keeping
+    # the downstream INTRODUCE-stage prompt a sane size.
+    max_chars = 12000
+
+    if len(text) > max_chars:
+        text = text[:max_chars]
+
+    if len(text) < 100:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Could not find enough readable text on that "
+                "page."
+            ),
+        )
+
+    return {
+        "title": title,
+        "text": text,
+        "source": "webpage",
+        "url": url,
+    }
+
+
+# ============================================================
 # AMIVI
 # ============================================================
 
@@ -2134,7 +2352,7 @@ def generate_amivi_content(
         "  * Incorporate the 11.7 x 14.7 size requirement into the prompt.\n"
         "- CRITICAL: Do NOT include any text, words, labels, captions, slogans, or typography in the image_prompt itself. The generated image must be completely text-free — it is a pure illustration. The UI renders the Key Point and slogan as separate text.\n"
         "- Create a SECOND supporting image prompt for the same Microbit from a different angle, following the same image requirements above.\n"
-        "- Also write one short spoken narration line (voice_script) per Microbit, for optional audio/video playback — this is narration, not on-screen text.\n"
+        "- Also write one short spoken narration line (voice_script) per Microbit, for optional audio/video playback — this is narration, not on-screen text. Write it the way a warm, upbeat animated-adventure narrator would say it out loud to a curious kid — natural, conversational, short and clear, with a little wonder, excitement or personality where it fits. Never a flat, formal textbook sentence.\n"
         "- Set the 'text' field to the same value as 'key_point'. Leave the 'description' field as an empty string — explanations are generated separately in the later EXPLAIN stage, not here.\n"
         "- Keep the points in a clear, logical learning sequence.\n\n"
 
@@ -3192,54 +3410,65 @@ def generate_avatar_image(
 
 
 # ============================================================
-# PIPER
+# NARRATION (OpenAI TTS)
 #
-# Piper runs as a separate OS subprocess per call (it's a CLI
-# binary, not a Python-loaded model), so its memory doesn't show
-# up as "our" process — but it still counts against Render's
-# per-instance memory ceiling. Nothing here used to cap how many
-# of those subprocesses could run at once: /api/amivi/generate
-# processes up to 8 chunks in parallel (ThreadPoolExecutor,
-# max_workers=8) and each chunk fires its own voice generation
-# as one of 4 concurrent per-chunk tasks, so a single multi-chunk
-# lesson could spawn up to 8 Piper subprocesses simultaneously,
-# each loading its own full copy of the onnx voice model
-# (~60-80MB on disk; comfortably more than that once onnxruntime
-# allocates its execution graph/buffers). 8 x 200-300MB+ is enough
-# on its own to blow past a 2GB instance, which matches the "Piper
-# voice models loading almost simultaneously" pattern in the
-# Render logs. PIPER_MAX_CONCURRENCY below bounds that process-
-# wide (not just per-request), without touching the existing
-# chunk-level parallelism for the cheaper explanation/image work.
+# Video narration used to be synthesized locally by Piper (a CLI
+# subprocess per call, one fixed voice, no tone/style control —
+# see the Piper memory-concurrency fix elsewher in this file's
+# history). It's been replaced with OpenAI's TTS: a warmer, more
+# expressive narrator with an actual style instruction, instead of
+# Piper's flat, same-every-time delivery. The concurrency gate below
+# is kept for the same practical reason as before — capping how many
+# narration calls run at once — just repurposed from "protect local
+# RAM from parallel Piper processes" to "don't fire an unbounded
+# burst of API calls at once" (rate limits / cost spikes), since
+# /api/amivi/generate can still fan out up to 8 chunks in parallel,
+# each wanting its own narration.
 # ============================================================
 
-# How many Piper subprocesses may be running at once, across ALL
-# requests this instance is handling. Tune via env var without a
-# code change; 2 is a conservative default for a 2GB instance.
-# NOTE: if Render ever runs more than one uvicorn/gunicorn worker
-# PROCESS for this service, this limit applies per worker process
-# (each gets its own Semaphore) — total concurrent Piper
-# subprocesses across the instance would then be roughly
-# PIPER_MAX_CONCURRENCY x worker_count, so keep that in mind if a
-# worker count is ever configured in the Render start command.
-PIPER_MAX_CONCURRENCY = int(
-    os.getenv("PIPER_MAX_CONCURRENCY", "2")
+# How many narration calls may be in flight at once, across ALL
+# requests this instance is handling. Reads the old PIPER_* env var
+# names too, so an already-configured Render instance keeps working
+# unchanged after this switch.
+NARRATION_MAX_CONCURRENCY = int(
+    os.getenv(
+        "NARRATION_MAX_CONCURRENCY",
+        os.getenv("PIPER_MAX_CONCURRENCY", "3"),
+    )
 )
 
-# Piper normally finishes a short clip in a few seconds; if a
-# subprocess ever hangs (bad input, corrupt model file, etc.) it
-# would otherwise hold its concurrency slot forever and eventually
-# starve every other voice generation. subprocess.run() kills the
-# child process itself when this fires.
-PIPER_TIMEOUT_SECONDS = int(
-    os.getenv("PIPER_TIMEOUT_SECONDS", "30")
+# A hung network call would otherwise hold its concurrency slot
+# forever and eventually starve every other narration request.
+NARRATION_TIMEOUT_SECONDS = int(
+    os.getenv(
+        "NARRATION_TIMEOUT_SECONDS",
+        os.getenv("PIPER_TIMEOUT_SECONDS", "30"),
+    )
 )
 
-_piper_semaphore = threading.Semaphore(
-    PIPER_MAX_CONCURRENCY
+_narration_semaphore = threading.Semaphore(
+    NARRATION_MAX_CONCURRENCY
 )
-_piper_active_count = 0
-_piper_active_lock = threading.Lock()
+_narration_active_count = 0
+_narration_active_lock = threading.Lock()
+
+# Style direction for NARRATOR_MODEL's "instructions" parameter —
+# this is what actually moves the delivery away from "strict
+# teacher" and toward an animated-adventure narrator. The script
+# text itself (voice_script, written by generate_amivi_content
+# above) was also updated to ask for the same warmer, conversational
+# style, so both the words and the delivery pull the same direction.
+NARRATOR_INSTRUCTIONS = (
+    "You are narrating a fun, animated educational adventure for "
+    "kids — think energetic, friendly adventure-show narrator, not "
+    "a classroom lecture. Speak warmly and conversationally, with "
+    "genuine enthusiasm and natural pauses between phrases. Vary "
+    "your pacing and energy to match the line — curious and gentle "
+    "for calm facts, excited and playful for fun or surprising "
+    "ones. Light, natural humor is welcome where the line invites "
+    "it. Never sound flat, formal, stern, or like you're reading "
+    "off a page."
+)
 
 try:
     # Unix-only (Render runs Linux); the dev machine here is
@@ -3250,7 +3479,7 @@ except ImportError:
     _resource = None
 
 
-def _piper_rss_mb():
+def _process_rss_mb():
     """
     Best-effort current process memory (RSS, in MB), for the
     diagnostic logs below. Returns None where unsupported (e.g.
@@ -3283,7 +3512,7 @@ def generate_voice(
     correlation_id=None,
 ):
 
-    global _piper_active_count
+    global _narration_active_count
 
     if not text:
 
@@ -3291,47 +3520,15 @@ def generate_voice(
             "Voice text is empty."
         )
 
-    piper_exec = (
-        "piper.exe"
-        if platform.system() == "Windows"
-        else "piper"
-    )
-
-    piper_path = os.path.join(
-        os.path.dirname(__file__),
-        "piper",
-        piper_exec,
-    )
-
-    if not os.path.exists(
-        piper_path
-    ):
-
-        piper_path = piper_exec
-
-    model_name = (
-        "es_ES-sharvard-medium.onnx"
-        if language == "es"
-        else "en_US-lessac-medium.onnx"
-    )
-
-    model_path = os.path.join(
-        os.path.dirname(__file__),
-        "piper",
-        model_name,
-    )
-
-    if not os.path.exists(
-        model_path
-    ):
+    if not client:
 
         raise Exception(
-            f"Piper model not found: {model_path}"
+            "OpenAI client is not configured "
+            "(OPENAI_API_KEY missing)."
         )
 
     job_id = correlation_id or f"{project_id or 'no-project'}:{filename}"
 
-    temp_path = None
     acquired = False
     start_time = time.monotonic()
 
@@ -3339,68 +3536,46 @@ def generate_voice(
 
         # Blocks here (in this worker thread, not the asyncio
         # event loop — generate_voice always runs inside a
-        # ThreadPoolExecutor) until a Piper slot is free, instead
-        # of letting an unbounded number of subprocesses start.
-        _piper_semaphore.acquire()
+        # ThreadPoolExecutor) until a narration slot is free,
+        # instead of letting an unbounded number of API calls fire
+        # at once.
+        _narration_semaphore.acquire()
         acquired = True
 
-        with _piper_active_lock:
-            _piper_active_count += 1
-            active_now = _piper_active_count
+        with _narration_active_lock:
+            _narration_active_count += 1
+            active_now = _narration_active_count
 
         print(
-            f"[piper] start job={job_id} lang={language} "
-            f"active={active_now}/{PIPER_MAX_CONCURRENCY} "
-            f"rss_mb={_piper_rss_mb()}"
+            f"[tts] start job={job_id} lang={language} "
+            f"active={active_now}/{NARRATION_MAX_CONCURRENCY} "
+            f"rss_mb={_process_rss_mb()}"
         )
-
-        with tempfile.NamedTemporaryFile(
-            suffix=".wav",
-            delete=False,
-        ) as temp_file:
-
-            temp_path = temp_file.name
 
         try:
 
-            subprocess.run(
-                [
-                    piper_path,
-                    "--model",
-                    model_path,
-                    "--output_file",
-                    temp_path,
-                ],
-                input=text.encode(
-                    "utf-8"
-                ),
-                check=True,
-                timeout=PIPER_TIMEOUT_SECONDS,
+            response = client.with_options(
+                timeout=NARRATION_TIMEOUT_SECONDS
+            ).audio.speech.create(
+                model=NARRATOR_MODEL,
+                voice=NARRATOR_VOICE,
+                input=text,
+                instructions=NARRATOR_INSTRUCTIONS,
+                response_format="wav",
             )
 
-        except subprocess.TimeoutExpired:
+        except Exception as tts_exc:
 
-            # subprocess.run() already killed the child and
-            # reaped it before raising this, so there's no
-            # orphaned process left behind here.
             print(
-                f"[piper] TIMEOUT job={job_id} "
-                f"after {PIPER_TIMEOUT_SECONDS}s"
+                f"[tts] TIMEOUT_OR_ERROR job={job_id} "
+                f"error={tts_exc}"
             )
 
             raise Exception(
-                f"Piper voice generation timed out "
-                f"after {PIPER_TIMEOUT_SECONDS}s."
+                f"Narration generation failed: {tts_exc}"
             )
 
-        with open(
-            temp_path,
-            "rb",
-        ) as audio_file:
-
-            audio_data = (
-                audio_file.read()
-            )
+        audio_data = response.content
 
         result = save_media(
             data=audio_data,
@@ -3413,8 +3588,8 @@ def generate_voice(
         duration = round(time.monotonic() - start_time, 2)
 
         print(
-            f"[piper] done job={job_id} duration_s={duration} "
-            f"rss_mb={_piper_rss_mb()}"
+            f"[tts] done job={job_id} duration_s={duration} "
+            f"rss_mb={_process_rss_mb()}"
         )
 
         return result
@@ -3424,7 +3599,7 @@ def generate_voice(
         duration = round(time.monotonic() - start_time, 2)
 
         print(
-            f"[piper] FAILED job={job_id} duration_s={duration} "
+            f"[tts] FAILED job={job_id} duration_s={duration} "
             f"error={exc}"
         )
 
@@ -3432,19 +3607,12 @@ def generate_voice(
 
     finally:
 
-        if (
-            temp_path
-            and os.path.exists(temp_path)
-        ):
-
-            os.remove(temp_path)
-
         if acquired:
 
-            with _piper_active_lock:
-                _piper_active_count -= 1
+            with _narration_active_lock:
+                _narration_active_count -= 1
 
-            _piper_semaphore.release()
+            _narration_semaphore.release()
 
 
 # ============================================================
@@ -4079,23 +4247,31 @@ def draw_rainbow_frame(
 ):
 
     """
-    Draws a soft pastel rainbow ring around the whole canvas — a
-    stack of concentric rounded-rectangle outlines that sweep
-    through the hue wheel from the outer edge inward, giving the
-    page a gentle glowing frame (low saturation, high brightness,
-    so it reads as pastel rather than neon).
+    Draws a soft gradient ring around the whole canvas — a stack
+    of concentric rounded-rectangle outlines that blend smoothly
+    from a deep indigo at the outer edge to a soft lavender at the
+    inner edge, giving the page an elegant glowing frame. (Used to
+    sweep through the full hue wheel as a multi-color rainbow —
+    replaced with this calmer two-tone gradient, which reads as a
+    deliberate, premium border instead of a novelty rainbow and
+    matches AMIVI/AMICO's purple accent color elsewhere in the
+    app. Function name kept as-is since both call sites still just
+    want "the frame".)
     """
+
+    frame_start = (67, 56, 161)   # deep indigo
+    frame_end = (216, 180, 254)   # soft lavender
 
     for i in range(thickness):
 
-        hue = i / thickness
+        t = i / max(thickness - 1, 1)
 
-        r, g, b = colorsys.hsv_to_rgb(hue, 0.4, 1.0)
-
-        color = (
-            int(r * 255),
-            int(g * 255),
-            int(b * 255),
+        color = tuple(
+            round(
+                frame_start[channel]
+                + (frame_end[channel] - frame_start[channel]) * t
+            )
+            for channel in range(3)
         )
 
         draw.rounded_rectangle(
@@ -4683,12 +4859,13 @@ def render_photostory_page(
 
         # A squarish-to-slightly-tall illustration area per panel,
         # plus a fixed caption block sized to comfortably fit the
-        # panel title and 2-3 lines of caption at caption_font.
+        # panel title (wrapped, up to 2 lines) and 2-3 lines of
+        # caption at caption_font.
         image_height = round(col_width * 0.95)
-        caption_height = 640
+        caption_height = 700
 
         row_heights = [
-            image_height + caption_height + 10
+            image_height + caption_height
             for _ in row_plan
         ]
 
@@ -4749,7 +4926,7 @@ def render_photostory_page(
     )
 
     panel_title_font = get_font(
-        132,
+        100,
         bold=True,
     )
 
@@ -4795,16 +4972,24 @@ def render_photostory_page(
             )
 
     # --------------------------------------------------------
-    # Panel rendering — each cell is the illustration on top and
-    # a captioned label strip underneath (no in-image text), so
-    # every explanation stays crisp and readable regardless of
-    # how well the image model follows instructions.
+    # Panel rendering — each cell is a single rounded card: the
+    # illustration on top (rounded top corners) and a captioned
+    # label strip underneath, inside ONE continuous bordered
+    # frame rather than two separate boxes with a gap between
+    # them. The panel title is wrapped and capped at 2 lines
+    # (instead of being drawn as one unbroken line), so a longer
+    # title can never spill past its own column and overlap the
+    # neighboring panel — the bug the old fixed-width single-line
+    # draw.text() call above used to produce.
     # --------------------------------------------------------
 
     panels_top = outer_padding + header_height
 
     panel_index = 0
     y = panels_top
+
+    card_radius = 44
+    card_shadow_offset = 10
 
     for row_index, row_count in enumerate(row_plan):
 
@@ -4814,7 +4999,7 @@ def render_photostory_page(
         # above (vertical layout's single fixed row_height needs
         # its own split, since it never went through that sizing).
         caption_height = (
-            640
+            700
             if layout != "vertical"
             else max(
                 360,
@@ -4825,7 +5010,6 @@ def render_photostory_page(
         image_height = (
             row_height
             - caption_height
-            - 10
         )
 
         row_span = (
@@ -4848,51 +5032,110 @@ def render_photostory_page(
 
             panel_index += 1
 
+            panel_bottom = y + image_height + caption_height
+
+            # Soft drop shadow, then the card itself — one rounded
+            # rectangle spanning image + caption together so there
+            # is a single clean frame instead of the old look of
+            # two independent boxes stacked with a visible gap.
+
+            draw.rounded_rectangle(
+                (
+                    x + card_shadow_offset,
+                    y + card_shadow_offset,
+                    x + this_width - 1 + card_shadow_offset,
+                    panel_bottom - 1 + card_shadow_offset,
+                ),
+                radius=card_radius,
+                fill="#D7D7E0",
+            )
+
+            draw.rounded_rectangle(
+                (
+                    x,
+                    y,
+                    x + this_width - 1,
+                    panel_bottom - 1,
+                ),
+                radius=card_radius,
+                fill="#F1F1F4",
+            )
+
             fitted_image = cover_crop(
                 image,
                 this_width,
                 image_height,
             )
 
-            canvas.paste(
-                fitted_image,
-                (
-                    x,
-                    y,
-                ),
+            # Clip the photo to the card's rounded TOP corners only
+            # — its bottom edge sits flush against the caption strip
+            # right below it, so only the top needs rounding. Built
+            # by drawing the rounded shape on a taller mask than the
+            # image and cropping off the bottom rounding, which
+            # leaves a flat bottom edge and rounded top corners.
+
+            mask = Image.new(
+                "L",
+                (this_width, image_height + card_radius),
+                0,
             )
 
-            draw.rectangle(
+            mask_draw = ImageDraw.Draw(mask)
+
+            mask_draw.rounded_rectangle(
+                (
+                    0,
+                    0,
+                    this_width - 1,
+                    image_height + card_radius - 1,
+                ),
+                radius=card_radius,
+                fill=255,
+            )
+
+            mask = mask.crop(
+                (0, 0, this_width, image_height)
+            )
+
+            canvas.paste(
+                fitted_image,
+                (x, y),
+                mask,
+            )
+
+            divider_y = y + image_height
+
+            draw.line(
+                (
+                    x + 6,
+                    divider_y,
+                    x + this_width - 7,
+                    divider_y,
+                ),
+                fill="#111111",
+                width=4,
+            )
+
+            # Redraw the card's outline on top of the pasted photo
+            # so the border reads as one unbroken frame around the
+            # whole card rather than being interrupted by the image.
+
+            draw.rounded_rectangle(
                 (
                     x,
                     y,
                     x + this_width - 1,
-                    y + image_height - 1,
+                    panel_bottom - 1,
                 ),
+                radius=card_radius,
                 outline="#111111",
                 width=8,
             )
 
-            caption_top = (
-                y
-                + image_height
-                + 10
-            )
-
-            draw.rectangle(
-                (
-                    x,
-                    caption_top,
-                    x + this_width - 1,
-                    caption_top + caption_height - 10,
-                ),
-                fill="#F1F1F4",
-                outline="#111111",
-                width=5,
-            )
+            caption_top = divider_y
 
             text_x = x + 40
-            text_y = caption_top + 24
+            text_y = caption_top + 30
 
             panel_title = panel.get(
                 "title",
@@ -4901,21 +5144,49 @@ def render_photostory_page(
 
             if panel_title:
 
-                draw.text(
-                    (
-                        text_x,
-                        text_y,
-                    ),
+                raw_title_lines = wrap_text(
                     panel_title,
-                    # Was the per-panel palette color — made every
-                    # stage title a different color, which read as
-                    # "not black" even though everything else was.
-                    # Pure black now, matching the caption below it.
-                    fill="#000000",
+                    panel_title_font,
+                    this_width - 80,
+                )
+
+                title_lines = raw_title_lines[:2]
+
+                if len(raw_title_lines) > 2:
+                    title_lines[-1] = (
+                        title_lines[-1].rstrip() + "…"
+                    )
+
+                title_line_bbox = draw.textbbox(
+                    (0, 0),
+                    "Ag",
                     font=panel_title_font,
                 )
 
-                text_y += 168
+                title_line_height = (
+                    title_line_bbox[3] - title_line_bbox[1]
+                    + 14
+                )
+
+                for line in title_lines:
+
+                    draw.text(
+                        (
+                            text_x,
+                            text_y,
+                        ),
+                        line,
+                        # Was the per-panel palette color — made every
+                        # stage title a different color, which read as
+                        # "not black" even though everything else was.
+                        # Pure black now, matching the caption below it.
+                        fill="#000000",
+                        font=panel_title_font,
+                    )
+
+                    text_y += title_line_height
+
+                text_y += 14
 
             # Clip the caption to however many lines actually fit
             # inside the caption box (rather than trusting the
@@ -4939,7 +5210,7 @@ def render_photostory_page(
             available_caption_height = (
                 caption_top
                 + caption_height
-                - 24
+                - 30
                 - text_y
             )
 
@@ -5153,6 +5424,85 @@ async def amivi_extract(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to extract content from file: {exc}",
+        )
+
+
+@app.post("/api/amivi/extract_url")
+async def amivi_extract_url(
+    request: AmiviUrlExtractRequest,
+):
+    """
+    Uploads box's "paste a website URL" option. Tries a video-site
+    transcript first (captions/audio) when the URL looks like a
+    video platform, otherwise reads the page itself (e.g. a
+    Wikipedia article) and pulls out its readable text — same
+    {"text": ...} shape as the file-upload extractor above, so the
+    frontend handles both identically.
+    """
+
+    try:
+
+        url = (request.url or "").strip()
+
+        if not url:
+            raise HTTPException(
+                status_code=400,
+                detail="Please paste a website URL.",
+            )
+
+        parsed = urlparse(url)
+
+        video_hosts = (
+            "youtube.com",
+            "youtu.be",
+            "vimeo.com",
+            "dailymotion.com",
+        )
+
+        is_video_url = bool(
+            parsed.hostname
+            and any(
+                parsed.hostname.lower() == host
+                or parsed.hostname.lower().endswith(f".{host}")
+                for host in video_hosts
+            )
+        )
+
+        if is_video_url:
+
+            try:
+                video_result = extract_video_text(
+                    url,
+                    request.language,
+                )
+
+                return {
+                    "text": video_result["text"],
+                    "title": video_result["title"],
+                }
+
+            except HTTPException:
+                # Fall through to the generic webpage reader below
+                # rather than failing outright — some video-host
+                # links (e.g. a non-video page on youtube.com) are
+                # still just readable pages.
+                pass
+
+        page_result = extract_webpage_text(url)
+
+        return {
+            "text": page_result["text"],
+            "title": page_result["title"],
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to extract content from that URL: {exc}",
         )
 
 

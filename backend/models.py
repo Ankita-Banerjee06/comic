@@ -698,7 +698,7 @@ class Assignment(Base):
 
     __tablename__ = "assignments"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True) 
 
     classroom_id = Column(
         Integer,

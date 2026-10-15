@@ -89,6 +89,15 @@ export default function Amivi() {
   const [generateVideo, setGenerateVideo] = useState(true);
   const [videoUrl, setVideoUrl] = useState('');
 
+  // UPLOADS box, option 2: paste a website URL (e.g. a Wikipedia
+  // article) instead of uploading a file. AMIVI fetches the page,
+  // pulls out the readable text, and fills it into the same
+  // textInput a file upload or typed text would — so it flows
+  // through the normal INSERT -> INTRODUCE -> EXPLAIN pipeline
+  // unchanged from there.
+  const [webUrlInput, setWebUrlInput] = useState('');
+  const [isExtractingUrl, setIsExtractingUrl] = useState(false);
+
   const [processingChunkId, setProcessingChunkId] = useState(null);
   const [editingChunk, setEditingChunk] = useState(null);
   const [selectedChunks, setSelectedChunks] = useState(new Set());
@@ -330,6 +339,7 @@ export default function Amivi() {
     setResult(null);
     setTextInput('');
     setVideoUrl('');
+    setWebUrlInput('');
     setError(null);
     setMcqAnswers({});
     setPhotoStoryError(null);
@@ -589,6 +599,62 @@ export default function Amivi() {
     }
   };
 
+  // UPLOADS box, option 2: paste a website URL — mirrors
+  // handleUpload above, just sourced from a pasted link instead
+  // of an uploaded file. AMIVI opens the link server-side,
+  // extracts its educational content, and fills textInput with
+  // it, exactly like a file upload would.
+  const handleUrlExtract = async () => {
+    const url = webUrlInput.trim();
+
+    if (!url) return;
+
+    setError(null);
+    setIsExtractingUrl(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/amivi/extract_url`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url,
+            language,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const message = await response.text();
+
+        throw new Error(
+          message ||
+            'Failed to extract content from that URL.'
+        );
+      }
+
+      const data = await response.json();
+
+      setTextInput(data?.text || '');
+
+    } catch (err) {
+      console.error(
+        'URL extraction error:',
+        err
+      );
+
+      setError(
+        err?.message ||
+          'Failed to extract content from that URL.'
+      );
+    } finally {
+      setIsExtractingUrl(false);
+    }
+  };
+
   // ============================================================
   // RENDER
   // ============================================================
@@ -764,7 +830,7 @@ export default function Amivi() {
         </div>
 
 
-        {/* UPLOAD FILE  +  PROMPT TYPE */}
+        {/* UPLOADS (document or website URL)  +  PROMPT TYPE */}
 
         <div className="bg-gradient-to-br from-indigo-50/70 via-white to-white rounded-2xl border border-indigo-100 border-t-4 border-t-indigo-400 shadow-sm p-6 sm:p-8 flex flex-col">
 
@@ -773,27 +839,72 @@ export default function Amivi() {
               <UploadCloud className="w-5 h-5 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-black">
-              Upload File
+              {t('Uploads')}
             </h2>
           </div>
 
           <p className="text-black font-medium mb-6 text-lg">
-            Upload a PDF, Word document or TXT file to fill in your subject automatically.
+            {t('Upload a document, or paste a website URL — either fills in your subject automatically.')}
           </p>
 
           {!isProcessing && !result ? (
-            <div className="bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-6 mb-6 flex-1 flex flex-col justify-center">
-              <FileUpload
-                accept=".pdf,.docx,.txt"
-                onUpload={handleUpload}
-              />
-              <p className="text-base text-black font-semibold mt-3 text-center">
-                Supported formats: PDF · DOCX · TXT
+            <>
+              <p className="text-sm font-extrabold uppercase tracking-wide text-black mb-2">
+                {t('1. Upload a document')}
               </p>
-            </div>
+              <div className="bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-6 mb-5 flex flex-col justify-center">
+                <FileUpload
+                  accept=".pdf,.docx,.txt"
+                  onUpload={handleUpload}
+                />
+                <p className="text-base text-black font-semibold mt-3 text-center">
+                  {t('Supported formats: PDF · DOCX · TXT')}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className="flex-1 h-px bg-indigo-100" />
+                <span className="text-sm font-extrabold uppercase tracking-wide text-black">{t('or')}</span>
+                <div className="flex-1 h-px bg-indigo-100" />
+              </div>
+
+              <p className="text-sm font-extrabold uppercase tracking-wide text-black mb-2">
+                {t('2. Paste a website URL')}
+              </p>
+              <div className="bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-5 mb-6">
+                <p className="text-base text-black font-semibold mb-3">
+                  {t('Paste a link to an article with educational material (e.g. a Wikipedia page) and AMIVI will pull out the key content for you.')}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="url"
+                    value={webUrlInput}
+                    onChange={(e) => setWebUrlInput(e.target.value)}
+                    placeholder="https://en.wikipedia.org/wiki/Water_cycle"
+                    disabled={isExtractingUrl}
+                    className="flex-1 px-4 py-3 bg-white border border-cyan-200 rounded-xl text-black font-medium focus:ring-4 focus:ring-cyan-100 focus:border-cyan-400 focus:outline-none disabled:opacity-60"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleUrlExtract}
+                    disabled={!webUrlInput.trim() || isExtractingUrl}
+                    className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
+                  >
+                    {isExtractingUrl ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {t('Fetching...')}
+                      </>
+                    ) : (
+                      t('Extract')
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
           ) : (
             <div className="bg-cyan-50/50 border-2 border-dashed border-cyan-100 rounded-2xl p-6 mb-6 flex-1 flex items-center justify-center text-black font-bold text-center">
-              File upload locked while generating
+              {t('Uploads locked while generating')}
             </div>
           )}
 
