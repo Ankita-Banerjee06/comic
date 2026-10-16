@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 // Shared pager for the Microbit grids (Box 1 / Box 2) — 6 Microbits
 // per page, 3 per row x 2 rows; only rendered when there's more
@@ -86,7 +87,11 @@ export default function Amivi() {
   const [textInput, setTextInput] = useState('');
   const [error, setError] = useState(null);
 
-  const [generateVideo, setGenerateVideo] = useState(true);
+  // Defaults to off — a teacher presenting live during an MVP demo
+  // shouldn't have video generation (slower, another point of
+  // failure) running unless they deliberately opt in. Mirrors the
+  // backend's AmiviRequest.generate_video default.
+  const [generateVideo, setGenerateVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
 
   // UPLOADS box, option 2: paste a website URL (e.g. a Wikipedia
@@ -112,6 +117,14 @@ export default function Amivi() {
   // separate from the image lightbox above. null means closed;
   // otherwise { label, text } for whichever line was clicked.
   const [textLightbox, setTextLightbox] = useState(null);
+
+  // Classroom / Present Mode — a full-screen, one-Microbit-at-a-time
+  // view a teacher steps through with a manual Next/Previous control
+  // (never auto-advancing), for either the INTRODUCE or the EXPLAIN
+  // stage. null means closed; otherwise { stage: 'introduce' |
+  // 'explain', index } — index is the Microbit's absolute position
+  // in result.chunks, same convention as lightboxIndex above.
+  const [presentMode, setPresentMode] = useState(null);
 
   // Save Modal State
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -195,6 +208,11 @@ export default function Amivi() {
   const navigate = useNavigate();
   const { projectId } = useParams();
   const { language, t } = useLanguage();
+  const { role } = useAuth();
+  // Classroom Mode is a teacher-facing presentation tool (it's how
+  // a teacher runs the class from the front of the room) — students
+  // and anyone else logged in shouldn't see or be able to open it.
+  const isTeacher = role === 'teacher';
 
   // ============================================================
   // OPEN FROM LIBRARY (load a previously saved AMIVI project
@@ -313,6 +331,52 @@ export default function Amivi() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [textLightbox]);
+
+  // Classroom / Present Mode — opened from either Box 1 (INTRODUCE)
+  // or Box 2 (EXPLAIN) so a teacher always presents the stage they
+  // were just looking at. Always starts from the first Microbit so
+  // a class sees the full sequence in order.
+  const openPresentMode = (stage) => {
+    // Teacher-only, even if something ever calls this besides the
+    // Classroom Mode buttons themselves (which are already hidden
+    // from non-teachers) — belt and suspenders.
+    if (!isTeacher) return;
+    if (!result?.chunks?.length) return;
+    setPresentMode({ stage, index: 0 });
+  };
+
+  const closePresentMode = () => setPresentMode(null);
+
+  // Deliberately clamped, not wrapped — unlike the casual photo
+  // lightbox above, Present Mode is a structured walkthrough a
+  // teacher steps forward through, so it stops at the last Microbit
+  // instead of silently cycling back to the first one.
+  const presentNext = () => {
+    setPresentMode((p) => {
+      if (!p || !result?.chunks?.length) return p;
+      return { ...p, index: Math.min(p.index + 1, result.chunks.length - 1) };
+    });
+  };
+
+  const presentPrev = () => {
+    setPresentMode((p) => {
+      if (!p) return p;
+      return { ...p, index: Math.max(p.index - 1, 0) };
+    });
+  };
+
+  useEffect(() => {
+    if (!presentMode) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowRight') presentNext();
+      else if (e.key === 'ArrowLeft') presentPrev();
+      else if (e.key === 'Escape') closePresentMode();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [presentMode, result?.chunks?.length]);
 
   const handleDownload = async (url, filename) => {
     try {
@@ -1150,8 +1214,19 @@ export default function Amivi() {
 
             {result.chunks?.length > 0 && (
               <>
-                <div className="flex items-center justify-between mb-4 px-2">
+                <div className="flex items-center justify-between mb-4 px-2 flex-wrap gap-2">
                   <p className="text-black font-bold text-lg">Select cards to use below:</p>
+                  <div className="flex items-center gap-2">
+                  {isTeacher && (
+                    <button
+                      type="button"
+                      onClick={() => openPresentMode('introduce')}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-base font-bold rounded-lg flex items-center gap-2 transition-colors"
+                    >
+                      <Maximize size={16} />
+                      {t('Classroom Mode')}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={toggleSelectAll}
@@ -1159,6 +1234,7 @@ export default function Amivi() {
                   >
                     {selectedChunks.size === result.chunks.length ? 'Deselect All' : 'Select All'}
                   </button>
+                  </div>
                 </div>
 
                 <div className={microbitGridClass}>
@@ -1320,6 +1396,16 @@ export default function Amivi() {
             <p className="text-black font-semibold text-xl sm:text-2xl">
               {t('Same image, same slogan — now explained, ready to present one at a time.')}
             </p>
+            {isTeacher && (
+              <button
+                type="button"
+                onClick={() => openPresentMode('explain')}
+                className="mt-4 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl flex items-center gap-2 mx-auto transition-colors"
+              >
+                <Maximize size={18} />
+                {t('Classroom Mode')}
+              </button>
+            )}
           </div>
 
           <div className={microbitGridClass}>
@@ -1915,6 +2001,103 @@ export default function Amivi() {
           </div>
         </div>
       )}
+
+      {/* ======================================================
+          CLASSROOM / PRESENT MODE — full-screen, one Microbit at
+          a time, advanced only by the teacher's own manual
+          Previous/NEXT click (or the arrow keys) — it never
+          auto-advances. Shared between INTRODUCE (image + Key
+          Point + Slogan) and EXPLAIN (+ the explanation), opened
+          from each box's own "Classroom Mode" button so a teacher
+          always presents the stage they were just looking at.
+      ======================================================= */}
+      {isTeacher && presentMode && result?.chunks?.[presentMode.index] && (() => {
+        const total = result.chunks.length;
+        const chunk = result.chunks[presentMode.index];
+        const isExplain = presentMode.stage === 'explain';
+        const isFirst = presentMode.index === 0;
+        const isLast = presentMode.index >= total - 1;
+
+        return (
+          <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center p-4 sm:p-10">
+
+            <button
+              type="button"
+              onClick={closePresentMode}
+              className="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+              aria-label="Exit Classroom Mode"
+            >
+              <X size={22} />
+            </button>
+
+            <div className="absolute top-4 left-4 sm:top-6 sm:left-6 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm sm:text-base font-bold uppercase tracking-widest text-black bg-amber-300">
+              {isExplain ? t('Box 2 · EXPLAIN') : t('Box 1 · INTRODUCE')}
+            </div>
+
+            {/* "Projected on screen" treatment: a soft blurred glow
+                simulating light spilling off the beam, behind a
+                bright white screen panel the image sits on — so the
+                image reads as being projected onto a screen in a
+                darkened classroom rather than floating on bare black. */}
+            <div className="relative">
+              <div
+                className="absolute -inset-5 sm:-inset-8 bg-white/30 blur-3xl rounded-[2.5rem]"
+                aria-hidden="true"
+              />
+              <div className="relative bg-white p-3 sm:p-5 rounded-xl shadow-[0_0_90px_20px_rgba(255,255,255,0.18)] ring-1 ring-white/50">
+                <img
+                  src={getMediaUrl(chunk.image_url)}
+                  alt={chunk.key_point || chunk.text || `Chunk ${presentMode.index + 1}`}
+                  className="max-w-full max-h-[42vh] sm:max-h-[48vh] object-contain rounded-sm"
+                />
+              </div>
+            </div>
+
+            <p className="mt-6 px-6 text-center text-white font-extrabold text-3xl sm:text-5xl leading-tight">
+              {chunk.key_point || chunk.text}
+            </p>
+
+            {chunk.slogan && (
+              <p className="mt-2 px-6 text-center text-amber-300 font-extrabold uppercase tracking-wide text-xl sm:text-3xl">
+                {chunk.slogan}
+              </p>
+            )}
+
+            {isExplain && (
+              <p className="mt-5 px-6 max-w-3xl text-center text-white/90 font-medium text-lg sm:text-2xl">
+                {chunk.description || t('Explanation not available for this Microbit.')}
+              </p>
+            )}
+
+            <div className="mt-8 flex items-center gap-4">
+              <button
+                type="button"
+                onClick={presentPrev}
+                disabled={isFirst}
+                className="px-6 py-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold text-lg rounded-2xl flex items-center gap-2 transition-colors"
+              >
+                <ArrowLeft size={20} />
+                {t('Previous')}
+              </button>
+
+              <div className="text-white/60 font-bold text-sm px-2">
+                {presentMode.index + 1} / {total}
+              </div>
+
+              <button
+                type="button"
+                onClick={presentNext}
+                disabled={isLast}
+                className="px-8 py-3 bg-white hover:bg-white/90 disabled:opacity-30 disabled:cursor-not-allowed text-black font-extrabold text-lg rounded-2xl flex items-center gap-2 transition-colors"
+              >
+                {isLast ? t('End') : t('NEXT')}
+                <ArrowRight size={20} />
+              </button>
+            </div>
+
+          </div>
+        );
+      })()}
 
     </div>
   );

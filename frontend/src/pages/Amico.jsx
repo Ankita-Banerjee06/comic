@@ -339,6 +339,18 @@ export default function Amico() {
     setPsError(null);
   };
 
+  // Returns to the AMICO launcher ("What would you like to
+  // create?") from anywhere inside a creation flow — clears both
+  // the comic and photo story in-progress/result state so the
+  // launcher (and a fresh pick of either mode afterwards) doesn't
+  // show stale leftovers from whatever was open before.
+  const goToAmicoHome = () => {
+    resetAmico();
+    resetPhotoStory();
+    setMode(null);
+    setComingSoonNotice(null);
+  };
+
   const psPages = psResult?.pages || [];
   const psCurrentPage = psPages[psCurrentPageIndex];
 
@@ -571,16 +583,20 @@ export default function Amico() {
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <button
         type="button"
-        onClick={() => navigate('/explore')}
+        onClick={() => (mode ? goToAmicoHome() : navigate('/explore'))}
         className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
       {/* ======================================================
-          JOURNEY STRIP — same strip shown on the AMIVI page,
-          reused here so the AMIVI → AMICO story reads the same
-          way whichever page a teacher starts from.
+          JOURNEY STRIP — same "So much information... / 1/4
+          AMIVI creates the learning chunks / 2/4 AMICO puts them
+          in order / 3/4 AMICO turns the ordered chunks into a
+          story / 4/4 Learner understands and remembers!" comic
+          strip AMIVI shows above its own header — shown here
+          above AMICO's header the same way, since it's the shared
+          AMIVI-AMICO journey, not an AMIVI-only visual.
       ======================================================= */}
 
       <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
@@ -593,44 +609,15 @@ export default function Amico() {
 
       {/* Header */}
       <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
-        <div className="p-6 sm:p-10">
-
-          <div className="flex flex-col sm:flex-row items-start gap-6">
-
-            <img
-              src="/ecosystems/amico-logo-badge.png"
-              alt="AMICO — turn learning into creativity"
-              className="w-24 h-24 sm:w-32 sm:h-32 object-contain flex-shrink-0 mx-auto sm:mx-0"
-            />
-
-            <div className="flex-1 min-w-0">
-
-              <div className="text-xl sm:text-2xl font-extrabold mb-2" style={{ color: '#991b1b' }}>
-                AMICO
-              </div>
-
-              <p className="text-black font-bold max-w-xl text-lg">
-                AMIVI&ndash;AMICO Ecosystems: Flightpath to the continuous learning journey.
-              </p>
-              <p className="text-black max-w-xl text-lg mt-2">
-                AMIVI turns complex information into clear visual learning.
-                <br />
-                <span className="font-bold">AMICO transforms that learning into creative engagement.</span>
-              </p>
-              <div className="flex flex-col sm:flex-row items-center sm:items-stretch gap-2 sm:gap-3 mt-4">
-                <div className="px-4 py-2 bg-slate-200 rounded-xl shadow-sm border border-slate-300 font-bold text-black">Complexity</div>
-                <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0 self-center flex-shrink-0" />
-                <div className="px-4 py-2 bg-blue-100 rounded-xl shadow-sm border border-blue-200 font-bold text-black">Clarity</div>
-                <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0 self-center flex-shrink-0" />
-                <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-black">Creativity</div>
-                <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0 self-center flex-shrink-0" />
-                <div className="px-4 py-2 bg-purple-600 rounded-xl shadow-sm border border-purple-600 font-bold text-white">Mastery</div>
-              </div>
-
-            </div>
-
+        <div className="p-6 sm:p-10 max-w-2xl">
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold uppercase tracking-widest mb-4 text-black"
+            style={{ background: '#fdf2f8', border: '1px solid #fbcfe8' }}
+          >
+            AMICO
           </div>
-
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-black mb-3">AMICO</h1>
+          <p className="text-black font-medium max-w-xl text-lg">AMIVI converts complex information into clear visual learning. AMICO then converts that learning into creative engagement. Together they create a continuous learning journey.</p>
         </div>
       </div>
 
@@ -688,17 +675,7 @@ export default function Amico() {
         </div>
       )}
 
-      {mode && (
-        <div className="max-w-3xl mx-auto -mt-2">
-          <button
-            type="button"
-            onClick={() => setMode(null)}
-            className="text-base font-bold text-black hover:text-black transition-colors"
-          >
-            ← {t('Choose a different way to create')}
-          </button>
-        </div>
-      )}
+
 
       {mode === 'comic' && !isProcessing && !result && (
         <div className="max-w-3xl mx-auto space-y-6">
@@ -993,7 +970,7 @@ export default function Amico() {
                     src={mediaUrl(currentPage.comic_image_url)}
                     alt={`Page ${currentPage.page_number}`}
                     onClick={() => setIsFullscreen(true)}
-                    className="max-w-full max-h-[88vh] rounded-xl shadow-md border-4 border-white cursor-zoom-in"
+                    className="w-full max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto rounded-xl shadow-md border-4 border-white cursor-zoom-in"
                   />
                 )}
 
@@ -1203,7 +1180,7 @@ export default function Amico() {
                     src={mediaUrl(psCurrentPage.comic_image_url)}
                     alt={`Page ${psCurrentPage.page_number}`}
                     onClick={() => setPsFullscreen(true)}
-                    className="max-w-full max-h-[88vh] rounded-xl shadow-md border-4 border-white cursor-zoom-in"
+                    className="w-full max-w-3xl sm:max-w-4xl lg:max-w-5xl mx-auto rounded-xl shadow-md border-4 border-white cursor-zoom-in"
                   />
                 )}
 
@@ -1432,6 +1409,17 @@ export default function Amico() {
           </div>
         </div>
       )}
+
+      {/* 4-Step Flowchart */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-12 mb-8 bg-slate-50 py-6 rounded-2xl border border-slate-200">
+        <div className="px-4 py-2 bg-slate-200 rounded-xl shadow-sm border border-slate-300 font-bold text-black">Complexity</div>
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-blue-100 rounded-xl shadow-sm border border-blue-200 font-bold text-black">Clarity</div>
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-pink-100 rounded-xl shadow-sm border border-pink-200 font-bold text-black">Creativity</div>
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
+        <div className="px-4 py-2 bg-purple-600 rounded-xl shadow-sm border border-purple-600 font-bold text-white">Mastery</div>
+      </div>
 
     </div>
   );

@@ -170,7 +170,12 @@ class AuthLoginRequest(BaseModel):
 class AmiviRequest(BaseModel):
     text: str = ""
     language: str = "en"
-    generate_video: bool = True
+    # Defaults to off for MVP demonstrations — a teacher presenting
+    # live shouldn't have video generation (slower, another point of
+    # failure) running unless they deliberately opt in. The frontend
+    # checkbox mirrors this default; kept here too so any other
+    # caller that omits the field gets the same safe default.
+    generate_video: bool = False
     video_url: str | None = None
 
     # When set and no text/video is supplied, AMIVI is generated
@@ -2514,12 +2519,52 @@ def generate_amivi_complete_visual_prompt(
 # AMICO STORY GENERATION
 # ============================================================
 
-def build_amico_structure_hint(total_panels):
+def build_amico_structure_hint(total_panels, key_point_count=None):
 
     middle_count = max(
         0,
         total_panels - 2,
     )
+
+    # When this comic is transforming an already-finished AMIVI
+    # package, the caller (amico_generate) has already sized
+    # total_panels so middle_count >= key_point_count — so give the
+    # model an exact, unambiguous 1:1 instruction instead of the
+    # generic "pieces" language below, which is what a 6-Key-Point
+    # package condensed into a 4-panel comic (2 middle panels) used
+    # to fall back on, inviting it to quietly drop or blend Key
+    # Points together.
+    if key_point_count is not None and middle_count >= key_point_count:
+
+        key_point_line = (
+            f"There are exactly {key_point_count} Key Points in "
+            f"the source package and {middle_count} middle panels "
+            "available — give each Key Point its own dedicated "
+            "panel, in the exact order given, one Key Point per "
+            "panel. Do not skip, merge, or combine any Key Point "
+            "into another panel."
+            + (
+                f" The remaining "
+                f"{middle_count - key_point_count} middle panel(s) "
+                "beyond the Key Points may be used to expand on "
+                "the single most important or trickiest Key Point "
+                "with an extra supporting panel (e.g. a concrete "
+                "example), never to introduce new, unrelated "
+                "content."
+                if middle_count > key_point_count
+                else ""
+            )
+        )
+
+    else:
+
+        key_point_line = (
+            "Do not skip a piece that's needed to understand the "
+            "topic — if there are more pieces than panels, "
+            "prioritize the most essential ones and only combine "
+            "the smallest, most closely related pieces into one "
+            "panel when there truly isn't room for a panel each."
+        )
 
     return (
         f"Panel 1: Introduce the topic through a character "
@@ -2539,11 +2584,7 @@ def build_amico_structure_hint(total_panels):
         f"picture. EACH INDIVIDUAL PANEL should focus on just ONE "
         f"of these pieces (or one step) — never try to fit several "
         f"pieces into a single panel. Define any term the first "
-        f"time it is used. Do not skip a piece that's needed to "
-        f"understand the topic — if there are more pieces than "
-        f"panels, prioritize the most essential ones and only "
-        f"combine the smallest, most closely related pieces into "
-        f"one panel when there truly isn't room for a panel each.\n"
+        f"time it is used. {key_point_line}\n"
 
         f"Panel {total_panels}: End with a memorable recap, "
         f"mnemonic, question, or fun takeaway that reinforces the "
@@ -2558,6 +2599,7 @@ def generate_amico_comic(
     character_reference="",
     character_name="",
     from_amivi_package=False,
+    key_point_count=None,
 ):
 
     if character_name and character_reference:
@@ -2646,7 +2688,8 @@ def generate_amico_comic(
         "The comic must follow this structure:\n"
 
         + build_amico_structure_hint(
-            total_panels
+            total_panels,
+            key_point_count if from_amivi_package else None,
         )
 
         + "Keep the story connected across all panels.\n"
@@ -2708,18 +2751,23 @@ def generate_amico_comic(
         "and MUST also instruct the image model to draw the dialogue "
         "directly in the image as large, clean, easily readable "
         "comic speech bubbles (oversized white bubble with generous "
-        "padding, thick black outline, big bold black lettering "
-        "sized so it is comfortably readable at a glance, a pointed "
-        "tail toward the speaking character) — one bubble per line "
-        "of dialogue (at most 3 bubbles total), positioned near the "
-        "character who says it, using EXACTLY the same wording as "
-        "this panel's dialogue field, with no other text anywhere "
-        "in the image. Inside each bubble, the speaker's name (the "
-        "word before the colon) must be written in bold colored "
-        "lettering — a distinct color per character, kept "
+        "padding, thick black outline, big bold black lettering, a "
+        "pointed tail toward the speaking character) — one bubble "
+        "per line of dialogue (at most 3 bubbles total), positioned "
+        "near the character who says it, using EXACTLY the same "
+        "wording as this panel's dialogue field, with no other text "
+        "anywhere in the image. Inside each bubble, the speaker's "
+        "name (the word before the colon) must be written in bold "
+        "colored lettering — a distinct color per character, kept "
         "consistent for that character across every panel — while "
         "the rest of the line stays in plain black lettering, so "
-        "each speaker is easy to tell apart at a glance.\n"
+        "each speaker is easy to tell apart at a glance. The "
+        "lettering must stay legible even when this panel is "
+        "enlarged and projected on a classroom screen from the "
+        "back of the room — the letter height should be roughly "
+        "4-6% of the image's own height, never small, thin, or "
+        "densely packed text, even if that means the bubble takes "
+        "up a noticeably larger share of the panel.\n"
         "The image_prompt must explicitly instruct the image model "
         "to draw ONE single, unified scene for this panel — never "
         "a grid, filmstrip, sequence of smaller pictures, or "
@@ -2835,7 +2883,12 @@ def review_amico_comic(
         "(exact wording, one bubble per line) drawn directly in "
         "the image, next to the character who says it, with each "
         "speaker's name highlighted in a distinct color (consistent "
-        "per character) inside the bubble, AND explicitly instructs "
+        "per character) inside the bubble, AND that the lettering "
+        "must stay legible even when the panel is enlarged and "
+        "projected on a classroom screen (letter height roughly "
+        "4-6% of the image's height) — if an image_prompt is "
+        "missing this classroom-legibility instruction, add it. "
+        "Also ensure every image_prompt explicitly instructs "
         "the image model to draw ONE single unified scene — never "
         "a grid, filmstrip, or multiple sub-panels within one "
         "image.\n"
@@ -3389,6 +3442,7 @@ def generate_avatar_image(
     description,
     style,
     filename,
+    fallback_label=None,
 ):
 
     style_text = (
@@ -3403,9 +3457,22 @@ def generate_avatar_image(
         "background, no text, no watermark, no speech bubbles."
     )
 
-    return generate_image(
+    # Was a raw generate_image() call — any OpenAI error (most
+    # commonly the safety system blocking a generated prompt, as
+    # happened in production: moderation_blocked) propagated
+    # straight out of this function, through the endpoint's own
+    # try/except, as a 500 that failed avatar creation outright
+    # even though a perfectly good photo description had already
+    # been derived. Use the same resilient wrapper AMIVI/AMICO
+    # already rely on for their own image generation: retries once
+    # with a generic, clearly G-rated fallback prompt before
+    # giving up, which is especially likely to succeed here since
+    # an avatar portrait is a much simpler, safer image than a full
+    # scene.
+    return generate_image_resilient(
         prompt=prompt,
         filename=filename,
+        fallback_label=fallback_label,
     )
 
 
@@ -5679,6 +5746,17 @@ async def amivi_generate(
                 "",
             )
 
+            # Server-side safety net for the INTRODUCE requirement
+            # "a memorable slogan — maximum 4 words": the prompt
+            # asks the model for this, but nothing enforced it, so
+            # a model that drifts past 4 words shipped straight to
+            # the UI uncapped. Trim here rather than trusting the
+            # prompt alone.
+            slogan_words = slogan.split()
+
+            if len(slogan_words) > 4:
+                slogan = " ".join(slogan_words[:4])
+
             description = chunk.get(
                 "description",
                 "",
@@ -5838,22 +5916,48 @@ async def amivi_generate(
                 image2_id = image2_future.result()
                 audio_id = audio_future.result()
 
-            chunk_id = save_amivi_chunk(
-                project_id=project_id,
-                chunk_number=chunk_number,
-                key_point=key_point,
-                text=text,
-                slogan=slogan,
-                description=description,
-                image_id=image_id,
-                image2_id=image2_id,
-                audio_id=audio_id,
-                voice_script=voice_script,
-                mcq_question=mcq_question,
-                mcq_option_a=mcq_option_a,
-                mcq_option_b=mcq_option_b,
-                mcq_correct=mcq_correct,
-            )
+            # Everything above this point (explanation/image/audio
+            # generation) is already best-effort per sub-task, so a
+            # failure there degrades gracefully to None/placeholder
+            # content. The DB write below was the one remaining
+            # unguarded step: if it raised, the exception propagated
+            # out of this whole function, which future.result() then
+            # re-raises in the main thread — failing the ENTIRE
+            # multi-chunk /api/amivi/generate request (and every
+            # other chunk's already-successful work along with it)
+            # over one chunk's DB hiccup. Wrapped the same way the
+            # image/audio/explanation calls already are, so one bad
+            # chunk degrades to a placeholder entry instead of
+            # taking the whole generation down.
+
+            try:
+
+                chunk_id = save_amivi_chunk(
+                    project_id=project_id,
+                    chunk_number=chunk_number,
+                    key_point=key_point,
+                    text=text,
+                    slogan=slogan,
+                    description=description,
+                    image_id=image_id,
+                    image2_id=image2_id,
+                    audio_id=audio_id,
+                    voice_script=voice_script,
+                    mcq_question=mcq_question,
+                    mcq_option_a=mcq_option_a,
+                    mcq_option_b=mcq_option_b,
+                    mcq_correct=mcq_correct,
+                )
+
+            except Exception as save_exc:
+
+                print(
+                    "AMIVI chunk save failed for chunk "
+                    f"{index} (non-fatal to the rest of the "
+                    f"batch): {save_exc}"
+                )
+
+                chunk_id = None
 
             return {
                 "chunk_id": chunk_id,
@@ -5890,6 +5994,7 @@ async def amivi_generate(
                 "mcq_option_a": mcq_option_a,
                 "mcq_option_b": mcq_option_b,
                 "mcq_correct": mcq_correct,
+                "save_failed": chunk_id is None,
             }
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
@@ -5993,14 +6098,34 @@ async def amivi_regenerate_image(
 
         moderate_text(prompt, "This image request")
 
-        image_id = generate_image(
-            prompt,
-            (
+        # Same resilient wrapper the batch-generation paths already
+        # use (see generate_avatar_image) — a one-off "regenerate
+        # this image" click is a very plausible place to re-hit a
+        # moderation block, and without this it was a raw 500
+        # instead of the one safe automatic retry other image
+        # generation already gets.
+        image_id = generate_image_resilient(
+            prompt=prompt,
+            filename=(
                 f"amivi_regen_"
                 f"{uuid.uuid4().hex[:8]}.png"
             ),
-            project_id,
+            project_id=project_id,
+            fallback_label=(
+                request.text or request.slogan or "this Microbit"
+            ),
         )
+
+        if image_id is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "We couldn't regenerate this image — it may "
+                    "have been blocked by the safety system. "
+                    "Please try different wording."
+                ),
+            )
 
         return {
             "status": "success",
@@ -6385,6 +6510,7 @@ async def amico_generate(
         # explanations), never raw, unanalysed text — tells Terra
         # not to re-analyse/re-derive the Key Points itself.
         source_is_amivi_package = False
+        key_point_count = None
         source_project = None
 
         if request.source_project_id:
@@ -6415,6 +6541,15 @@ async def amico_generate(
                     "",
                 ]
 
+                # Counts only the Key Points that actually make it
+                # into the package below (an empty one is skipped) —
+                # used right after the loop to make sure there are
+                # enough middle panels for every Key Point to get
+                # its own panel, instead of silently asking the
+                # model to cram several Key Points' worth of content
+                # into too few panels.
+                key_point_count = 0
+
                 for idx, chunk in enumerate(amivi_chunks, start=1):
 
                     key_point = (
@@ -6423,6 +6558,8 @@ async def amico_generate(
 
                     if not key_point:
                         continue
+
+                    key_point_count += 1
 
                     slogan = (chunk.slogan or "").strip()
                     explanation = (chunk.description or "").strip()
@@ -6495,6 +6632,40 @@ async def amico_generate(
 
                 source_is_amivi_package = True
 
+                # ---------------------------------------------
+                # Make sure every Key Point can get its own panel.
+                #
+                # Panel 1 is the intro and the last panel is the
+                # recap (see build_amico_structure_hint), so only
+                # total_panels - 2 panels are actually available to
+                # carry Key Points. If the teacher's chosen
+                # panels-per-page/pages selection leaves fewer
+                # middle panels than there are Key Points, the
+                # model is caught between two instructions that
+                # can't both hold — "never drop a Key Point" and
+                # "you only have this many panels" — which is
+                # exactly how a 6-Key-Point package condensed into
+                # 4 panels can quietly lose content. Add pages
+                # (keeping the teacher's chosen panels-per-page
+                # layout) until there's room for one middle panel
+                # per Key Point, capped at the system's existing
+                # 6-page maximum — if even 6 pages genuinely isn't
+                # enough room, the prompt's existing "combine only
+                # the smallest, most closely related pieces" rule
+                # is the fallback.
+                # ---------------------------------------------
+
+                min_total_panels = key_point_count + 2
+
+                if min_total_panels > total_panels:
+
+                    pages_count = min(
+                        6,
+                        -(-min_total_panels // panels_per_page),
+                    )
+
+                    total_panels = panels_per_page * pages_count
+
             else:
 
                 # No Microbits saved yet on this project (shouldn't
@@ -6563,6 +6734,7 @@ async def amico_generate(
             character_reference,
             character_name,
             source_is_amivi_package,
+            key_point_count,
         )
 
         # -----------------------------------------------------
@@ -6819,14 +6991,26 @@ async def amico_regenerate_panel(
 
         moderate_text(prompt, "This panel request")
 
-        image_id = generate_image(
-            prompt,
-            (
+        image_id = generate_image_resilient(
+            prompt=prompt,
+            filename=(
                 f"amico_regen_"
                 f"{uuid.uuid4().hex[:8]}.png"
             ),
-            request.project_id,
+            project_id=request.project_id,
+            fallback_label=request.title or "this panel",
         )
+
+        if image_id is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "We couldn't regenerate this panel's image — "
+                    "it may have been blocked by the safety "
+                    "system. Please try different wording."
+                ),
+            )
 
         return {
             "status": "success",
@@ -6934,13 +7118,28 @@ async def amico_edit_panel(
                 f"with no other text:\n{request.dialogue}"
             )
 
-            new_image_id = generate_image(
+            new_image_id = generate_image_resilient(
                 prompt=override_prompt,
                 filename=(
                     f"amico_edit_{uuid.uuid4().hex[:8]}.png"
                 ),
                 project_id=request.project_id,
+                fallback_label=(
+                    target_panel.get("title") or "this panel"
+                ),
             )
+
+            if new_image_id is None:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "We couldn't redraw this panel with the "
+                        "new dialogue — it may have been blocked "
+                        "by the safety system. Please try "
+                        "different wording."
+                    ),
+                )
 
             target_panel["image_id"] = new_image_id
             target_panel["image_url"] = f"/api/media/{new_image_id}"
@@ -7066,14 +7265,29 @@ async def amico_add_panel(
             request.topic_hint or data.get("title", ""),
         )
 
-        image_id = generate_image(
+        image_id = generate_image_resilient(
             prompt=new_panel.get("image_prompt", ""),
             filename=(
                 f"amico_add_"
                 f"{uuid.uuid4().hex[:8]}.png"
             ),
             project_id=request.project_id,
+            fallback_label=(
+                new_panel.get("title") or "this new panel"
+            ),
         )
+
+        if image_id is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "We couldn't generate an image for the new "
+                    "panel — it may have been blocked by the "
+                    "safety system. Please try a different topic "
+                    "hint."
+                ),
+            )
 
         insert_at = max(
             0,
@@ -7459,7 +7673,25 @@ async def avatar_generate(
             filename=(
                 f"avatar_{uuid.uuid4().hex[:8]}.png"
             ),
+            fallback_label=name or "a friendly comic character",
         )
+
+        if image_id is None:
+
+            # Even the safe, generic retry inside
+            # generate_avatar_image got blocked — genuinely rare,
+            # but a clean, actionable error beats saving an avatar
+            # with no image (which would just show as a broken
+            # thumbnail in the picker).
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "We couldn't generate an avatar image from "
+                    "this photo — it may have been blocked by the "
+                    "safety system. Please try a different photo "
+                    "or style."
+                ),
+            )
 
         avatar_id = save_avatar(
             name=name or "My Avatar",
