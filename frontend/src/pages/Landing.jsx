@@ -86,8 +86,8 @@ export default function Landing() {
       <section className="relative overflow-hidden">
 
         <img
-          src="/vlq-hero-classroom-v2.jpg"
-          alt="A teacher and students in a digital classroom, with a smart board showing VLQ's visual teaching tools — anatomy and geography diagrams, the VLQ logo, and 'Learn at the Speed of Sight' — while students follow along on tablets showing a photosynthesis lesson"
+          src="/vlq-hero-classroom-v3.jpg"
+          alt="A teacher in a classroom gesturing toward a large smart board reading 'VLQ — Learn at the Speed of Sight. Turning Complex Knowledge into Clear Visual Learning,' while students at their desks follow along on tablets showing a photosynthesis diagram"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ objectPosition: 'center 25%' }}
           onError={(e) => { e.currentTarget.style.display = 'none'; }}

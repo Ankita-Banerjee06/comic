@@ -12,6 +12,7 @@ import {
   BookOpen,
   ArrowRight,
   ArrowDown,
+  Archive,
 } from 'lucide-react';
 
 // ============================================================
@@ -209,6 +210,35 @@ export default function Explore() {
               <option key={r.key} value={r.to}>{r.title}</option>
             ))}
           </select>
+        </div>
+
+        {/* View — simplified access to saved creations & the Digital
+            Library. Reuses the existing /library page (which already
+            lists every saved AMIVI visual, AMICO comic and quiz) —
+            no new backend feature, just a clearer entry point. */}
+        <div className="rounded-3xl p-6 md:p-9" style={{ background: 'linear-gradient(135deg,#eef2ff,#f8fafc)' }}>
+          <ZoneHeader
+            icon={Archive} iconColor="#4338ca" iconTint="#e0e7ff"
+            title="View" subtitle="Jump straight back into everything you've already created and saved."
+            tagline="Your saved work, one tap away"
+          />
+          <Link
+            to="/library"
+            className="group flex items-center justify-between gap-5 bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-6 hover:-translate-y-0.5 hover:shadow-md transition-all flex-wrap"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: '#e0e7ff' }}>
+                <Archive className="w-7 h-7" style={{ color: '#4338ca' }} />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-xl text-black mb-1">My Library</h4>
+                <p className="text-base font-semibold text-black">Every AMIVI visual, AMICO comic and quiz you've saved — search, filter and reopen any of it.</p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-5 py-3 bg-indigo-600 text-white rounded-xl text-base font-bold group-hover:bg-indigo-700 transition-colors flex-shrink-0">
+              Open Library <ArrowRight className="w-4 h-4" />
+            </span>
+          </Link>
         </div>
 
         {/* Additional Categories */}

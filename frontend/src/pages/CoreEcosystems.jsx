@@ -12,7 +12,7 @@
 // /ecosystems/amico-overview.png for a sharper result.
 // ============================================================
 
-import { Sparkles } from 'lucide-react';
+import { Sparkles, BarChart3 } from 'lucide-react';
 
 export default function CoreEcosystems() {
   return (
@@ -55,6 +55,51 @@ export default function CoreEcosystems() {
             alt="AMICO — Your Visual Storytelling Engine: turns life into visual stories through comics, photos, photo stories, memories, visual diaries and biographies."
             className="w-full h-full object-cover block"
           />
+        </div>
+      </div>
+
+      {/* ======================================================
+          AMIVI & AMICO summary — short wrap-up statement under
+          the two overview graphics.
+      ======================================================= */}
+      <div className="max-w-3xl mx-auto text-center">
+        <h2 className="font-extrabold text-2xl text-black mb-3">
+          AMIVI &amp; AMICO — One Learning Ecosystem
+        </h2>
+        <p className="text-lg font-semibold text-black leading-relaxed">
+          AMIVI helps learners see and understand knowledge. AMICO brings that knowledge to
+          life through creative storytelling. Together, they make visual learning more
+          engaging, memorable and accessible.
+        </p>
+      </div>
+
+      {/* ======================================================
+          AMILYTICS — coming soon. Third ecosystem teaser, styled
+          to clearly read as not-yet-available (muted card, same
+          "Coming soon" badge pattern used for unbuilt AMICO
+          creation types).
+      ======================================================= */}
+      <div className="max-w-4xl mx-auto">
+        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-xl ring-4 ring-white/50 opacity-90">
+          <span className="absolute top-4 right-4 z-10 text-xs font-bold uppercase tracking-wide bg-black/40 text-white px-3 py-1.5 rounded-full">
+            Coming soon
+          </span>
+          <img
+            src="/ecosystems/amilytics-overview.png"
+            alt="AMILYTICS — the Data Analytics ecosystem to revolutionize the learning industry. A robot labeled AMILYTICS analyzes raw data into an insights dashboard showing learner trends, teaching effectiveness and personalized learning paths."
+            className="w-full h-auto block"
+          />
+        </div>
+        <div className="text-center mt-5">
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-widest mb-3"
+            style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}
+          >
+            <BarChart3 className="w-4 h-4" /> Coming soon &gt;&gt; AMILYTICS
+          </div>
+          <p className="text-lg font-bold text-black">
+            The Data Analytics ecosystem to revolutionize the Learning industry!
+          </p>
         </div>
       </div>
 
