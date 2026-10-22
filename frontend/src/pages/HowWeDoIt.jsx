@@ -21,7 +21,7 @@ const WAYS = [
   {
     n: 1,
     label: 'Knowledge Base',
-    desc: 'Essential visual learning for career growth.',
+    desc: 'Transform complex information into clear, accessible visual knowledge, helping learners understand, remember and apply what matters.',
     image: '/vlq-way-knowledge-base.png',
     icon: GraduationCap,
     color: '#2563eb',
@@ -31,7 +31,7 @@ const WAYS = [
   {
     n: 2,
     label: 'Teacher Platform',
-    desc: 'Teach, assess and track every learner.',
+    desc: 'Empower teachers with AI-assisted visual lessons, creative teaching materials and learning tools designed to make teaching more effective and engaging.',
     image: '/vlq-way-teacher-platform.png',
     icon: BarChart3,
     color: '#7c3aed',
@@ -41,7 +41,7 @@ const WAYS = [
   {
     n: 3,
     label: 'Global Workforce',
-    desc: 'Certify skills for opportunities worldwide.',
+    desc: 'Support workforce development through visual learning, practical knowledge and skills enhancement across industries and professions.',
     image: '/vlq-way-global-workforce.png',
     icon: TrendingUp,
     color: '#0891b2',
@@ -51,7 +51,7 @@ const WAYS = [
   {
     n: 4,
     label: 'Blue to White Collar Aspirants',
-    desc: 'Build skills. Earn credentials. Advance careers.',
+    desc: 'Help ambitious workers acquire new knowledge, develop professional skills and pursue greater career opportunities.',
     image: '/vlq-way-blue-to-white-collar.png',
     icon: TrendingUp,
     color: '#ea580c',
@@ -61,7 +61,7 @@ const WAYS = [
   {
     n: 5,
     label: 'VLQ Quizzes',
-    desc: 'Master essential knowledge through active recall.',
+    desc: 'Make learning enjoyable through image-based quizzes that encourage curiosity, strengthen knowledge and reinforce memory.',
     image: '/vlq-way-quizzes.png',
     icon: CheckCircle2,
     color: '#db2777',
@@ -71,7 +71,7 @@ const WAYS = [
   {
     n: 6,
     label: 'Family Learning',
-    desc: 'Meaningful learning and play for every age.',
+    desc: 'Bring generations together through engaging visual activities, shared discovery and learning experiences for the whole family.',
     image: '/vlq-way-family-learning.png',
     icon: Sparkles,
     color: '#16a34a',
@@ -131,8 +131,8 @@ export default function HowWeDoIt() {
             <Sparkles className="w-4 h-4" /> The Result
           </div>
           <h2 className="font-extrabold text-3xl md:text-4xl text-black mb-2">6 Ways VLQ Delivers</h2>
-          <p className="text-xl font-bold text-black">
-            A smarter, faster, and more engaging way to learn — for everyone.
+          <p className="text-xl font-bold italic text-black">
+            One Learning Ecosystem. Multiple Applications. Global Potential.
           </p>
         </div>
 
@@ -141,7 +141,7 @@ export default function HowWeDoIt() {
             <Link
               key={way.n}
               to={way.to}
-              className="group block rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              className="group block rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all bg-white border border-slate-100"
             >
               <img
                 src={way.image}
@@ -149,6 +149,10 @@ export default function HowWeDoIt() {
                 className="w-full h-auto block group-hover:scale-[1.02] transition-transform duration-300"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
+              <div className="p-5">
+                <h3 className="font-extrabold text-lg text-black mb-1.5">{way.n}. {way.label}</h3>
+                <p className="text-base font-semibold text-slate-700 leading-relaxed">{way.desc}</p>
+              </div>
             </Link>
           ))}
         </div>
