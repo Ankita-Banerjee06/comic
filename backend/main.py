@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -653,6 +653,59 @@ def require_services():
             status_code=500,
             detail="DATABASE_URL is not set.",
         )
+
+
+def friendly_error_detail(exc):
+
+    """
+    Every endpoint's catch-all handler used to send str(exc)
+    straight to the caller as the HTTPException detail — fine for
+    an unexpected bug, but it meant a well-understood OpenAI
+    account problem (out of credits, rate limited, a prompt
+    blocked by moderation) showed up to a teacher or student as raw
+    SDK text like "Error 429 — insufficient_quota —
+    credit_balance_exhausted", which reads as broken and gives them
+    nothing they can act on. This maps the handful of OpenAI
+    failure modes the app has actually hit in production to a
+    short, plain-language message instead. Anything not recognized
+    here falls through unchanged, so a genuinely new/unexpected
+    error is still fully visible for debugging — this only
+    softens the well-known, expected ones.
+    """
+
+    text = str(exc)
+    lowered = text.lower()
+
+    if (
+        "insufficient_quota" in lowered
+        or "credit_balance_exhausted" in lowered
+    ):
+
+        return (
+            "We're temporarily unable to generate new content — "
+            "our AI service has run out of credits. Please try "
+            "again later."
+        )
+
+    if (
+        "rate_limit_exceeded" in lowered
+        or "rate limit" in lowered
+    ):
+
+        return (
+            "We're receiving a lot of requests right now — please "
+            "wait a moment and try again."
+        )
+
+    if "moderation_blocked" in lowered:
+
+        return (
+            "That request was blocked by our content safety "
+            "system. Please try different wording or a different "
+            "photo."
+        )
+
+    return text
 
 
 # ============================================================
@@ -3233,6 +3286,52 @@ def generate_quiz_from_source(
 # GPT IMAGE 2
 # ============================================================
 
+def optimize_png_bytes(data):
+
+    """
+    Losslessly re-compresses a PNG — no visible change at all, just
+    a smaller file. OpenAI's own PNG encoder isn't tuned for file
+    size, and every image saved through generate_image() is
+    immutable afterwards (see save_media — a regenerate always gets
+    a brand-new media id, nothing is ever re-encoded in place), so
+    this one-time recompression at save time is what every later
+    page view, download, and Render bandwidth GB benefits from.
+    Falls back to the original bytes if the re-encode ever fails or
+    doesn't actually come out smaller, so this can never make an
+    otherwise-good image worse or missing.
+    """
+
+    try:
+
+        image = Image.open(io.BytesIO(data))
+        image.load()
+
+        buffer = io.BytesIO()
+
+        image.save(
+            buffer,
+            format="PNG",
+            optimize=True,
+        )
+
+        optimized = buffer.getvalue()
+
+        return (
+            optimized
+            if len(optimized) < len(data)
+            else data
+        )
+
+    except Exception as exc:
+
+        print(
+            f"PNG re-optimization failed, using the "
+            f"original image bytes instead: {exc}"
+        )
+
+        return data
+
+
 def generate_image(
     prompt,
     filename,
@@ -3263,6 +3362,10 @@ def generate_image(
 
     image_data = base64.b64decode(
         result.data[0].b64_json
+    )
+
+    image_data = optimize_png_bytes(
+        image_data
     )
 
     return save_media(
@@ -6067,7 +6170,7 @@ async def amivi_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6142,7 +6245,7 @@ async def amivi_regenerate_image(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6196,7 +6299,7 @@ async def amivi_edit_chunk(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6264,7 +6367,7 @@ async def amivi_explain_chunk(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6362,7 +6465,7 @@ async def amivi_generate_complete_visual(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6458,7 +6561,7 @@ async def amivi_generate_photo_story(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6965,7 +7068,7 @@ async def amico_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7027,7 +7130,7 @@ async def amico_regenerate_panel(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7161,7 +7264,7 @@ async def amico_edit_panel(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7332,7 +7435,7 @@ async def amico_add_panel(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7413,7 +7516,7 @@ async def amico_recompose(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7630,7 +7733,7 @@ async def amico_photostory_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7719,7 +7822,7 @@ async def avatar_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7773,7 +7876,7 @@ def avatar_delete(avatar_id: int):
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -8513,7 +8616,7 @@ async def quiz_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -8594,7 +8697,7 @@ async def quiz_generate_question_image(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -8639,7 +8742,7 @@ def quiz_wrong_answer_save(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -8703,7 +8806,7 @@ def quiz_wrong_answer_delete(wrong_answer_id: int):
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -8714,6 +8817,7 @@ def quiz_wrong_answer_delete(wrong_answer_id: int):
 @app.get("/api/media/{media_id}")
 def media(
     media_id: int,
+    request: Request,
     download: bool = False,
 ):
 
@@ -8727,6 +8831,29 @@ def media(
         else "inline"
     )
 
+    # Every media id is immutable once saved — a "regenerate" always
+    # gets a brand-new id rather than overwriting this one's bytes
+    # (see save_media / the AMIVI/AMICO regenerate endpoints) — so
+    # it's always safe to let browsers (and Render's CDN) cache a
+    # given id forever instead of re-fetching it on every page view.
+    # This previously sent no cache headers at all, meaning every
+    # view of every comic page, avatar, or Microbit image downloaded
+    # the full file again over the network every single time —
+    # almost certainly the biggest driver of the workspace's
+    # bandwidth usage.
+    etag = f'"{media_id}"'
+    cache_control = "public, max-age=31536000, immutable"
+
+    if request.headers.get("if-none-match") == etag:
+
+        return Response(
+            status_code=304,
+            headers={
+                "Cache-Control": cache_control,
+                "ETag": etag,
+            },
+        )
+
     return Response(
         content=asset.data,
         media_type=asset.mime_type,
@@ -8734,7 +8861,9 @@ def media(
             "Content-Disposition": (
                 f'{disposition}; '
                 f'filename="{asset.filename}"'
-            )
+            ),
+            "Cache-Control": cache_control,
+            "ETag": etag,
         },
     )
 
