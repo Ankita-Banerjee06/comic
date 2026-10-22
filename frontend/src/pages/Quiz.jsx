@@ -116,24 +116,6 @@ const QUIZ_DECKS = [
 function DeckPicker({ onSelect }) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h2 className="text-2xl font-extrabold text-slate-900 mb-2 flex items-center gap-2">
-          <img src="/vlq-badge-essential-learning-icon.png" alt="" className="w-8 h-8 rounded-full object-cover shadow-sm" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          Essential Learning
-        </h2>
-        <p className="text-slate-600 font-medium max-w-xl mb-6">
-          Focuses learners on important knowledge rather than unnecessary trivia.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 bg-slate-50 py-4 rounded-xl border border-slate-200">
-          <div className="px-3 py-1.5 bg-sky-100 rounded-lg shadow-sm border border-sky-200 font-bold text-sky-700 text-sm">Identify</div>
-          <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
-          <div className="px-3 py-1.5 bg-blue-100 rounded-lg shadow-sm border border-blue-200 font-bold text-blue-700 text-sm">Understand</div>
-          <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
-          <div className="px-3 py-1.5 bg-indigo-100 rounded-lg shadow-sm border border-indigo-200 font-bold text-indigo-700 text-sm">Apply</div>
-          <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
-          <div className="px-3 py-1.5 bg-violet-600 rounded-lg shadow-sm border border-violet-600 font-bold text-white text-sm">Retain</div>
-        </div>
-      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {QUIZ_DECKS.map(deck => {
           const Icon = deck.icon;
@@ -225,7 +207,7 @@ function DeckQuizPlayer({ deck, onExit }) {
   }
 
   return (
-    <div className="space-y-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="min-h-[calc(100vh-180px)] flex flex-col justify-center space-y-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button
@@ -281,11 +263,13 @@ function DeckQuizPlayer({ deck, onExit }) {
           {/* Image */}
           {q.image && (
             <div className="flex justify-center">
-              <img
-                src={q.image}
-                alt=""
-                className="max-h-72 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm object-contain"
-              />
+              <div className="w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <img
+                  src={q.image}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
           )}
 

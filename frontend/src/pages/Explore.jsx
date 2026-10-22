@@ -222,8 +222,8 @@ export default function Explore() {
           className="group block rounded-3xl px-6 py-8 md:py-10 text-center hover:brightness-110 transition-all"
           style={{ background: '#541849' }}
         >
-          <h2 className="font-extrabold text-3xl text-white tracking-wide mb-2">VIEW</h2>
-          <p className="text-lg sm:text-xl font-bold text-white/90 group-hover:text-white transition-colors">
+          <h2 className="font-extrabold text-4xl text-white tracking-wide mb-2">VIEW</h2>
+          <p className="text-xl sm:text-2xl font-bold text-white transition-colors">
             Image Generations, Videos, Quizzes …more &gt;&gt;&gt;
           </p>
         </Link>

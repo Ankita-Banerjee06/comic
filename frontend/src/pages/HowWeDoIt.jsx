@@ -150,8 +150,8 @@ export default function HowWeDoIt() {
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
               <div className="p-5">
-                <h3 className="font-extrabold text-lg text-black mb-1.5">{way.n}. {way.label}</h3>
-                <p className="text-base font-semibold text-slate-700 leading-relaxed">{way.desc}</p>
+                <h3 className="font-extrabold text-xl text-black mb-2">{way.n}. {way.label}</h3>
+                <p className="text-lg font-semibold text-black leading-relaxed">{way.desc}</p>
               </div>
             </Link>
           ))}
