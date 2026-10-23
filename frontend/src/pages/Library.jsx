@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
   Palette,
@@ -64,11 +64,17 @@ const SORTS = [
 
 export default function Library() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  // Lets a link land here pre-filtered, e.g. /library?type=quiz from
+  // the Explore page's VIEW dropdown — falls back to "all" otherwise.
+  const [filter, setFilter] = useState(() => {
+    const requested = searchParams.get('type');
+    return FILTERS.some((f) => f.key === requested) ? requested : 'all';
+  });
   const [sort, setSort] = useState('newest');
   const [librarySpace, setLibrarySpace] = useState('personal'); // personal | group | class
   const [activeSubject, setActiveSubject] = useState(null); // for folder navigation demo
