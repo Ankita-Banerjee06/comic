@@ -23,7 +23,7 @@ import {
   ArrowLeft,
   ArrowRight,
 } from 'lucide-react';
-import { getLibrary, getLibraryProject, deleteLibraryProject, mediaUrl } from '../services/api';
+import { getLibrary, getLibraryProject, deleteLibraryProject, generateQuiz, mediaUrl } from '../services/api';
 
 const TYPE_META = {
   amivi: {
@@ -425,6 +425,7 @@ export default function Library() {
             setDeleteTarget(target);
           }}
           onShare={handleShareClick}
+          onToast={showToast}
         />
       )}
 
@@ -624,9 +625,31 @@ function LibraryCard({ item, onPreview, onDelete }) {
 // having to replay or regenerate anything.
 // ============================================================
 
-function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull, onDelete, onShare }) {
+function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull, onDelete, onShare, onToast }) {
   const meta = TYPE_META[item.type] || TYPE_META.amivi;
   const Icon = meta.icon;
+  const navigate = useNavigate();
+  const [creatingQuiz, setCreatingQuiz] = useState(false);
+
+  // Builds a real quiz straight from this saved AMIVI/AMICO project's
+  // own material (backend already supports this via source_project_id
+  // — see Courses.jsx's "Generate Quiz" for the same pattern) rather
+  // than just linking out to a blank quiz generator.
+  const handleCreateQuiz = async () => {
+    setCreatingQuiz(true);
+    try {
+      const result = await generateQuiz({ sourceProjectId: item.id });
+      if (result?.project_id) {
+        navigate(`/quiz/${result.project_id}`);
+      } else {
+        throw new Error('No quiz was returned.');
+      }
+    } catch (err) {
+      onToast?.(err?.message || 'Failed to create a quiz from this project.', 'error');
+    } finally {
+      setCreatingQuiz(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -693,12 +716,23 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
             <ArrowUpRight className="w-4 h-4" /> Share
           </button>
           
-          <button
-            onClick={() => { window.location.href = '/quiz'; }}
-            className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
-          >
-            <Puzzle className="w-4 h-4" /> Quiz
-          </button>
+          {item.type !== 'quiz' && (
+            <button
+              onClick={handleCreateQuiz}
+              disabled={creatingQuiz}
+              className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors disabled:opacity-60"
+            >
+              {creatingQuiz ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Creating…
+                </>
+              ) : (
+                <>
+                  <Puzzle className="w-4 h-4" /> Create Quiz
+                </>
+              )}
+            </button>
+          )}
 
           <button
             onClick={() => { window.location.href = '/amico'; }}
