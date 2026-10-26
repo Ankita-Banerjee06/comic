@@ -117,3 +117,29 @@ def _run_lightweight_migrations():
         conn.execute(
             text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS chapter_key VARCHAR(255)")
         )
+        # Classroom re-login codes (teacher_code / parent_code /
+        # student_code): added to the models in the same feature pass,
+        # on `classrooms` and `classroom_members` tables that already
+        # existed in the database at the time — exactly the situation
+        # this function exists to patch up. Missing any one of these
+        # throws UndefinedColumn the moment someone creates or opens a
+        # classroom, so all three get the same IF NOT EXISTS treatment,
+        # plus the unique index the model declares on each.
+        conn.execute(
+            text("ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS teacher_code VARCHAR(20)")
+        )
+        conn.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS ix_classrooms_teacher_code ON classrooms (teacher_code)")
+        )
+        conn.execute(
+            text("ALTER TABLE classroom_members ADD COLUMN IF NOT EXISTS parent_code VARCHAR(20)")
+        )
+        conn.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS ix_classroom_members_parent_code ON classroom_members (parent_code)")
+        )
+        conn.execute(
+            text("ALTER TABLE classroom_members ADD COLUMN IF NOT EXISTS student_code VARCHAR(20)")
+        )
+        conn.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS ix_classroom_members_student_code ON classroom_members (student_code)")
+        )

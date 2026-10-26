@@ -44,7 +44,8 @@ import {
   generateAmivi,
   generateAmico,
   generateQuiz,
-  getLibraryProject,
+  getAssignmentProject,
+  getClassroomLibraryProjects,
   mediaUrl,
 } from '../services/api';
 
@@ -1299,6 +1300,16 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
     }
   };
 
+  // A project picked from the teacher's own Library (LibraryPicker
+  // below) slots into the exact same `generated` shape runGenerate
+  // produces, so handleAssign and the rest of this form can't tell
+  // the difference — no AI call happens here at all.
+  const applyLibraryPick = (kind, project) => {
+    setGenerated((g) => ({ ...g, [kind]: { projectId: project.id, title: project.title } }));
+    setGenErrors((e) => ({ ...e, [kind]: null }));
+    if (kind === 'quiz' && !title) setTitle(project.title || '');
+  };
+
   const handleAssign = async (e) => {
     e.preventDefault();
     setAssignError(null);
@@ -1372,35 +1383,62 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
       </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <GenerateChip
-          label="Quiz"
-          required
-          icon={Puzzle}
-          color="text-purple-600"
-          done={!!generated.quiz}
-          busy={busy === 'quiz'}
-          error={genErrors.quiz}
-          onClick={() => runGenerate('quiz')}
-        />
-        <GenerateChip
-          label="AMIVI Visuals"
-          icon={Palette}
-          color="text-orange-500"
-          done={!!generated.amivi}
-          busy={busy === 'amivi'}
-          error={genErrors.amivi}
-          onClick={() => runGenerate('amivi')}
-        />
-        <GenerateChip
-          label="AMICO Comic"
-          icon={BookOpen}
-          color="text-pink-500"
-          done={!!generated.amico}
-          busy={busy === 'amico'}
-          error={genErrors.amico}
-          onClick={() => runGenerate('amico')}
-        />
+        <div>
+          <GenerateChip
+            label="Quiz"
+            required
+            icon={Puzzle}
+            color="text-purple-600"
+            done={!!generated.quiz}
+            busy={busy === 'quiz'}
+            error={genErrors.quiz}
+            onClick={() => runGenerate('quiz')}
+          />
+          <LibraryPicker
+            classroom={classroom}
+            session={session}
+            kind="quiz"
+            onPick={(project) => applyLibraryPick('quiz', project)}
+          />
+        </div>
+        <div>
+          <GenerateChip
+            label="AMIVI Visuals"
+            icon={Palette}
+            color="text-orange-500"
+            done={!!generated.amivi}
+            busy={busy === 'amivi'}
+            error={genErrors.amivi}
+            onClick={() => runGenerate('amivi')}
+          />
+          <LibraryPicker
+            classroom={classroom}
+            session={session}
+            kind="amivi"
+            onPick={(project) => applyLibraryPick('amivi', project)}
+          />
+        </div>
+        <div>
+          <GenerateChip
+            label="AMICO Comic"
+            icon={BookOpen}
+            color="text-pink-500"
+            done={!!generated.amico}
+            busy={busy === 'amico'}
+            error={genErrors.amico}
+            onClick={() => runGenerate('amico')}
+          />
+          <LibraryPicker
+            classroom={classroom}
+            session={session}
+            kind="amico"
+            onPick={(project) => applyLibraryPick('amico', project)}
+          />
+        </div>
       </div>
+      <p className="text-xs text-slate-400 -mt-1">
+        Already have a lesson saved? Use "Or use something I already saved" under any of the three above instead of generating new — your existing images, slogans and descriptions are reused as-is, nothing is regenerated.
+      </p>
 
       {generated.quiz && (
         <>
@@ -1418,12 +1456,18 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         </>
       )}
 
+      {!generated.quiz && (
+        <p className="text-amber-600 font-bold text-xs text-center">
+          Add a Quiz above (generate one, or pick a saved one) — homework needs a quiz to grade. That's why "Assign Homework" below is greyed out.
+        </p>
+      )}
+
       {assignError && <p className="text-red-500 font-bold text-sm text-center">{assignError}</p>}
 
       <button
         type="submit"
         disabled={assigning || !generated.quiz}
-        className="w-full py-3 rounded-xl font-bold text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-2"
+        className="w-full py-3 rounded-xl font-bold text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
       >
         {assigning && <Loader2 className="w-4 h-4 animate-spin" />}
         {assigning ? 'Assigning…' : 'Assign Homework'}
@@ -1460,6 +1504,72 @@ function GenerateChip({ label, required, icon: Icon, color, done, busy, error, o
   );
 }
 
+// Lets a teacher attach an AMIVI/AMICO/quiz they already saved to
+// their Library, instead of pasting material and generating a new
+// one. Loads the list lazily (only once the teacher actually opens
+// it) and only for the one kind it's asked for.
+function LibraryPicker({ classroom, session, kind, onPick }) {
+  const [open, setOpen] = useState(false);
+  const [projects, setProjects] = useState(null); // null = not loaded yet
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const kindLabel = kind === 'amivi' ? 'AMIVI lesson' : kind === 'amico' ? 'AMICO comic' : 'quiz';
+
+  const toggle = () => {
+    const willOpen = !open;
+    setOpen(willOpen);
+    if (!willOpen || projects !== null || loading) return;
+
+    setLoading(true);
+    setError(null);
+    getClassroomLibraryProjects(classroom.class_code, session.memberToken, kind)
+      .then((data) => setProjects(data.projects || []))
+      .catch((err) => setError(err?.message || 'Unable to load your Library.'))
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <div className="mt-1.5 text-center">
+      <button
+        type="button"
+        onClick={toggle}
+        className="text-[11px] font-bold text-teal-600 hover:text-teal-700 underline"
+      >
+        {open ? 'Hide saved Library' : 'Or use something I already saved'}
+      </button>
+      {open && (
+        <div className="mt-1.5">
+          {loading && <p className="text-[11px] text-slate-400">Loading your Library…</p>}
+          {error && <p className="text-[11px] text-red-500 font-semibold">{error}</p>}
+          {projects && projects.length === 0 && !loading && (
+            <p className="text-[11px] text-slate-400">No saved {kindLabel}s in your Library yet.</p>
+          )}
+          {projects && projects.length > 0 && (
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                const picked = projects.find((p) => String(p.id) === e.target.value);
+                if (picked) onPick(picked);
+              }}
+              className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white font-semibold"
+            >
+              <option value="" disabled>
+                Pick a saved {kindLabel}…
+              </option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // ASSIGNMENTS LIST
 // ============================================================
@@ -1489,6 +1599,8 @@ function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
               onViewResults={() => setResultsFor(a)}
               onPlay={() => setPlayFor(a)}
               navigate={navigate}
+              classCode={classroom.class_code}
+              memberToken={session.memberToken}
             />
           ))}
         </div>
@@ -1521,8 +1633,17 @@ function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
   );
 }
 
-function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate }) {
+function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, classCode, memberToken }) {
   const due = formatDue(assignment.due_at);
+
+  // Student/teacher view of the AMIVI/AMICO attached to this assignment:
+  // navigate to the normal page, but carry along classroom-view context
+  // (class code + this member's own token + which assignment) so the
+  // destination page can fetch via the classroom-scoped endpoint instead
+  // of the main, owner-only Library endpoint — a student viewing their
+  // teacher's material never owns that project, so the normal fetch
+  // would otherwise 404 for them.
+  const classroomView = { classCode, assignmentId: assignment.id, memberToken };
 
   return (
     <div className="border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -1536,12 +1657,18 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate }) {
             </span>
           )}
           {assignment.amivi_project_id && (
-            <button onClick={() => navigate(`/amivi/${assignment.amivi_project_id}`)} className="inline-flex items-center gap-1 text-orange-500 hover:text-orange-600">
+            <button
+              onClick={() => navigate(`/amivi/${assignment.amivi_project_id}`, { state: { classroomView: { ...classroomView, kind: 'amivi' } } })}
+              className="inline-flex items-center gap-1 text-orange-500 hover:text-orange-600"
+            >
               <Palette className="w-3.5 h-3.5" /> Visuals
             </button>
           )}
           {assignment.amico_project_id && (
-            <button onClick={() => navigate(`/amico/${assignment.amico_project_id}`)} className="inline-flex items-center gap-1 text-pink-500 hover:text-pink-600">
+            <button
+              onClick={() => navigate(`/amico/${assignment.amico_project_id}`, { state: { classroomView: { ...classroomView, kind: 'amico' } } })}
+              className="inline-flex items-center gap-1 text-pink-500 hover:text-pink-600"
+            >
               <BookOpen className="w-3.5 h-3.5" /> Comic
             </button>
           )}
@@ -1776,7 +1903,12 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
     setLoading(true);
     setError(null);
 
-    getLibraryProject(assignment.quiz_project_id)
+    // Same reasoning as the AMIVI/AMICO "Visuals"/"Comic" links: a
+    // student only has a classroom member_token, not an account that
+    // owns the teacher's quiz project, so the plain getLibraryProject
+    // call 404s for them. Fetch through the classroom-scoped endpoint
+    // instead, authorized by this student's own membership.
+    getAssignmentProject(classroom.class_code, assignment.id, 'quiz', session.memberToken)
       .then((project) => {
         const questions = project?.data?.questions || [];
         if (!questions.length) throw new Error('This homework has no questions to show.');
@@ -1784,7 +1916,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
       })
       .catch((err) => setError(err?.message || 'Unable to load this homework.'))
       .finally(() => setLoading(false));
-  }, [assignment.quiz_project_id]);
+  }, [assignment.quiz_project_id, classroom.class_code, assignment.id, session.memberToken]);
 
   const handleSelect = (i) => {
     if (player.selected !== null) return;
@@ -1832,36 +1964,39 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h3 className="font-extrabold text-slate-900 truncate">{assignment.title}</h3>
-          <button onClick={onClose} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors">
-            <X className="w-4.5 h-4.5" />
+      {/* Sized to match the full Quiz page's "real quiz" feel (big
+          question text, big image, big touch-friendly options)
+          instead of the cramped small-modal look it had before. */}
+      <div className="relative bg-white rounded-3xl shadow-xl border border-slate-200 w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 sm:py-5 border-b border-slate-100 shrink-0">
+          <h3 className="font-extrabold text-black text-xl sm:text-2xl truncate">{assignment.title}</h3>
+          <button onClick={onClose} className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6 sm:py-8">
           {loading && (
             <div className="py-12 flex justify-center">
-              <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
+              <Loader2 className="w-8 h-8 text-slate-300 animate-spin" />
             </div>
           )}
 
-          {!loading && error && !finished && <p className="text-red-500 font-bold text-sm text-center py-8">{error}</p>}
+          {!loading && error && !finished && <p className="text-red-500 font-bold text-base text-center py-8">{error}</p>}
 
           {!loading && !error && finished && player && (
-            <div className="text-center py-6">
-              <div className="text-5xl mb-3">
+            <div className="text-center py-8">
+              <div className="text-7xl mb-4">
                 {player.score / player.questions.length >= 0.8 ? '🏆' : player.score / player.questions.length >= 0.5 ? '⭐' : '💪'}
               </div>
-              <h4 className="font-bold text-slate-900 text-xl mb-1">You scored {player.score}/{player.questions.length}</h4>
-              <p className="text-sm text-slate-500 font-medium">Your teacher can see this result, and it's saved to your learning history.</p>
+              <h4 className="font-bold text-black text-2xl sm:text-3xl mb-2">You scored {player.score}/{player.questions.length}</h4>
+              <p className="text-base text-slate-500 font-semibold">Your teacher can see this result, and it's saved to your learning history.</p>
             </div>
           )}
 
           {!loading && !error && !finished && player && (
             <>
-              <span className="inline-block text-xs font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full mb-4">
+              <span className="inline-block text-base font-bold text-purple-600 bg-purple-100 px-4 py-1.5 rounded-full mb-5">
                 Question {player.idx + 1}/{player.questions.length}
               </span>
 
@@ -1869,37 +2004,40 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
                 const q = player.questions[player.idx];
                 return (
                   <>
-                    <p className="font-bold text-slate-800 mb-4">{q.q}</p>
+                    <p className="font-bold text-black text-2xl sm:text-3xl leading-tight mb-5">{q.q}</p>
 
                     {q.image_url && (
-                      <img src={mediaUrl(q.image_url)} alt={q.q} className="w-full max-h-52 object-contain rounded-xl border border-slate-100 mb-4" />
+                      <img src={mediaUrl(q.image_url)} alt={q.q} className="w-full max-h-80 object-contain rounded-2xl border-2 border-purple-50 mb-5" />
                     )}
 
-                    <div className="space-y-2 mb-4">
+                    <div className="space-y-3 mb-6">
                       {(q.options || []).map((opt, idx) => {
-                        let cls = 'bg-slate-50 border border-slate-200 text-slate-700 hover:border-purple-300';
+                        let cls = 'bg-white border-2 border-gray-200 text-black hover:border-purple-400 hover:bg-purple-50';
                         if (player.selected !== null) {
-                          if (idx === q.correct) cls = 'bg-green-50 border border-green-300 text-green-700';
-                          else if (idx === player.selected) cls = 'bg-red-50 border border-red-300 text-red-600';
-                          else cls = 'bg-slate-50 border border-slate-100 text-slate-400';
+                          if (idx === q.correct) cls = 'bg-green-50 border-2 border-green-400 text-green-700';
+                          else if (idx === player.selected) cls = 'bg-red-50 border-2 border-red-400 text-red-600';
+                          else cls = 'bg-gray-50 border-2 border-gray-200 text-black opacity-60';
                         }
                         return (
                           <button
                             key={idx}
                             disabled={player.selected !== null}
                             onClick={() => handleSelect(idx)}
-                            className={`w-full text-left px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-between ${cls}`}
+                            className={`w-full text-left px-5 sm:px-6 py-3.5 sm:py-4 rounded-2xl font-bold text-lg sm:text-xl transition-all flex items-center justify-between gap-3 shadow-sm hover:shadow-md ${cls}`}
                           >
                             {opt}
-                            {player.selected !== null && idx === q.correct && <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
-                            {player.selected !== null && idx === player.selected && idx !== q.correct && <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+                            {player.selected !== null && idx === q.correct && <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />}
+                            {player.selected !== null && idx === player.selected && idx !== q.correct && <XCircle className="w-6 h-6 text-red-500 shrink-0" />}
                           </button>
                         );
                       })}
                     </div>
 
                     {player.selected !== null && (
-                      <button onClick={handleNext} className="w-full py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors">
+                      <button
+                        onClick={handleNext}
+                        className="w-full py-3.5 sm:py-4 rounded-2xl font-bold text-lg sm:text-xl text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:scale-[1.01] transition-transform shadow-lg"
+                      >
                         {player.idx === player.questions.length - 1 ? 'Submit' : 'Next →'}
                       </button>
                     )}

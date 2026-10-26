@@ -250,6 +250,30 @@ def test_is_safe_external_url_rejects_bad_schemes_and_unresolvable_hosts():
         assert main._is_safe_external_url("https://nowhere.invalid/") is False
 
 
+def test_is_safe_external_url_does_not_hang_on_slow_dns():
+    """
+    Regression test for the "Failed to fetch" report on AMIVI's weblink
+    extraction: socket.getaddrinfo() has no built-in timeout, so a
+    slow/stalled DNS lookup used to block this (synchronous) check —
+    and, since the route that calls it ran directly on the event loop,
+    that hang could stall the whole server for long enough that the
+    client's connection dropped before any response came back. The
+    check must now give up and return False well before a lookup that
+    never completes would.
+    """
+
+    def _hangs_forever(*args, **kwargs):
+        time.sleep(10)
+        return [(2, 1, 6, "", ("93.184.216.34", 0))]
+
+    start = time.monotonic()
+    with patch("main.socket.getaddrinfo", side_effect=_hangs_forever):
+        assert main._is_safe_external_url("https://example.com/") is False
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 8, f"safety check should bail out well under 8s, took {elapsed:.1f}s"
+
+
 def test_extract_webpage_text_strips_boilerplate_and_keeps_article():
     with patch("main.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("93.184.216.34", 0))]):
         with patch("main.requests.get", return_value=_fake_html_response()):
@@ -327,3 +351,96 @@ def test_extract_url_endpoint_rejects_empty_url():
         asyncio.run(main.amivi_extract_url(req))
 
     assert excinfo.value.status_code == 400
+
+
+# ============================================================
+# /api/amivi/extract — document (PDF/DOCX/TXT) upload, retested
+# per the founder's "AMIVI UPLOADS" ticket alongside the weblink
+# fix above. extract_text_from_file() itself predates this round
+# of fixes; what's new here is (a) coverage that didn't exist for
+# it before, and (b) the route now runs it via run_in_threadpool
+# too, for the same reason as the weblink path — keep CPU-bound
+# parsing of a large/awkward file off the event loop.
+# ============================================================
+
+class _FakeUploadFile:
+    """Duck-types the bits of fastapi.UploadFile the route actually
+    uses (await file.read(), .filename) without needing a real
+    multipart request."""
+
+    def __init__(self, content: bytes, filename: str):
+        self._content = content
+        self.filename = filename
+
+    async def read(self):
+        return self._content
+
+
+def test_extract_text_from_file_handles_txt():
+    text = main.extract_text_from_file(
+        b"Photosynthesis converts light energy into chemical energy.",
+        "notes.txt",
+    )
+    assert "Photosynthesis" in text
+
+
+def test_extract_text_from_file_rejects_unsupported_extension():
+    with pytest.raises(Exception, match="Unsupported file type"):
+        main.extract_text_from_file(b"whatever", "notes.xlsx")
+
+
+def test_extract_endpoint_returns_extracted_text_for_txt_upload():
+    import asyncio
+
+    upload = _FakeUploadFile(
+        b"The water cycle moves water through evaporation and rain.",
+        "lesson.txt",
+    )
+
+    result = asyncio.run(main.amivi_extract(file=upload))
+
+    assert "water cycle" in result["text"].lower()
+
+
+def test_extract_endpoint_rejects_empty_file():
+    import asyncio
+    from fastapi import HTTPException
+
+    upload = _FakeUploadFile(b"", "empty.txt")
+
+    with pytest.raises(HTTPException) as excinfo:
+        asyncio.run(main.amivi_extract(file=upload))
+
+    assert excinfo.value.status_code == 400
+
+
+def test_extract_endpoint_rejects_file_with_no_readable_text():
+    import asyncio
+    from fastapi import HTTPException
+
+    # Valid TXT container, but nothing left after stripping whitespace.
+    upload = _FakeUploadFile(b"   \n\n   ", "blank.txt")
+
+    with pytest.raises(HTTPException) as excinfo:
+        asyncio.run(main.amivi_extract(file=upload))
+
+    assert excinfo.value.status_code == 400
+
+
+def test_extract_endpoint_runs_parsing_off_the_event_loop():
+    """The route must not block the event loop while parsing — this
+    is the same class of bug the weblink extractor had. Patch the
+    parser to prove it's invoked through run_in_threadpool rather
+    than called directly inline."""
+    import asyncio
+
+    upload = _FakeUploadFile(b"irrelevant", "notes.txt")
+
+    with patch(
+        "main.extract_text_from_file",
+        return_value="mocked extracted text",
+    ) as mock_extract:
+        result = asyncio.run(main.amivi_extract(file=upload))
+
+    mock_extract.assert_called_once()
+    assert result == {"text": "mocked extracted text"}

@@ -23,7 +23,7 @@ import {
   ArrowLeft,
   ArrowRight,
 } from 'lucide-react';
-import { getLibrary, getLibraryProject, deleteLibraryProject, generateQuiz, mediaUrl } from '../services/api';
+import { getLibrary, getLibraryProject, deleteLibraryProject, generateQuiz, recomposeAmico, mediaUrl } from '../services/api';
 
 const TYPE_META = {
   amivi: {
@@ -137,16 +137,19 @@ export default function Library() {
     const query = search.trim().toLowerCase();
 
     let result = items.filter((item) => {
-      // Mock library space filtering for MVP demonstration.
-      // We'll deterministically assign items to spaces based on their ID.
-      const idStr = String(item.id || item.project_id || '');
-      const charCode = idStr.length > 0 ? idStr.charCodeAt(idStr.length - 1) : 0;
-      
-      let assignedSpace = 'personal';
-      if (charCode % 3 === 1) assignedSpace = 'group';
-      if (charCode % 3 === 2) assignedSpace = 'class';
-      
-      if (assignedSpace !== librarySpace) return false;
+      // The Personal/Group/Class space tabs above are not backed by
+      // any real grouping yet — there's no group_id/classroom_id on
+      // a saved project to filter by. This used to assign each item
+      // to a space with a fake hash of its own id (last character's
+      // char code mod 3), purely so the three tabs had *something*
+      // to show for an early demo. The real bug: that hash silently
+      // hid 2 out of every 3 real saved items from "Personal
+      // Library" (the default tab) depending only on their id — a
+      // saved project like "Bridge Types" could vanish from the
+      // library entirely with no error, no warning, nothing wrong
+      // with the data itself. Until spaces are real, every tab shows
+      // the full library rather than hiding real saved work behind
+      // a coin flip.
 
       if (filter !== 'all' && item.type !== filter) return false;
 
@@ -170,7 +173,7 @@ export default function Library() {
     });
 
     return result;
-  }, [items, filter, search, sort, librarySpace]);
+  }, [items, filter, search, sort]);
 
   // --------------------------------------------------------
   // PREVIEW (opens before navigating into the full page)
@@ -186,6 +189,17 @@ export default function Library() {
       .then((project) => setPreviewData(project))
       .catch((err) => setPreviewError(err?.message || 'Unable to load this project.'))
       .finally(() => setPreviewLoading(false));
+  }, []);
+
+  // Lets AmicoPreview push freshly-recomposed pages/panels back
+  // into the open preview once a stale-pages repair succeeds, so
+  // the modal reflects the fix immediately without a full reload.
+  const handleAmicoRepaired = useCallback((newPages, newPanels) => {
+    setPreviewData((prev) =>
+      prev
+        ? { ...prev, data: { ...prev.data, pages: newPages, panels: newPanels } }
+        : prev
+    );
   }, []);
 
   const closePreview = useCallback(() => {
@@ -432,6 +446,7 @@ export default function Library() {
           }}
           onShare={handleShareClick}
           onToast={showToast}
+          onAmicoRepaired={handleAmicoRepaired}
         />
       )}
 
@@ -631,7 +646,7 @@ function LibraryCard({ item, onPreview, onDelete }) {
 // having to replay or regenerate anything.
 // ============================================================
 
-function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull, onDelete, onShare, onToast }) {
+function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull, onDelete, onShare, onToast, onAmicoRepaired }) {
   const meta = TYPE_META[item.type] || TYPE_META.amivi;
   const Icon = meta.icon;
   const navigate = useNavigate();
@@ -709,7 +724,9 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
           )}
 
           {!loading && !error && data && item.type === 'amivi' && <AmiviPreview item={item} data={data} />}
-          {!loading && !error && data && item.type === 'amico' && <AmicoPreview data={data} />}
+          {!loading && !error && data && item.type === 'amico' && (
+            <AmicoPreview item={item} data={data} onRepaired={onAmicoRepaired} onToast={onToast} />
+          )}
           {!loading && !error && data && item.type === 'quiz' && <QuizPreview data={data} />}
         </div>
 
@@ -740,12 +757,17 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
             </button>
           )}
 
-          <button
-            onClick={() => { window.location.href = '/amico'; }}
-            className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-pink-700 bg-pink-50 border border-pink-200 hover:bg-pink-100 transition-colors"
-          >
-            <BookOpen className="w-4 h-4" /> AMICO
-          </button>
+          {item.type === 'amivi' && (
+            <button
+              onClick={() =>
+                navigate('/amico', { state: { sourceProjectId: item.id } })
+              }
+              title="Sends this AMIVI package (Key Points, slogans, visuals and explanations) straight to AMICO — nothing needs retyping, and the original AMIVI stays exactly as it is."
+              className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-pink-700 bg-pink-50 border border-pink-200 hover:bg-pink-100 transition-colors"
+            >
+              <BookOpen className="w-4 h-4" /> Send to AMICO
+            </button>
+          )}
 
           <div className="flex-1" />
 
@@ -769,6 +791,17 @@ function AmiviPreview({ item, data }) {
   const [imgFailed, setImgFailed] = useState(false);
   const hasThumbnail = item?.thumbnail_url && !imgFailed;
   const [chunkPage, setChunkPage] = useState(0);
+
+  // "Image + Slogan" vs "Image + Description" are the same saved
+  // AMIVI chunks (every chunk already carries both, once a learner
+  // has opened EXPLAIN for it) — just a different field shown
+  // under each image. No separate view/page needed, just a toggle
+  // over the one preview that's already here.
+  const [viewMode, setViewMode] = useState('slogan');
+  const captionFor = (chunk) =>
+    viewMode === 'description'
+      ? chunk.description || ''
+      : chunk.slogan || '';
   const totalChunkPages = Math.max(1, Math.ceil(chunks.length / AMIVI_CHUNKS_PER_PAGE));
   const visibleChunks = chunks.slice(
     chunkPage * AMIVI_CHUNKS_PER_PAGE,
@@ -821,6 +854,29 @@ function AmiviPreview({ item, data }) {
         </video>
       )}
 
+      {chunks.length > 0 && (
+        <div className="flex items-center justify-center gap-1 bg-slate-100 rounded-full p-1 w-fit mx-auto">
+          <button
+            type="button"
+            onClick={() => setViewMode('slogan')}
+            className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+              viewMode === 'slogan' ? 'bg-white text-slate-800 shadow' : 'text-slate-500'
+            }`}
+          >
+            Image + Slogan
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('description')}
+            className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+              viewMode === 'description' ? 'bg-white text-slate-800 shadow' : 'text-slate-500'
+            }`}
+          >
+            Image + Description
+          </button>
+        </div>
+      )}
+
       {chunks.length === 0 ? (
         <EmptyPreviewNote text="No visual micro-bits were saved for this project." />
       ) : (
@@ -850,10 +906,20 @@ function AmiviPreview({ item, data }) {
                     <p className="text-xs font-bold text-slate-700 truncate">
                       {chunk.text || chunk.key_point || `Chunk ${globalIndex + 1}`}
                     </p>
-                    {chunk.slogan && (
-                      <p className="text-[11px] text-orange-600 font-semibold truncate mt-0.5">
-                        ✨ {chunk.slogan}
+                    {captionFor(chunk) ? (
+                      <p
+                        className={`text-[11px] font-semibold mt-0.5 ${
+                          viewMode === 'description'
+                            ? 'text-slate-500 line-clamp-2'
+                            : 'text-orange-600 truncate'
+                        }`}
+                      >
+                        {viewMode === 'description' ? captionFor(chunk) : `✨ ${captionFor(chunk)}`}
                       </p>
+                    ) : (
+                      viewMode === 'description' && (
+                        <p className="text-[11px] text-slate-300 italic mt-0.5">No explanation yet</p>
+                      )
                     )}
                   </div>
                 </button>
@@ -931,10 +997,22 @@ function AmiviPreview({ item, data }) {
               <p className="text-4xl sm:text-5xl font-extrabold text-slate-800">
                 {lightboxChunk.text || lightboxChunk.key_point || `Chunk ${lightboxIndex + 1}`}
               </p>
-              {lightboxChunk.slogan && (
-                <p className="text-2xl sm:text-3xl text-orange-600 font-bold mt-3">
-                  ✨ {lightboxChunk.slogan}
-                </p>
+              {captionFor(lightboxChunk) ? (
+                viewMode === 'description' ? (
+                  <p className="text-lg sm:text-xl text-slate-600 font-medium mt-3 max-w-2xl mx-auto">
+                    {captionFor(lightboxChunk)}
+                  </p>
+                ) : (
+                  <p className="text-2xl sm:text-3xl text-orange-600 font-bold mt-3">
+                    ✨ {captionFor(lightboxChunk)}
+                  </p>
+                )
+              ) : (
+                viewMode === 'description' && (
+                  <p className="text-base text-slate-300 italic mt-3">
+                    No explanation saved yet for this Key Point — open it in AMIVI's Explain step to add one.
+                  </p>
+                )
               )}
               <p className="text-sm font-bold text-slate-400 mt-4">
                 {lightboxIndex + 1} of {chunks.length}
@@ -947,11 +1025,52 @@ function AmiviPreview({ item, data }) {
   );
 }
 
-function AmicoPreview({ data }) {
+function AmicoPreview({ item, data, onRepaired, onToast }) {
   const project = data.data || {};
   const pages = project.pages || [];
   const [pageIndex, setPageIndex] = useState(0);
+  const [repairing, setRepairing] = useState(false);
   const currentPage = pages[pageIndex];
+
+  // A saved comic can end up with a "pages" array that's stale
+  // relative to its panels (e.g. it was composed by an older
+  // version of this app before being saved, or an edit saved the
+  // panel change but a recompose never ran for it). The symptom
+  // is exactly what shows up here: the Prev/Next counter moves,
+  // but two different page slots end up pointing at the same
+  // composed sheet. Detect that and offer a one-click repair that
+  // rebuilds the page images straight from the already-saved
+  // panels/images — no AI image/text generation involved, so no
+  // new artwork, just a correct re-composition.
+  const hasDuplicatePages =
+    pages.length > 1 &&
+    new Set(pages.map((p) => p.comic_image_url)).size < pages.length;
+
+  // Page index can go stale if we just repaired down to fewer/
+  // more pages than before.
+  useEffect(() => {
+    if (pageIndex > pages.length - 1) setPageIndex(0);
+  }, [pages.length, pageIndex]);
+
+  const handleRepair = async () => {
+    if (!item?.id || !project.panels?.length) return;
+    setRepairing(true);
+    try {
+      const res = await recomposeAmico(
+        item.id,
+        project.panels,
+        project.panels_per_page || 4,
+        project.layout || 'horizontal'
+      );
+      onRepaired?.(res.pages, res.panels);
+      setPageIndex(0);
+      onToast?.('Page display fixed — pages rebuilt from your saved artwork.', 'success');
+    } catch (err) {
+      onToast?.(err?.message || 'Could not fix the page display.', 'error');
+    } finally {
+      setRepairing(false);
+    }
+  };
 
   if (pages.length === 0) {
     return <EmptyPreviewNote text="No composed comic pages were saved for this project." />;
@@ -963,9 +1082,27 @@ function AmicoPreview({ data }) {
         <p className="text-sm text-slate-500 font-medium">{project.learning_objective}</p>
       )}
 
+      {hasDuplicatePages && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-xs font-bold text-amber-700">
+            Two or more pages are showing the same image. This can happen on
+            comics saved before a fix — rebuild them from the saved artwork.
+          </p>
+          <button
+            onClick={handleRepair}
+            disabled={repairing}
+            className="shrink-0 inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg font-bold text-xs text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-60 transition-colors"
+          >
+            {repairing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            {repairing ? 'Fixing…' : 'Fix page display'}
+          </button>
+        </div>
+      )}
+
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
         {currentPage?.comic_image_url ? (
           <img
+            key={currentPage.comic_image_url}
             src={mediaUrl(currentPage.comic_image_url)}
             alt={`Page ${pageIndex + 1}`}
             className="w-full max-h-[46vh] object-contain bg-white"

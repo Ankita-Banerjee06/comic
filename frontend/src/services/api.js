@@ -82,6 +82,18 @@ export async function getCurrentUser() {
   return response.json();
 }
 
+// Flips the signed-in account between 'student' and 'teacher' in
+// place — same account, same saved Library content, no re-registering.
+export async function switchRole(role) {
+  const response = await fetch(`${API_URL}/api/auth/switch_role`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ role }),
+  });
+  if (!response.ok) throw await parseAuthError(response, 'Unable to switch role.');
+  return response.json();
+}
+
 
 // ============================================================
 // AMIVI
@@ -296,16 +308,55 @@ export async function generateQuiz({
   if (sourceProjectId) formData.append('source_project_id', sourceProjectId);
   if (file) formData.append('file', file);
 
-  const response = await fetch(
-    `${API_URL}/api/quiz/generate`,
-    {
-      method: 'POST',
-      headers: {
-        ...authHeaders(),
-      },
-      body: formData,
+  // Quiz generation does an LLM call plus one image (and, by
+  // default, one narrated video) per question, so it can run for
+  // several minutes. Left unbounded, a slow/dropped connection
+  // just hangs until the browser or a proxy in front of the API
+  // kills it — which surfaces as a bare, unhelpful "Failed to
+  // fetch" with no indication of what actually went wrong. Give
+  // it a generous but finite budget and turn a network-level
+  // failure into a message that says so.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+
+  let response;
+
+  try {
+    response = await fetch(
+      `${API_URL}/api/quiz/generate`,
+      {
+        method: 'POST',
+        headers: {
+          ...authHeaders(),
+        },
+        body: formData,
+        signal: controller.signal,
+      }
+    );
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(
+        'Quiz generation is taking much longer than expected ' +
+          '(over 5 minutes) and was stopped. This usually means ' +
+          'the server is overloaded or the connection dropped — ' +
+          'please try again, or generate fewer questions / turn ' +
+          'off images and videos for a faster quiz.'
+      );
     }
-  );
+
+    // A raw network failure (connection reset, DNS, CORS, the
+    // server process restarting mid-request) throws here as
+    // "Failed to fetch" with no body to read — there is no
+    // response to parse a detail out of.
+    throw new Error(
+      'Could not reach the server to generate this quiz. Check ' +
+        'your connection and try again — if it keeps happening, ' +
+        'the quiz may be too large (try fewer questions, or turn ' +
+        'off images/videos) or the server may be down.'
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const err = await response.json().catch(
@@ -632,6 +683,22 @@ export async function deleteLibraryProject(id) {
   return response.json();
 }
 
+// Regenerates ONLY the images of a saved quiz, under the same
+// answer-safety rules used for brand-new quizzes — for an older
+// quiz whose question image accidentally gives the answer away
+// (e.g. a labeled poster/diagram). Leaves questions/options as-is.
+export async function fixQuizImages(id) {
+  const response = await fetch(`${API_URL}/api/library/${id}/fix_quiz_images`, {
+    method: 'POST',
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || "Unable to fix this quiz's images.");
+  }
+  return response.json();
+}
+
 
 // ============================================================
 // ESSENTIAL LEARNING
@@ -868,6 +935,31 @@ export async function createAssignment(classCode, { memberToken, title, instruct
 export async function getAssignment(classCode, assignmentId) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}`);
   if (!response.ok) throw await parseClassroomError(response, 'Unable to load this assignment.');
+  return response.json();
+}
+
+// Opens the exact AMIVI/AMICO/quiz project a teacher attached to a
+// classroom assignment, authorized by the caller's own classroom
+// member_token rather than the main account system — this is how a
+// student who only joined with a class code (no full account, so no
+// ownership over the teacher's project) can still view material their
+// teacher shared with them through homework.
+export async function getAssignmentProject(classCode, assignmentId, kind, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}/project/${kind}?member_token=${encodeURIComponent(memberToken)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load this material.');
+  return response.json();
+}
+
+// Lists the teacher's own saved Library projects of one type (quiz /
+// amivi / amico), so "Assign homework" can offer an already-made
+// lesson instead of forcing a fresh regeneration from pasted text.
+export async function getClassroomLibraryProjects(classCode, memberToken, type) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/library-projects?member_token=${encodeURIComponent(memberToken)}&type=${encodeURIComponent(type)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load your Library.');
   return response.json();
 }
 

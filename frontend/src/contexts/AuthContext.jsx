@@ -7,6 +7,7 @@ import {
   loginUser,
   logoutUser,
   getCurrentUser,
+  switchRole as switchRoleApi,
 } from '../services/api';
 
 const AuthContext = createContext();
@@ -71,6 +72,17 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Flips the signed-in account between Student and Teacher views, in
+  // place — same account id, same saved Library content. Useful for
+  // one person testing or demoing both experiences without juggling
+  // two separate accounts.
+  const switchRole = useCallback(async (role) => {
+    const data = await switchRoleApi(role);
+    setUser(data.user);
+    saveAuthSession({ token, user: data.user });
+    return data.user;
+  }, [token]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -82,6 +94,7 @@ export function AuthProvider({ children }) {
         register,
         login,
         logout,
+        switchRole,
       }}
     >
       {children}

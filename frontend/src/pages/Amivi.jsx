@@ -1,7 +1,7 @@
 import FileUpload from '../components/ui/FileUpload';
 import ProcessingAnimation from '../components/ui/ProcessingAnimation';
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 
 import {
   generateAmivi,
@@ -10,6 +10,7 @@ import {
   generateAmiviCompleteVisual,
   generateAmiviPhotoStory,
   getLibraryProject,
+  getAssignmentProject,
   API_URL,
 } from '../services/api';
 
@@ -102,6 +103,15 @@ export default function Amivi() {
   // unchanged from there.
   const [webUrlInput, setWebUrlInput] = useState('');
   const [isExtractingUrl, setIsExtractingUrl] = useState(false);
+
+  // UPLOADS box, option 1: upload a PDF/DOCX/TXT file. Tracked the
+  // same way as the URL path above (isExtractingUrl) — previously
+  // this had no loading state at all, so between FileUpload's own
+  // (fixed-timer, not tied to the real request) "Upload complete"
+  // checkmark and the text actually landing in Insert Subject there
+  // was a silent gap with zero feedback, and no clear sign if the
+  // real extraction had failed.
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   const [processingChunkId, setProcessingChunkId] = useState(null);
   const [editingChunk, setEditingChunk] = useState(null);
@@ -207,6 +217,7 @@ export default function Amivi() {
 
   const navigate = useNavigate();
   const { projectId } = useParams();
+  const location = useLocation();
   const { language, t } = useLanguage();
   const { role } = useAuth();
   // Classroom Mode is a teacher-facing presentation tool (it's how
@@ -219,6 +230,16 @@ export default function Amivi() {
   // instead of running the generator again)
   // ============================================================
 
+  // Arriving here from a classroom homework row (Classroom.jsx) carries
+  // classroom-view context in route state: a student who only joined via
+  // class code doesn't own this project on the main account system, so
+  // the normal getLibraryProject call would 404 for them. Fetch through
+  // the classroom-scoped endpoint instead whenever that context is
+  // present; it's authorized by the student's own member_token and only
+  // ever returns the specific project their teacher attached to this
+  // exact assignment.
+  const classroomView = location.state?.classroomView || null;
+
   useEffect(() => {
     if (!projectId) return;
 
@@ -230,7 +251,11 @@ export default function Amivi() {
     setMcqAnswers({});
     setPhotoStoryError(null);
 
-    getLibraryProject(projectId)
+    const fetchProject = classroomView
+      ? getAssignmentProject(classroomView.classCode, classroomView.assignmentId, 'amivi', classroomView.memberToken)
+      : getLibraryProject(projectId);
+
+    fetchProject
       .then((project) => {
         if (cancelled) return;
         setResult({ ...project.data, project_id: project.id });
@@ -246,6 +271,7 @@ export default function Amivi() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   // Start back at Microbit page 1 whenever a different project's
@@ -620,6 +646,7 @@ export default function Amivi() {
     if (!file) return;
 
     setError(null);
+    setIsUploadingFile(true);
 
     try {
       const formData = new FormData();
@@ -660,6 +687,8 @@ export default function Amivi() {
         err?.message ||
           'Failed to extract content from file.'
       );
+    } finally {
+      setIsUploadingFile(false);
     }
   };
 
@@ -728,10 +757,11 @@ export default function Amivi() {
 
       <button
         type="button"
-        onClick={() => navigate('/explore')}
+        onClick={() => navigate(projectId ? '/library' : '/explore')}
         className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" /> Back
+        <ArrowLeft className="w-4 h-4" />
+        {projectId ? t('Back to Library') : t('Back')}
       </button>
 
       {/* ======================================================
@@ -916,7 +946,11 @@ export default function Amivi() {
               <p className="text-sm font-extrabold uppercase tracking-wide text-black mb-2">
                 {t('1. Upload a document')}
               </p>
-              <div className="bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-6 mb-5 flex flex-col justify-center">
+              <div
+                className={`bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-6 mb-2 flex flex-col justify-center transition-opacity ${
+                  isExtractingUrl ? 'opacity-50 pointer-events-none' : ''
+                }`}
+              >
                 <FileUpload
                   accept=".pdf,.docx,.txt"
                   onUpload={handleUpload}
@@ -926,7 +960,20 @@ export default function Amivi() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 mb-5">
+              {/* Real status for the file upload — FileUpload's own
+                  progress bar is a fixed-length animation, not tied
+                  to this actual network request, so its "Upload
+                  complete" checkmark can show well before (or
+                  regardless of whether) extraction has actually
+                  finished. This line reflects the real request. */}
+              {isUploadingFile && (
+                <p className="flex items-center gap-2 text-base font-semibold text-black mb-3">
+                  <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                  {t('Reading your file and extracting the text…')}
+                </p>
+              )}
+
+              <div className="flex items-center gap-3 mb-5 mt-3">
                 <div className="flex-1 h-px bg-indigo-100" />
                 <span className="text-sm font-extrabold uppercase tracking-wide text-black">{t('or')}</span>
                 <div className="flex-1 h-px bg-indigo-100" />
@@ -935,7 +982,11 @@ export default function Amivi() {
               <p className="text-sm font-extrabold uppercase tracking-wide text-black mb-2">
                 {t('2. Paste a website URL')}
               </p>
-              <div className="bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-5 mb-6">
+              <div
+                className={`bg-cyan-50 border-2 border-dashed border-cyan-200 rounded-2xl p-5 mb-3 transition-opacity ${
+                  isUploadingFile ? 'opacity-50 pointer-events-none' : ''
+                }`}
+              >
                 <p className="text-base text-black font-semibold mb-3">
                   {t('Paste a link to an article with educational material (e.g. a Wikipedia page) and AMIVI will pull out the key content for you.')}
                 </p>
@@ -945,13 +996,13 @@ export default function Amivi() {
                     value={webUrlInput}
                     onChange={(e) => setWebUrlInput(e.target.value)}
                     placeholder="https://en.wikipedia.org/wiki/Water_cycle"
-                    disabled={isExtractingUrl}
+                    disabled={isExtractingUrl || isUploadingFile}
                     className="flex-1 px-4 py-3 bg-white border border-cyan-200 rounded-xl text-black font-medium focus:ring-4 focus:ring-cyan-100 focus:border-cyan-400 focus:outline-none disabled:opacity-60"
                   />
                   <button
                     type="button"
                     onClick={handleUrlExtract}
-                    disabled={!webUrlInput.trim() || isExtractingUrl}
+                    disabled={!webUrlInput.trim() || isExtractingUrl || isUploadingFile}
                     className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
                   >
                     {isExtractingUrl ? (
@@ -965,6 +1016,16 @@ export default function Amivi() {
                   </button>
                 </div>
               </div>
+
+              {/* Shown right here too (not just near Generate,
+                  which can be a column away on desktop and a whole
+                  scroll away on mobile) so a failed upload/extract
+                  is impossible to miss right where it happened. */}
+              {error && (
+                <p className="text-red-600 font-bold text-base mb-3 whitespace-pre-wrap">
+                  {error}
+                </p>
+              )}
             </>
           ) : (
             <div className="bg-cyan-50/50 border-2 border-dashed border-cyan-100 rounded-2xl p-6 mb-6 flex-1 flex items-center justify-center text-black font-bold text-center">
@@ -2048,12 +2109,12 @@ export default function Amivi() {
                 <img
                   src={getMediaUrl(chunk.image_url)}
                   alt={chunk.key_point || chunk.text || `Chunk ${presentMode.index + 1}`}
-                  className="max-w-full max-h-[42vh] sm:max-h-[48vh] object-contain rounded-sm"
+                  className="max-w-[92vw] max-h-[60vh] sm:max-h-[72vh] object-contain rounded-sm"
                 />
               </div>
             </div>
 
-            <p className="mt-6 px-6 text-center text-white font-extrabold text-3xl sm:text-5xl leading-tight">
+            <p className="mt-4 px-6 text-center text-white font-extrabold text-3xl sm:text-5xl leading-tight">
               {chunk.key_point || chunk.text}
             </p>
 

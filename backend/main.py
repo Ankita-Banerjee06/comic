@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -23,6 +24,7 @@ import shutil
 import uuid
 import textwrap
 import threading
+import concurrent.futures
 import time
 import socket
 import ipaddress
@@ -165,6 +167,10 @@ class AuthRegisterRequest(BaseModel):
 class AuthLoginRequest(BaseModel):
     email: str
     password: str
+
+
+class AuthSwitchRoleRequest(BaseModel):
+    role: str  # "student" | "teacher"
 
 
 class AmiviRequest(BaseModel):
@@ -634,6 +640,39 @@ def auth_logout(authorization: str | None = Header(default=None)):
 def auth_me(current_user=Depends(get_current_user)):
 
     return {"user": serialize_user(current_user)}
+
+
+@app.post("/api/auth/switch_role")
+def auth_switch_role(payload: AuthSwitchRoleRequest, current_user=Depends(get_current_user)):
+    # Lets a signed-in user flip their own account between Student and
+    # Teacher views, in place — same account id, same saved Library
+    # content, no re-registering. Mainly for a single person (a teacher
+    # building lessons, or anyone testing/demoing the app) who needs to
+    # see both the teacher and student experience without juggling two
+    # separate accounts.
+
+    role = (payload.role or "").strip().lower()
+
+    if role not in ("student", "teacher"):
+        raise HTTPException(status_code=400, detail="Role must be 'student' or 'teacher'.")
+
+    db = SessionLocal()
+
+    try:
+
+        user = db.query(User).filter(User.id == current_user.id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Account not found.")
+
+        user.role = role
+        db.commit()
+        db.refresh(user)
+
+        return {"user": serialize_user(user)}
+
+    finally:
+        db.close()
 
 
 # ============================================================
@@ -2195,13 +2234,26 @@ def _is_safe_external_url(url: str) -> bool:
     if hostname.lower() in {"localhost"}:
         return False
 
+    # socket.getaddrinfo() has no built-in timeout and can hang well
+    # past any sane request budget if DNS is slow or unreachable —
+    # left unbounded, that hang was blocking this whole (synchronous)
+    # check, which in turn blocked the server. Give it a hard ceiling
+    # in a worker thread instead of letting it stall indefinitely.
+    # Note: `pool.shutdown(wait=False)` — a `with ThreadPoolExecutor()`
+    # block would call shutdown(wait=True) on the way out, which
+    # blocks until the stalled lookup itself finishes, defeating the
+    # timeout entirely. We abandon it instead: the one leaked thread
+    # dies on its own once the lookup eventually returns (or never,
+    # if the host is truly unreachable) without holding up this
+    # request.
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
-        resolved_ips = {
-            info[4][0]
-            for info in socket.getaddrinfo(hostname, None)
-        }
-    except socket.gaierror:
+        future = pool.submit(socket.getaddrinfo, hostname, None)
+        resolved_ips = {info[4][0] for info in future.result(timeout=6)}
+    except (socket.gaierror, concurrent.futures.TimeoutError):
         return False
+    finally:
+        pool.shutdown(wait=False)
 
     for ip_text in resolved_ips:
 
@@ -2252,7 +2304,11 @@ def extract_webpage_text(url: str) -> dict:
     try:
         response = requests.get(
             url,
-            timeout=20,
+            # (connect timeout, read timeout) instead of one shared
+            # number — a slow/unreachable host now fails fast (8s)
+            # rather than potentially stacking up to ~40s across both
+            # phases before the caller sees anything.
+            timeout=(8, 20),
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (compatible; VLQ-AMIVI/1.0; "
@@ -3257,8 +3313,22 @@ def generate_quiz_from_source(
         "explanation (1-2 short, simple sentences explaining "
         "why the correct answer is right), and "
         "image_prompt (a short description of a simple, clear "
-        "illustration or labeled map/diagram that supports the "
-        "correct answer).\n\n"
+        "illustration setting the scene for the question's "
+        "subject matter in general — NEVER an illustration of "
+        "the correct answer specifically, and never one that "
+        "would be a different, telling picture for a wrong "
+        "answer than for the right one. A student looking only "
+        "at the image, before reading any option, must not be "
+        "able to guess which option is correct from it. "
+        "CRITICAL: the image itself must contain NO text, "
+        "words, labels, captions, titles, or arrows pointing "
+        "at or naming anything — it is a pure, wordless "
+        "illustration, never a labeled diagram or map. For "
+        "example, for 'Which organ pumps blood around the "
+        "body?' use a plain, unlabeled illustration of a human "
+        "body or a classroom science-lesson scene — never a "
+        "diagram of a heart with its chambers labeled, since "
+        "that draws and names the correct answer outright.\n\n"
 
         "Also classify the overall topic into exactly one of these "
         "fixed categories and return it as subject_category: "
@@ -5567,7 +5637,11 @@ async def amivi_extract(
                 detail="The uploaded file is empty.",
             )
 
-        text = extract_text_from_file(
+        # CPU-bound (PDF/DOCX parsing) — same reasoning as the
+        # weblink extractor: keep it off the event loop so a large
+        # or awkward file can't stall other requests while it parses.
+        text = await run_in_threadpool(
+            extract_text_from_file,
             file_bytes,
             file.filename or "upload.txt",
         )
@@ -5641,7 +5715,20 @@ async def amivi_extract_url(
         if is_video_url:
 
             try:
-                video_result = extract_video_text(
+                # extract_video_text() and extract_webpage_text()
+                # below are both plain blocking functions (network
+                # requests, DNS lookups) called from an `async def`
+                # route — run directly they'd block this whole
+                # server's single event loop for as long as the
+                # external site takes to respond, stalling every
+                # other in-flight request (and, if that outlasts
+                # Render's own gateway timeout, dropping the client's
+                # connection outright — which shows up in the browser
+                # as "Failed to fetch" rather than any error message
+                # from us). run_in_threadpool() keeps the slow I/O off
+                # the event loop so one slow pasted URL can't do that.
+                video_result = await run_in_threadpool(
+                    extract_video_text,
                     url,
                     request.language,
                 )
@@ -5658,7 +5745,7 @@ async def amivi_extract_url(
                 # still just readable pages.
                 pass
 
-        page_result = extract_webpage_text(url)
+        page_result = await run_in_threadpool(extract_webpage_text, url)
 
         return {
             "text": page_result["text"],
@@ -6974,16 +7061,70 @@ async def amico_generate(
             processed_panels
         )
 
+        # Persist the generated panels (each with its own paid-for
+        # image already saved as a MediaAsset) onto the project
+        # NOW, before composition — compose_amico_comic below does
+        # its own DB writes (one per page sheet) and, rarely, can
+        # fail on a transient hiccup. Until this point, the only
+        # retrievable copy of these panels was this function's
+        # local variable: if composition failed before this save,
+        # the generated artwork would still exist in the database
+        # but nothing in the Library could find it, so the only way
+        # forward looked like generating everything again — at
+        # full cost. With panels saved here first, that scenario
+        # instead just needs a recompose (free — reuses the saved
+        # images, no new AI calls) to finish the job.
+        update_project_data(
+            project_id,
+            {"panels": processed_panels},
+        )
+
         # -----------------------------------------------------
         # Compose one comic sheet per page
         # -----------------------------------------------------
 
-        pages = compose_amico_comic(
-            project_id=project_id,
-            comic=comic,
-            panels_per_page=panels_per_page,
-            layout=layout,
-        )
+        try:
+
+            pages = compose_amico_comic(
+                project_id=project_id,
+                comic=comic,
+                panels_per_page=panels_per_page,
+                layout=layout,
+            )
+
+        except Exception as compose_exc:
+
+            # One retry — the panels/images themselves are already
+            # safely saved (see above), so this costs nothing but a
+            # little time, and absorbs a transient DB/render blip
+            # the same way generate_image_resilient retries once.
+            print(
+                "AMICO page composition failed, retrying once: "
+                f"{compose_exc}"
+            )
+
+            try:
+
+                pages = compose_amico_comic(
+                    project_id=project_id,
+                    comic=comic,
+                    panels_per_page=panels_per_page,
+                    layout=layout,
+                )
+
+            except Exception:
+
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        "Your comic's artwork generated "
+                        "successfully and is saved — only laying "
+                        "it out into pages failed. Nothing needs "
+                        "to be regenerated: reopen this project "
+                        f"(#{project_id}) from your Library and "
+                        "use Recompose to finish it for free."
+                    ),
+                )
 
         comic["pages"] = pages
 
@@ -8036,28 +8177,10 @@ def library_list(current_user=Depends(get_current_user)):
     return {"projects": results}
 
 
-@app.get("/api/library/{project_id}")
-def library_project_detail(project_id: int, current_user=Depends(get_current_user)):
-
-    project = get_project(project_id)
-
-    if project.project_type not in LIBRARY_PROJECT_TYPES:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Project not found.",
-        )
-
-    # Legacy (pre-auth) projects have no owner and stay visible to
-    # everyone. A project owned by someone else is reported as
-    # not-found rather than forbidden, so we don't leak whether a
-    # given project id exists.
-    if project.user_id is not None and project.user_id != current_user.id:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Project not found.",
-        )
+def serialize_library_project(project):
+    # Shared by the owner-gated /api/library/{id} endpoint and the
+    # classroom-scoped assignment-project-view endpoint below, so both
+    # read the exact same up-to-date shape instead of drifting apart.
 
     # Start from whatever's on the project itself, then layer
     # in the fully up-to-date content from the child table that
@@ -8072,7 +8195,7 @@ def library_project_detail(project_id: int, current_user=Depends(get_current_use
     if project.project_type == "amivi":
 
         chunks = list_amivi_chunks_for_project(
-            project_id
+            project.id
         )
 
         data["chunks"] = [
@@ -8129,7 +8252,7 @@ def library_project_detail(project_id: int, current_user=Depends(get_current_use
     elif project.project_type == "amico":
 
         comic = latest_comic_for_project(
-            project_id
+            project.id
         )
 
         if comic:
@@ -8138,7 +8261,7 @@ def library_project_detail(project_id: int, current_user=Depends(get_current_use
     elif project.project_type == "quiz":
 
         quiz = latest_quiz_for_project(
-            project_id
+            project.id
         )
 
         if quiz:
@@ -8157,6 +8280,91 @@ def library_project_detail(project_id: int, current_user=Depends(get_current_use
             else None
         ),
     }
+
+
+@app.get("/api/library/{project_id}")
+def library_project_detail(project_id: int, current_user=Depends(get_current_user)):
+
+    project = get_project(project_id)
+
+    if project.project_type not in LIBRARY_PROJECT_TYPES:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    # Legacy (pre-auth) projects have no owner and stay visible to
+    # everyone. A project owned by someone else is reported as
+    # not-found rather than forbidden, so we don't leak whether a
+    # given project id exists.
+    if project.user_id is not None and project.user_id != current_user.id:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    return serialize_library_project(project)
+
+
+@app.get("/api/classrooms/{class_code}/assignments/{assignment_id}/project/{kind}")
+def assignment_project_view(class_code: str, assignment_id: int, kind: str, member_token: str):
+    # Lets a classroom member (teacher or student, verified by their own
+    # member_token — not the main account system) open the exact AMIVI/
+    # AMICO/quiz a teacher attached to one of their assignments, without
+    # needing to own that project. The main /api/library/{id} endpoint
+    # above stays strictly owner-only; this is a narrow, assignment-scoped
+    # exception to that rule, not a loosening of it: it only ever returns
+    # the specific project id already recorded on an assignment the caller
+    # is a verified member of that assignment's own classroom.
+
+    if kind not in ("quiz", "amivi", "amico"):
+        raise HTTPException(
+            status_code=400,
+            detail="kind must be one of: quiz, amivi, amico.",
+        )
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        get_classroom_member_by_token(db, classroom.id, member_token)
+
+        assignment = (
+            db.query(Assignment)
+            .filter(
+                Assignment.id == assignment_id,
+                Assignment.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found.")
+
+        project_id = {
+            "quiz": assignment.quiz_project_id,
+            "amivi": assignment.amivi_project_id,
+            "amico": assignment.amico_project_id,
+        }[kind]
+
+        if not project_id:
+            raise HTTPException(
+                status_code=404,
+                detail=f"This assignment has no {kind} attached.",
+            )
+
+        project = get_project(project_id)
+
+        if not project or project.project_type != kind:
+            raise HTTPException(status_code=404, detail="Project not found.")
+
+        return serialize_library_project(project)
+
+    finally:
+        db.close()
 
 
 @app.delete("/api/library/{project_id}")
@@ -8401,11 +8609,48 @@ async def quiz_generate(
             try:
                 sibling_project = get_project(source_project_id)
 
-                source_text = (
-                    sibling_project.input_text or ""
-                ).strip()
-
                 topic_clean = (sibling_project.title or "").strip()
+
+                # For an AMIVI sibling, input_text is only the raw
+                # text/topic the learner originally typed in — it
+                # does not carry the Key Points, slogans and (once
+                # a learner has opened EXPLAIN) explanations AMIVI
+                # actually generated, which is the real subject
+                # context the quiz should be built from. Pull the
+                # live AmiviChunk rows (same "fully up-to-date
+                # content" pattern library_project_detail uses) and
+                # build the quiz material from those instead; fall
+                # back to input_text only if there's nothing there
+                # yet (e.g. AMIVI generation partially failed).
+                amivi_context = ""
+
+                if sibling_project.project_type == "amivi":
+
+                    chunks = list_amivi_chunks_for_project(
+                        source_project_id
+                    )
+
+                    amivi_context = "\n\n".join(
+                        part
+                        for chunk in chunks
+                        for part in [
+                            " — ".join(
+                                filter(
+                                    None,
+                                    [
+                                        chunk.key_point,
+                                        chunk.description or chunk.text,
+                                    ],
+                                )
+                            )
+                        ]
+                        if part
+                    ).strip()
+
+                source_text = (
+                    amivi_context
+                    or (sibling_project.input_text or "").strip()
+                )
 
                 if source_text:
                     mode = "material"
@@ -8494,14 +8739,26 @@ async def quiz_generate(
             chapter_key=chapter_key,
         )
 
-        processed_questions = []
+        # -----------------------------------------------------
+        # Generate each question's image + explanation video (in
+        # parallel — these are independent per-question network
+        # calls, same reason AMIVI chunks and AMICO panels run
+        # concurrently instead of one at a time. Run serially,
+        # num_questions x (1 image call + 1 video call) adds up
+        # fast — with the default 5 questions this routinely took
+        # long enough that the platform/proxy in front of this API
+        # dropped the connection before a response ever went out,
+        # which the browser surfaces as a bare "Failed to fetch"
+        # rather than a real error message. Running concurrently
+        # keeps the whole request close to the time of the single
+        # slowest question instead of the sum of all of them.
+        # -----------------------------------------------------
 
-        for index, question in enumerate(
-            quiz.get(
-                "questions",
-                [],
-            )
-        ):
+        questions = quiz.get("questions", [])
+
+        processed_questions = [None] * len(questions)
+
+        def process_question(index, question):
 
             image_id = None
             video_id = None
@@ -8510,7 +8767,13 @@ async def quiz_generate(
 
                 try:
 
-                    image_id = generate_image(
+                    # generate_image_resilient (not the bare
+                    # generate_image) so one question whose prompt
+                    # trips the image model's content-safety system
+                    # gets a safe-fallback retry instead of just
+                    # losing that question's image outright — same
+                    # resilience AMICO/AMIVI panels already get.
+                    image_id = generate_image_resilient(
                         prompt=question.get(
                             "image_prompt",
                             question.get("q", ""),
@@ -8520,6 +8783,7 @@ async def quiz_generate(
                             f"_q{index}.png"
                         ),
                         project_id=project_id,
+                        fallback_label=question.get("q") or "this question",
                     )
 
                 except Exception as image_exc:
@@ -8556,36 +8820,47 @@ async def quiz_generate(
                         f"{video_exc}"
                     )
 
-            processed_questions.append(
-                {
-                    "question_id": index,
-                    "q": question.get("q", ""),
-                    "options": question.get(
-                        "options",
-                        [],
-                    ),
-                    "correct": question.get(
-                        "correct",
-                        0,
-                    ),
-                    "explanation": question.get(
-                        "explanation",
-                        "",
-                    ),
-                    "image_id": image_id,
-                    "image_url": (
-                        f"/api/media/{image_id}"
-                        if image_id
-                        else None
-                    ),
-                    "video_id": video_id,
-                    "video_url": (
-                        f"/api/media/{video_id}"
-                        if video_id
-                        else None
-                    ),
-                }
-            )
+            return {
+                "question_id": index,
+                "q": question.get("q", ""),
+                "options": question.get(
+                    "options",
+                    [],
+                ),
+                "correct": question.get(
+                    "correct",
+                    0,
+                ),
+                "explanation": question.get(
+                    "explanation",
+                    "",
+                ),
+                "image_id": image_id,
+                "image_url": (
+                    f"/api/media/{image_id}"
+                    if image_id
+                    else None
+                ),
+                "video_id": video_id,
+                "video_url": (
+                    f"/api/media/{video_id}"
+                    if video_id
+                    else None
+                ),
+            }
+
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+
+            futures = {
+                executor.submit(process_question, idx, q): idx
+                for idx, q in enumerate(questions)
+            }
+
+            for future in concurrent.futures.as_completed(futures):
+                idx = futures[future]
+                processed_questions[idx] = future.result()
 
         final_quiz = {
             "title": quiz_title,
@@ -8688,6 +8963,181 @@ async def quiz_generate_question_image(
                 else None
             ),
         }
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=friendly_error_detail(exc),
+        )
+
+
+# ============================================================
+# QUIZ IMAGE REPAIR — regenerates ONLY the images of a saved
+# Library quiz, under the same answer-safety rules used when
+# generating a brand-new quiz. For older quizzes saved before
+# those safety rules existed, whose question images may show
+# a labeled diagram/poster that gives the correct answer away
+# (e.g. a portrait literally captioned with the right name).
+# Does not touch question text, options, or explanations.
+# ============================================================
+
+@app.post("/api/library/{project_id}/fix_quiz_images")
+def fix_quiz_images(project_id: int, current_user=Depends(get_current_user)):
+
+    project = get_project(project_id)
+
+    if project.project_type != "quiz":
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    # Owner-only, same as every other Library mutation endpoint.
+    if project.user_id is not None and project.user_id != current_user.id:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    quiz_row = latest_quiz_for_project(project_id)
+
+    if not quiz_row or not quiz_row.data:
+
+        raise HTTPException(
+            status_code=404,
+            detail="This project has no saved quiz data.",
+        )
+
+    try:
+
+        require_services()
+
+        quiz_data = dict(quiz_row.data or {})
+        questions = list(quiz_data.get("questions") or [])
+
+        if not questions:
+
+            raise HTTPException(
+                status_code=400,
+                detail="This quiz has no questions to fix.",
+            )
+
+        # Reuse the EXACT same answer-safety wording used when a
+        # brand-new quiz is generated (generate_quiz_from_source),
+        # so an old quiz gets re-illustrated under the same rule
+        # instead of a slightly different one drifting out of sync.
+        prompt_instructions = (
+            "For each quiz question below, write a short description "
+            "of a simple, clear illustration setting the scene for "
+            "the question's subject matter in general — NEVER an "
+            "illustration of the correct answer specifically, and "
+            "never one that would be a different, telling picture "
+            "for a wrong answer than for the right one. A student "
+            "looking only at the image, before reading any option, "
+            "must not be able to guess which option is correct from "
+            "it. CRITICAL: the image itself must contain NO text, "
+            "words, labels, captions, titles, or arrows pointing at "
+            "or naming anything — it is a pure, wordless "
+            "illustration, never a labeled diagram, map, or "
+            "portrait with a caption. For example, for 'Which organ "
+            "pumps blood around the body?' use a plain, unlabeled "
+            "illustration of a human body or a classroom "
+            "science-lesson scene — never a diagram of a heart with "
+            "its chambers labeled, since that draws and names the "
+            "correct answer outright. Likewise, for a question "
+            "asking who a famous person is, use a generic, "
+            "unlabeled scene related to their field or era — never "
+            "a labeled portrait naming them.\n\n"
+            "Return ONLY JSON in this structure: "
+            '{"image_prompts": ["...", "...", ...]} '
+            "with exactly one entry per question, in the same order "
+            "as the questions given."
+        )
+
+        questions_text = "\n\n".join(
+            f"Question {index + 1}: {question.get('q', '')}\n"
+            "Options: "
+            + ", ".join(question.get("options") or [])
+            for index, question in enumerate(questions)
+        )
+
+        prompts_result = call_json_model(
+            TERRA_MODEL,
+            prompt_instructions,
+            questions_text,
+        )
+
+        image_prompts = list(
+            (prompts_result or {}).get("image_prompts") or []
+        )
+
+        def regenerate_one(index):
+
+            if index >= len(image_prompts):
+                return index, None
+
+            safe_prompt = image_prompts[index]
+
+            if not safe_prompt:
+                return index, None
+
+            new_image_id = generate_image_resilient(
+                prompt=safe_prompt,
+                filename=f"quiz_fix_{uuid.uuid4().hex[:8]}.png",
+                project_id=project_id,
+                fallback_label=safe_prompt,
+            )
+
+            return index, new_image_id
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+
+            results = list(
+                executor.map(regenerate_one, range(len(questions)))
+            )
+
+        for index, new_image_id in results:
+
+            if not new_image_id:
+                continue
+
+            questions[index]["image_id"] = new_image_id
+            questions[index]["image_url"] = f"/api/media/{new_image_id}"
+
+        quiz_data["questions"] = questions
+
+        db = SessionLocal()
+
+        try:
+
+            row = (
+                db.query(Quiz)
+                .filter(Quiz.id == quiz_row.id)
+                .first()
+            )
+
+            if row:
+
+                row.data = quiz_data
+                db.commit()
+
+        finally:
+            db.close()
+
+        return {
+            "status": "success",
+            "quiz": quiz_data,
+        }
+
+    except HTTPException:
+        raise
 
     except Exception as exc:
 
@@ -9780,6 +10230,64 @@ def classroom_detail(class_code: str):
             "assignments": [
                 serialize_assignment(db, a, student_count) for a in assignments
             ],
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/library-projects")
+def classroom_library_projects(class_code: str, member_token: str, type: str):
+    # Lets a teacher pick an AMIVI/AMICO/quiz they already made (e.g. a
+    # saved Bridge Building lesson) when assigning homework, instead of
+    # being forced to re-paste the material and regenerate it from
+    # scratch. Only works once this classroom membership is linked to
+    # the teacher's real account (that link happens automatically, the
+    # moment they register/log into this classroom while also logged
+    # into their VLQ account in the same browser) — otherwise we have
+    # no account to list a Library for, and say so plainly.
+
+    if type not in ("quiz", "amivi", "amico"):
+        raise HTTPException(
+            status_code=400,
+            detail="type must be one of: quiz, amivi, amico.",
+        )
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+
+        if not member.user_id:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Log into your VLQ account in this browser, then log "
+                    "back into your classroom, to use saved material from "
+                    "your Library here."
+                ),
+            )
+
+        projects = [
+            p
+            for p in list_library_projects(user_id=member.user_id)
+            if p.project_type == type and p.user_id == member.user_id
+        ]
+
+        return {
+            "projects": [
+                {
+                    "id": p.id,
+                    "title": p.title or f"Untitled ({p.project_type})",
+                    "created_at": (
+                        p.created_at.isoformat() if p.created_at else None
+                    ),
+                }
+                for p in projects
+            ]
         }
 
     finally:

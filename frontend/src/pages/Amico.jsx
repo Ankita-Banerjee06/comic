@@ -14,6 +14,7 @@ import {
   generateAmicoPhotoStory,
   listProjects,
   getLibraryProject,
+  getAssignmentProject,
   mediaUrl,
   downloadMedia,
 } from '../services/api';
@@ -29,6 +30,7 @@ import {
   Plus,
   Pencil,
   RefreshCw,
+  Loader2,
   Trash2,
   Maximize2,
   Camera,
@@ -145,6 +147,8 @@ export default function Amico() {
   const [editingPanel, setEditingPanel] = useState(null);
   const [busyPanelNumber, setBusyPanelNumber] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [recomposing, setRecomposing] = useState(false);
+  const [recomposeError, setRecomposeError] = useState(null);
 
   // Photo Story mode
   const [psFile, setPsFile] = useState(null);
@@ -226,6 +230,16 @@ export default function Amico() {
   // instead of running the generator again)
   // ============================================================
 
+  // Arriving here from a classroom homework row (Classroom.jsx) carries
+  // classroom-view context in route state: a student who only joined via
+  // class code doesn't own this project on the main account system, so
+  // the normal getLibraryProject call would 404 for them. Fetch through
+  // the classroom-scoped endpoint instead whenever that context is
+  // present; it's authorized by the student's own member_token and only
+  // ever returns the specific project their teacher attached to this
+  // exact assignment.
+  const classroomView = location.state?.classroomView || null;
+
   useEffect(() => {
     if (!projectId) return;
 
@@ -236,7 +250,11 @@ export default function Amico() {
     setError(null);
     setResult(null);
 
-    getLibraryProject(projectId)
+    const fetchProject = classroomView
+      ? getAssignmentProject(classroomView.classCode, classroomView.assignmentId, 'amico', classroomView.memberToken)
+      : getLibraryProject(projectId);
+
+    fetchProject
       .then((project) => {
         if (cancelled) return;
         setResult({ ...project.data, project_id: project.id });
@@ -253,6 +271,7 @@ export default function Amico() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   // ============================================================
@@ -445,6 +464,24 @@ export default function Amico() {
 
     setResult((prev) => ({ ...prev, panels: data.panels, pages: data.pages }));
     setCurrentPageIndex(0);
+  };
+
+  // Lays out the already-saved panels into pages — no AI image or
+  // text generation involved, just re-composing artwork that's
+  // already been generated (and already saved). This is what a
+  // project reopened after a page-composition failure needs: the
+  // panels/images exist, they just never got laid out into pages.
+  const handleRecomposeNow = async () => {
+    if (!result?.panels?.length) return;
+    setRecomposing(true);
+    setRecomposeError(null);
+    try {
+      await applyRecompose(result.panels);
+    } catch (err) {
+      setRecomposeError(err.message || 'Failed to lay out the pages.');
+    } finally {
+      setRecomposing(false);
+    }
   };
 
   const handleRegeneratePanel = async (panel) => {
@@ -984,6 +1021,32 @@ export default function Amico() {
                   </button>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* No composed pages yet but the artwork itself is saved —
+              most commonly a project reopened after page layout
+              failed partway through generation. Nothing needs to be
+              regenerated here, just laid out, so this is free. */}
+          {pages.length === 0 && result.panels?.length > 0 && (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 text-center space-y-3">
+              <p className="font-bold text-amber-800">
+                Your {result.panels.length} panel{result.panels.length === 1 ? '' : 's'} and their artwork are saved, but haven't been laid out into comic pages yet.
+              </p>
+              <p className="text-sm text-amber-700">
+                This won't generate anything new or cost anything extra — it just arranges the art you already have.
+              </p>
+              <button
+                onClick={handleRecomposeNow}
+                disabled={recomposing}
+                className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-5 rounded-xl disabled:opacity-60 transition-colors"
+              >
+                {recomposing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                {recomposing ? 'Laying out pages…' : 'Build pages now'}
+              </button>
+              {recomposeError && (
+                <p className="text-sm font-bold text-red-600">{recomposeError}</p>
+              )}
             </div>
           )}
 

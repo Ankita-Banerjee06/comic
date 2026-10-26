@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, User, Globe, ChevronDown, GraduationCap, Video, LogOut, Home, Compass, CreditCard, Lightbulb, Info, Sparkles } from 'lucide-react';
+import { Menu, X, User, Globe, ChevronDown, GraduationCap, Video, LogOut, Home, Compass, CreditCard, Lightbulb, Info, Sparkles, Repeat } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage, SUPPORTED_LANGUAGES } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,14 +45,32 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { t } = useLanguage();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, switchRole } = useAuth();
   const navigate = useNavigate();
+  const [switchingRole, setSwitchingRole] = useState(false);
 
   const handleLogout = async () => {
     setUserMenuOpen(false);
     setIsOpen(false);
     await logout();
     navigate('/login');
+  };
+
+  // Lets one person flip between the Teacher and Student views of the
+  // same account — same saved Library content, no re-registering.
+  // Mainly for testing/demoing both experiences.
+  const handleSwitchRole = async () => {
+    const nextRole = user?.role === 'teacher' ? 'student' : 'teacher';
+    setSwitchingRole(true);
+    try {
+      await switchRole(nextRole);
+    } catch (err) {
+      console.error('Failed to switch role:', err);
+    } finally {
+      setSwitchingRole(false);
+      setUserMenuOpen(false);
+      setIsOpen(false);
+    }
   };
 
   // Public / signed-out header — no app nav links (they'd only bounce
@@ -177,6 +195,16 @@ export default function Navbar() {
                   <User className="w-4 h-4" /> Profile
                 </Link>
                 <button
+                  onClick={handleSwitchRole}
+                  disabled={switchingRole}
+                  className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  <Repeat className="w-4 h-4" />
+                  {switchingRole
+                    ? 'Switching…'
+                    : `Switch to ${user?.role === 'teacher' ? 'Student' : 'Teacher'} view`}
+                </button>
+                <button
                   onClick={handleLogout}
                   className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50"
                 >
@@ -227,6 +255,14 @@ export default function Navbar() {
               <User className="w-5 h-5" />
               <span>Profile</span>
             </Link>
+            <button onClick={handleSwitchRole} disabled={switchingRole} className="flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold w-full justify-center disabled:opacity-60">
+              <Repeat className="w-5 h-5" />
+              <span>
+                {switchingRole
+                  ? 'Switching…'
+                  : `Switch to ${user?.role === 'teacher' ? 'Student' : 'Teacher'} view`}
+              </span>
+            </button>
             <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-3 bg-red-50 text-red-500 rounded-xl font-bold w-full justify-center">
               <LogOut className="w-5 h-5" />
               <span>Log out</span>
