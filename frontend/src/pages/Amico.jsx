@@ -195,10 +195,15 @@ export default function Amico() {
   }, [source, amiviProjects.length]);
 
   useEffect(() => {
-    if (incomingSourceProjectId && amiviProjects.length > 0) {
+    // Fires regardless of whether amiviProjects (THIS account's own
+    // saved AMIVI projects) has loaded or even has anything in it —
+    // a learner opening a teacher's shared material usually has zero
+    // AMIVI projects of their own, so gating on that list being
+    // non-empty meant this never fired for exactly the case it's for.
+    if (incomingSourceProjectId) {
       setSelectedProjectId(String(incomingSourceProjectId));
     }
-  }, [incomingSourceProjectId, amiviProjects]);
+  }, [incomingSourceProjectId]);
 
   // Titles in the AMIVI package picker are short, auto-generated
   // 2-word summaries, so two different lessons can easily end up
@@ -752,7 +757,12 @@ export default function Amico() {
 
                 <h2 className="text-2xl font-bold text-black mb-2">🎨 {t('Select AMIVI Material')}</h2>
                 <p className="text-black font-bold mb-4">{t('Choose the learning material to transform into a creative format. No retyping required.')}</p>
-                {amiviProjects.length === 0 ? (
+                {incomingSourceProjectId ? (
+                  <p className="text-black font-semibold bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-4 flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-pink-500 flex-shrink-0" />
+                    {t('Using the material you opened this from — ready to generate below.')}
+                  </p>
+                ) : amiviProjects.length === 0 ? (
                   <p className="text-black font-semibold bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-4">
                     {t('No AMIVI lessons found yet. Create one in AMIVI Studio first.')}
                   </p>
@@ -770,6 +780,25 @@ export default function Amico() {
                     ))}
                   </select>
                 )}
+
+                {/* Lets each student (or anyone generating from the
+                    same shared AMIVI material) add their own creative
+                    twist, so a whole class working from one lesson
+                    doesn't all get an identical comic. Purely
+                    additive — the AMIVI Key Points, slogans and facts
+                    still drive the story; this just steers the style,
+                    setting or characters on top of them. */}
+                <h2 className="text-xl font-bold text-black mb-2">✨ {t('Add Your Own Twist')} <span className="text-base font-semibold text-black">({t('optional')})</span></h2>
+                <p className="text-black font-medium mb-3 text-sm">
+                  {t("Make it yours — everyone's comic can look and feel different even from the same lesson.")}
+                </p>
+                <textarea
+                  value={extraInstructions}
+                  onChange={(e) => setExtraInstructions(e.target.value)}
+                  placeholder={t('e.g. Set it in space, make the characters superheroes, write it like a detective mystery, use my favorite animal as the hero...')}
+                  rows={3}
+                  className="w-full p-4 bg-pink-50 border-2 border-pink-200 rounded-2xl text-black font-medium mb-4 focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none resize-none"
+                />
               </>
             ) : (
               <>

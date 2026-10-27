@@ -358,7 +358,10 @@ class AssignmentCreateRequest(BaseModel):
     member_token: str
     title: str
     instructions: str = ""
-    quiz_project_id: int
+    # Optional — a teacher can assign just Visuals and/or a Comic with
+    # no quiz at all. A quiz is only needed when the homework should
+    # be auto-graded with a score.
+    quiz_project_id: int | None = None
     amivi_project_id: int | None = None
     amico_project_id: int | None = None
     due_at: str | None = None  # ISO 8601, optional
@@ -10302,6 +10305,13 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
     if not title:
         raise HTTPException(status_code=400, detail="Assignment title is required.")
 
+    if not payload.quiz_project_id and not payload.amivi_project_id and not payload.amico_project_id:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Add at least a quiz, AMIVI visuals, or an AMICO comic to this homework.",
+        )
+
     due_at = parse_due_at(payload.due_at)
 
     db = SessionLocal()
@@ -10312,18 +10322,23 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
         member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
         require_teacher(member)
 
-        quiz_project = (
-            db.query(Project)
-            .filter(Project.id == payload.quiz_project_id)
-            .first()
-        )
+        # Quiz is optional — a teacher can assign just Visuals and/or a
+        # Comic with no gradable quiz at all. When one IS given, it
+        # still has to point at a real quiz project.
+        if payload.quiz_project_id:
 
-        if not quiz_project or quiz_project.project_type != "quiz":
-
-            raise HTTPException(
-                status_code=400,
-                detail="quiz_project_id must point at an existing quiz project.",
+            quiz_project = (
+                db.query(Project)
+                .filter(Project.id == payload.quiz_project_id)
+                .first()
             )
+
+            if not quiz_project or quiz_project.project_type != "quiz":
+
+                raise HTTPException(
+                    status_code=400,
+                    detail="quiz_project_id must point at an existing quiz project.",
+                )
 
         assignment = Assignment(
             classroom_id=classroom.id,

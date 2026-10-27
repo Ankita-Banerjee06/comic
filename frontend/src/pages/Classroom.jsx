@@ -52,7 +52,7 @@ import {
 const SESSION_KEY = 'vlq_classroom_session';
 
 const INPUT_CLASS =
-  'w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all';
+  'w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-black placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all';
 
 function loadSession() {
   try {
@@ -480,8 +480,8 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
         <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <Plus className="w-6 h-6 text-teal-600" />
         </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-1.5">I'm a teacher</h2>
-        <p className="text-slate-500 font-medium text-sm mb-4">
+        <h2 className="text-xl font-bold text-black mb-1.5">I'm a teacher</h2>
+        <p className="text-black font-medium text-sm mb-4">
           Register a new classroom and get a class code, or log back into one you already run.
         </p>
         <span className="inline-flex items-center gap-1.5 text-teal-600 font-bold text-sm">
@@ -496,8 +496,8 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
         <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <GraduationCap className="w-6 h-6 text-indigo-600" />
         </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-1.5">I'm a student</h2>
-        <p className="text-slate-500 font-medium text-sm mb-4">
+        <h2 className="text-xl font-bold text-black mb-1.5">I'm a student</h2>
+        <p className="text-black font-medium text-sm mb-4">
           Register with a class code from your teacher, or log back in to your own homework.
         </p>
         <span className="inline-flex items-center gap-1.5 text-indigo-600 font-bold text-sm">
@@ -512,8 +512,8 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
         <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <Heart className="w-6 h-6 text-rose-500" />
         </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-1.5">I'm a parent</h2>
-        <p className="text-slate-500 font-medium text-sm mb-4">
+        <h2 className="text-xl font-bold text-black mb-1.5">I'm a parent</h2>
+        <p className="text-black font-medium text-sm mb-4">
           Got a parent code from your student? View their assignments and scores — read-only.
         </p>
         <span className="inline-flex items-center gap-1.5 text-rose-500 font-bold text-sm">
@@ -535,7 +535,7 @@ function AuthTabs({ mode, onChange, activeTextClass }) {
         type="button"
         onClick={() => onChange('register')}
         className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-colors ${
-          mode === 'register' ? `bg-white ${activeTextClass} shadow-sm` : 'text-slate-500 hover:text-slate-700'
+          mode === 'register' ? `bg-white ${activeTextClass} shadow-sm` : 'text-black hover:text-black'
         }`}
       >
         Register
@@ -544,7 +544,7 @@ function AuthTabs({ mode, onChange, activeTextClass }) {
         type="button"
         onClick={() => onChange('login')}
         className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-colors ${
-          mode === 'login' ? `bg-white ${activeTextClass} shadow-sm` : 'text-slate-500 hover:text-slate-700'
+          mode === 'login' ? `bg-white ${activeTextClass} shadow-sm` : 'text-black hover:text-black'
         }`}
       >
         Log In
@@ -622,7 +622,7 @@ function CreateClassroomForm({ onCancel, onCreated }) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-slate-800">Create a classroom</h2>
+      <h2 className="text-xl font-bold text-black">Create a classroom</h2>
 
       <Field label="Classroom name">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 7th Grade Biology" className={INPUT_CLASS} />
@@ -643,7 +643,7 @@ function CreateClassroomForm({ onCancel, onCreated }) {
       {error && <p className="text-red-500 font-bold text-sm text-center whitespace-pre-wrap">{error}</p>}
 
       <div className="flex items-center gap-3 pt-1">
-        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
           Cancel
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
@@ -685,8 +685,8 @@ function TeacherLoginForm({ onCancel, onLoggedIn }) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-slate-800">Teacher log in</h2>
-      <p className="text-sm text-slate-500 font-medium -mt-3">
+      <h2 className="text-xl font-bold text-black">Teacher log in</h2>
+      <p className="text-sm text-black font-medium -mt-3">
         Use the class code and the private teacher code you saved when you created this classroom.
       </p>
 
@@ -713,7 +713,7 @@ function TeacherLoginForm({ onCancel, onLoggedIn }) {
       {error && <p className="text-red-500 font-bold text-sm text-center whitespace-pre-wrap">{error}</p>}
 
       <div className="flex items-center gap-3 pt-1">
-        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
           Cancel
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
@@ -755,7 +755,7 @@ function JoinClassroomForm({ onCancel, onJoined }) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-slate-800">Join a classroom</h2>
+      <h2 className="text-xl font-bold text-black">Join a classroom</h2>
 
       <Field label="Class code">
         <input
@@ -774,7 +774,7 @@ function JoinClassroomForm({ onCancel, onJoined }) {
       {error && <p className="text-red-500 font-bold text-sm text-center whitespace-pre-wrap">{error}</p>}
 
       <div className="flex items-center gap-3 pt-1">
-        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
           Cancel
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
@@ -816,8 +816,8 @@ function StudentLoginForm({ onCancel, onLoggedIn }) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-slate-800">Student log in</h2>
-      <p className="text-sm text-slate-500 font-medium -mt-3">
+      <h2 className="text-xl font-bold text-black">Student log in</h2>
+      <p className="text-sm text-black font-medium -mt-3">
         Use the class code and the private login code you saved when you registered.
       </p>
 
@@ -844,7 +844,7 @@ function StudentLoginForm({ onCancel, onLoggedIn }) {
       {error && <p className="text-red-500 font-bold text-sm text-center whitespace-pre-wrap">{error}</p>}
 
       <div className="flex items-center gap-3 pt-1">
-        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
           Cancel
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
@@ -885,8 +885,8 @@ function ParentLoginForm({ onCancel, onLoggedIn }) {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-slate-800">Parent access</h2>
-      <p className="text-sm text-slate-500 font-medium -mt-3">
+      <h2 className="text-xl font-bold text-black">Parent access</h2>
+      <p className="text-sm text-black font-medium -mt-3">
         Enter the code your student gave you to see their assignments and scores.
       </p>
 
@@ -903,7 +903,7 @@ function ParentLoginForm({ onCancel, onLoggedIn }) {
       {error && <p className="text-red-500 font-bold text-sm text-center whitespace-pre-wrap">{error}</p>}
 
       <div className="flex items-center gap-3 pt-1">
-        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+        <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
           Cancel
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-rose-500 hover:bg-rose-600 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
@@ -918,7 +918,7 @@ function ParentLoginForm({ onCancel, onLoggedIn }) {
 function Field({ label, children }) {
   return (
     <div>
-      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{label}</label>
+      <label className="block text-xs font-bold text-black uppercase tracking-wide mb-1.5">{label}</label>
       {children}
     </div>
   );
@@ -935,13 +935,13 @@ function ClassroomView({ session, classroom, myMember, role, loading, error, onR
     return (
       <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
         <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-        <p className="text-slate-700 font-bold text-lg mb-1">Couldn't load this classroom.</p>
-        <p className="text-slate-400 font-medium text-sm mb-5">{error}</p>
+        <p className="text-black font-bold text-lg mb-1">Couldn't load this classroom.</p>
+        <p className="text-black font-medium text-sm mb-5">{error}</p>
         <div className="flex items-center justify-center gap-3">
           <button onClick={onRetry} className="inline-flex items-center gap-2 bg-teal-600 text-white font-bold py-2.5 px-5 rounded-xl hover:bg-teal-700 transition-colors text-sm">
             <RefreshCw className="w-4 h-4" /> Try Again
           </button>
-          <button onClick={onBackToHub} className="inline-flex items-center gap-2 bg-slate-100 text-slate-600 font-bold py-2.5 px-5 rounded-xl hover:bg-slate-200 transition-colors text-sm">
+          <button onClick={onBackToHub} className="inline-flex items-center gap-2 bg-slate-100 text-black font-bold py-2.5 px-5 rounded-xl hover:bg-slate-200 transition-colors text-sm">
             Back to Start
           </button>
         </div>
@@ -1009,9 +1009,9 @@ function ClassCodeCard({ classroom }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Class code</p>
-        <p className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-[0.15em] sm:tracking-[0.2em] break-all">{classroom.class_code}</p>
-        {classroom.description && <p className="text-sm text-slate-500 font-medium mt-2 max-w-md">{classroom.description}</p>}
+        <p className="text-xs font-bold text-black uppercase tracking-wide mb-1">Class code</p>
+        <p className="text-xl sm:text-2xl font-extrabold text-black tracking-[0.15em] sm:tracking-[0.2em] break-all">{classroom.class_code}</p>
+        {classroom.description && <p className="text-sm text-black font-medium mt-2 max-w-md">{classroom.description}</p>}
       </div>
       <button onClick={handleCopy} className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl font-bold text-sm bg-slate-900 text-white hover:bg-slate-800 transition-colors shrink-0">
         {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
@@ -1031,8 +1031,8 @@ function RosterPanel({ classroom, myMember }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-      <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
-        <Users className="w-4.5 h-4.5 text-slate-400" /> Roster
+      <h2 className="font-bold text-black flex items-center gap-2 mb-4">
+        <Users className="w-4.5 h-4.5 text-black" /> Roster
       </h2>
 
       {teacher && (
@@ -1041,14 +1041,14 @@ function RosterPanel({ classroom, myMember }) {
             <span className="text-xs font-bold text-teal-600">{teacher.display_name.charAt(0).toUpperCase()}</span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-800 truncate">{teacher.display_name}</p>
+            <p className="text-sm font-bold text-black truncate">{teacher.display_name}</p>
             <p className="text-xs text-teal-600 font-semibold">Teacher{teacher.id === myMember?.id ? ' · You' : ''}</p>
           </div>
         </div>
       )}
 
       {students.length === 0 ? (
-        <p className="text-sm text-slate-400 font-medium">No students have joined yet.</p>
+        <p className="text-sm text-black font-medium">No students have joined yet.</p>
       ) : (
         <div className="space-y-3">
           {students.map((s) => (
@@ -1056,7 +1056,7 @@ function RosterPanel({ classroom, myMember }) {
               <div className="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
                 <span className="text-xs font-bold text-indigo-600">{s.display_name.charAt(0).toUpperCase()}</span>
               </div>
-              <p className="text-sm font-bold text-slate-800 truncate flex items-center gap-1.5">
+              <p className="text-sm font-bold text-black truncate flex items-center gap-1.5">
                 {s.display_name}
                 {s.id === myMember?.id && (
                   <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full">You</span>
@@ -1117,22 +1117,22 @@ function MyLoginCodeCard({ session, role }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-      <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-1.5">
-        <KeyRound className="w-4.5 h-4.5 text-slate-400" /> {isTeacher ? 'Teacher login code' : 'Your login code'}
+      <h2 className="font-bold text-black flex items-center gap-2 mb-1.5">
+        <KeyRound className="w-4.5 h-4.5 text-black" /> {isTeacher ? 'Teacher login code' : 'Your login code'}
       </h2>
-      <p className="text-sm text-slate-500 font-medium mb-4">
+      <p className="text-sm text-black font-medium mb-4">
         {isTeacher
           ? 'Private — pair this with the class code to log back in as teacher from another device. Never share it with students.'
           : 'Private — pair this with the class code to log back into your own homework and history from another device.'}
       </p>
 
       {loading && !code ? (
-        <p className="text-sm text-slate-400 font-medium">Loading…</p>
+        <p className="text-sm text-black font-medium">Loading…</p>
       ) : code ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-            <span className="text-base font-extrabold text-slate-900 tracking-[0.12em] truncate">{code}</span>
-            <button onClick={handleCopy} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors shrink-0">
+            <span className="text-base font-extrabold text-black tracking-[0.12em] truncate">{code}</span>
+            <button onClick={handleCopy} className="inline-flex items-center gap-1.5 text-xs font-bold text-black hover:text-black transition-colors shrink-0">
               {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? 'Copied' : 'Copy'}
             </button>
@@ -1140,8 +1140,8 @@ function MyLoginCodeCard({ session, role }) {
 
           {confirmRegenerate ? (
             <div className="flex items-center gap-2">
-              <p className="text-xs text-slate-500 font-medium flex-1">This disables the old code.</p>
-              <button onClick={() => setConfirmRegenerate(false)} className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors">
+              <p className="text-xs text-black font-medium flex-1">This disables the old code.</p>
+              <button onClick={() => setConfirmRegenerate(false)} className="text-xs font-bold text-black hover:text-black transition-colors">
                 Cancel
               </button>
               <button onClick={() => fetchCode(true)} className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors">
@@ -1149,7 +1149,7 @@ function MyLoginCodeCard({ session, role }) {
               </button>
             </div>
           ) : (
-            <button onClick={() => setConfirmRegenerate(true)} className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors">
+            <button onClick={() => setConfirmRegenerate(true)} className="text-xs font-bold text-black hover:text-black transition-colors">
               Generate a new code
             </button>
           )}
@@ -1199,10 +1199,10 @@ function ParentAccessCard({ session }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-      <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-1.5">
-        <KeyRound className="w-4.5 h-4.5 text-slate-400" /> Parent access
+      <h2 className="font-bold text-black flex items-center gap-2 mb-1.5">
+        <KeyRound className="w-4.5 h-4.5 text-black" /> Parent access
       </h2>
-      <p className="text-sm text-slate-500 font-medium mb-4">
+      <p className="text-sm text-black font-medium mb-4">
         Share this code with a parent or guardian so they can see your assignments and scores — read-only, no password needed.
       </p>
 
@@ -1218,8 +1218,8 @@ function ParentAccessCard({ session }) {
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-            <span className="text-base font-extrabold text-slate-900 tracking-[0.12em] truncate">{code}</span>
-            <button onClick={handleCopy} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors shrink-0">
+            <span className="text-base font-extrabold text-black tracking-[0.12em] truncate">{code}</span>
+            <button onClick={handleCopy} className="inline-flex items-center gap-1.5 text-xs font-bold text-black hover:text-black transition-colors shrink-0">
               {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? 'Copied' : 'Copy'}
             </button>
@@ -1227,8 +1227,8 @@ function ParentAccessCard({ session }) {
 
           {confirmRegenerate ? (
             <div className="flex items-center gap-2">
-              <p className="text-xs text-slate-500 font-medium flex-1">This disables the old code.</p>
-              <button onClick={() => setConfirmRegenerate(false)} className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors">
+              <p className="text-xs text-black font-medium flex-1">This disables the old code.</p>
+              <button onClick={() => setConfirmRegenerate(false)} className="text-xs font-bold text-black hover:text-black transition-colors">
                 Cancel
               </button>
               <button onClick={() => fetchCode(true)} disabled={loading} className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors">
@@ -1236,7 +1236,7 @@ function ParentAccessCard({ session }) {
               </button>
             </div>
           ) : (
-            <button onClick={() => setConfirmRegenerate(true)} className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors">
+            <button onClick={() => setConfirmRegenerate(true)} className="text-xs font-bold text-black hover:text-black transition-colors">
               Generate a new code
             </button>
           )}
@@ -1314,8 +1314,8 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
     e.preventDefault();
     setAssignError(null);
 
-    if (!generated.quiz) {
-      setAssignError('Generate a quiz from the material first — homework needs a quiz to grade.');
+    if (!generated.quiz && !generated.amivi && !generated.amico) {
+      setAssignError('Add at least a Quiz, Visuals, or a Comic before assigning homework.');
       return;
     }
 
@@ -1330,7 +1330,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         memberToken: session.memberToken,
         title: title.trim(),
         instructions: instructions.trim(),
-        quizProjectId: generated.quiz.projectId,
+        quizProjectId: generated.quiz?.projectId || null,
         amiviProjectId: generated.amivi?.projectId || null,
         amicoProjectId: generated.amico?.projectId || null,
         dueAt: dueAt ? new Date(dueAt).toISOString() : null,
@@ -1366,8 +1366,8 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
   return (
     <form onSubmit={handleAssign} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-bold text-slate-900">Assign homework</h2>
-        <button type="button" onClick={() => setExpanded(false)} className="text-slate-300 hover:text-slate-500 transition-colors">
+        <h2 className="font-bold text-black">Assign homework</h2>
+        <button type="button" onClick={() => setExpanded(false)} className="text-black hover:text-black transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -1386,7 +1386,6 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         <div>
           <GenerateChip
             label="Quiz"
-            required
             icon={Puzzle}
             color="text-purple-600"
             done={!!generated.quiz}
@@ -1436,14 +1435,14 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
           />
         </div>
       </div>
-      <p className="text-xs text-slate-400 -mt-1">
+      <p className="text-xs text-black -mt-1">
         Already have a lesson saved? Use "Or use something I already saved" under any of the three above instead of generating new — your existing images, slogans and descriptions are reused as-is, nothing is regenerated.
       </p>
 
-      {generated.quiz && (
+      {(generated.quiz || generated.amivi || generated.amico) && (
         <>
           <Field label="Homework title">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Chapter 3 Quiz" className={INPUT_CLASS} />
+            <input value={title} onChange={(e) => { setTitle(e.target.value); if (assignError) setAssignError(null); }} placeholder="e.g. Chapter 3 Quiz" className={INPUT_CLASS} />
           </Field>
 
           <Field label="Instructions (optional)">
@@ -1456,9 +1455,9 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         </>
       )}
 
-      {!generated.quiz && (
+      {!generated.quiz && !generated.amivi && !generated.amico && (
         <p className="text-amber-600 font-bold text-xs text-center">
-          Add a Quiz above (generate one, or pick a saved one) — homework needs a quiz to grade. That's why "Assign Homework" below is greyed out.
+          Add at least a Quiz, Visuals, or a Comic above before you can assign this homework. A Quiz is optional — add one only if you want it auto-graded.
         </p>
       )}
 
@@ -1466,7 +1465,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
 
       <button
         type="submit"
-        disabled={assigning || !generated.quiz}
+        disabled={assigning || (!generated.quiz && !generated.amivi && !generated.amico)}
         className="w-full py-3 rounded-xl font-bold text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
       >
         {assigning && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -1480,7 +1479,7 @@ function GenerateChip({ label, required, icon: Icon, color, done, busy, error, o
   return (
     <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center text-center gap-2">
       <Icon className={`w-5 h-5 ${color}`} />
-      <p className="text-xs font-bold text-slate-700">
+      <p className="text-xs font-bold text-black">
         {label}
         {required && <span className="text-red-400"> *</span>}
       </p>
@@ -1494,7 +1493,7 @@ function GenerateChip({ label, required, icon: Icon, color, done, busy, error, o
           type="button"
           onClick={onClick}
           disabled={busy}
-          className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-teal-600 disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-1 text-[11px] font-bold text-black hover:text-teal-600 disabled:opacity-50 transition-colors"
         >
           {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
           {busy ? 'Generating…' : 'Generate'}
@@ -1540,10 +1539,10 @@ function LibraryPicker({ classroom, session, kind, onPick }) {
       </button>
       {open && (
         <div className="mt-1.5">
-          {loading && <p className="text-[11px] text-slate-400">Loading your Library…</p>}
+          {loading && <p className="text-[11px] text-black">Loading your Library…</p>}
           {error && <p className="text-[11px] text-red-500 font-semibold">{error}</p>}
           {projects && projects.length === 0 && !loading && (
-            <p className="text-[11px] text-slate-400">No saved {kindLabel}s in your Library yet.</p>
+            <p className="text-[11px] text-black">No saved {kindLabel}s in your Library yet.</p>
           )}
           {projects && projects.length > 0 && (
             <select
@@ -1581,12 +1580,12 @@ function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-      <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
-        <ClipboardList className="w-4.5 h-4.5 text-slate-400" /> {role === 'teacher' ? 'Assigned homework' : 'My homework'}
+      <h2 className="font-bold text-black flex items-center gap-2 mb-4">
+        <ClipboardList className="w-4.5 h-4.5 text-black" /> {role === 'teacher' ? 'Assigned homework' : 'My homework'}
       </h2>
 
       {assignments.length === 0 ? (
-        <p className="text-sm text-slate-400 font-medium py-6 text-center">
+        <p className="text-sm text-black font-medium py-6 text-center">
           {role === 'teacher' ? 'No homework assigned yet — use the form above to create one.' : 'No homework yet — check back once your teacher assigns some.'}
         </p>
       ) : (
@@ -1648,9 +1647,9 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, clas
   return (
     <div className="border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-slate-800 truncate">{assignment.title}</p>
-        {assignment.instructions && <p className="text-xs text-slate-400 font-medium mt-0.5 line-clamp-1">{assignment.instructions}</p>}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs font-semibold text-slate-400">
+        <p className="font-bold text-black truncate">{assignment.title}</p>
+        {assignment.instructions && <p className="text-xs text-black font-medium mt-0.5 line-clamp-1">{assignment.instructions}</p>}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs font-semibold text-black">
           {due && (
             <span className="inline-flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" /> Due {due}
@@ -1675,20 +1674,30 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, clas
         </div>
       </div>
 
-      {role === 'teacher' ? (
-        <button
-          onClick={onViewResults}
-          className="shrink-0 inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 transition-colors"
-        >
-          Results ({assignment.submitted_count}/{assignment.student_count})
-        </button>
+      {/* Start/Retake and Results are quiz-specific — this homework
+          may have been assigned with only Visuals and/or a Comic and
+          no quiz at all, in which case there's nothing to grade or
+          take here; the Visuals/Comic links above are the whole of it. */}
+      {assignment.quiz_project_id ? (
+        role === 'teacher' ? (
+          <button
+            onClick={onViewResults}
+            className="shrink-0 inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 transition-colors"
+          >
+            Results ({assignment.submitted_count}/{assignment.student_count})
+          </button>
+        ) : (
+          <button
+            onClick={onPlay}
+            className="shrink-0 inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors"
+          >
+            <Puzzle className="w-3.5 h-3.5" /> {assignment.submitted_count > 0 ? 'Retake' : 'Start'}
+          </button>
+        )
       ) : (
-        <button
-          onClick={onPlay}
-          className="shrink-0 inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors"
-        >
-          <Puzzle className="w-3.5 h-3.5" /> {assignment.submitted_count > 0 ? 'Retake' : 'Start'}
-        </button>
+        <span className="shrink-0 text-xs font-semibold text-black italic px-1">
+          No quiz on this one
+        </span>
       )}
     </div>
   );
@@ -1731,8 +1740,8 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
       <div className="absolute inset-0 bg-slate-900/60" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h3 className="font-extrabold text-slate-900">{assignment.title} — Results</h3>
-          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors">
+          <h3 className="font-extrabold text-black">{assignment.title} — Results</h3>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-black hover:bg-slate-100 transition-colors">
             <X className="w-4.5 h-4.5" />
           </button>
         </div>
@@ -1740,14 +1749,14 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {loading && (
             <div className="py-12 flex justify-center">
-              <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
+              <Loader2 className="w-6 h-6 text-black animate-spin" />
             </div>
           )}
 
           {!loading && error && <p className="text-red-500 font-bold text-sm text-center py-8">{error}</p>}
 
           {!loading && !error && results?.length === 0 && (
-            <p className="text-slate-400 font-medium text-sm text-center py-8">No students have joined this classroom yet.</p>
+            <p className="text-black font-medium text-sm text-center py-8">No students have joined this classroom yet.</p>
           )}
 
           {!loading && !error && results?.length > 0 && (
@@ -1764,15 +1773,15 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
                     }`}
                   >
                     <div>
-                      <p className="text-sm font-bold text-slate-800">{r.display_name}</p>
-                      <p className="text-xs text-slate-400 font-semibold">
+                      <p className="text-sm font-bold text-black">{r.display_name}</p>
+                      <p className="text-xs text-black font-semibold">
                         {canReview ? `${r.attempts} attempt${r.attempts === 1 ? '' : 's'} — tap to review answers` : 'Not started'}
                       </p>
                     </div>
                     {r.total ? (
-                      <span className="font-extrabold text-slate-900">{r.score}/{r.total}</span>
+                      <span className="font-extrabold text-black">{r.score}/{r.total}</span>
                     ) : (
-                      <span className="text-xs font-bold text-slate-300">—</span>
+                      <span className="text-xs font-bold text-black">—</span>
                     )}
                   </Row>
                 );
@@ -1809,14 +1818,14 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
       <div className="absolute inset-0 bg-slate-900/60" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 shrink-0">
-          <button onClick={onBack} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors">
+          <button onClick={onBack} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-black hover:bg-slate-100 transition-colors">
             <ArrowRight className="w-4.5 h-4.5 rotate-180" />
           </button>
           <div className="min-w-0 flex-1">
-            <h3 className="font-extrabold text-slate-900 truncate">{member.display_name}</h3>
-            <p className="text-xs text-slate-400 font-semibold truncate">{assignment.title}</p>
+            <h3 className="font-extrabold text-black truncate">{member.display_name}</h3>
+            <p className="text-xs text-black font-semibold truncate">{assignment.title}</p>
           </div>
-          <button onClick={onClose} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-black hover:bg-slate-100 transition-colors">
             <X className="w-4.5 h-4.5" />
           </button>
         </div>
@@ -1824,32 +1833,32 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {loading && (
             <div className="py-12 flex justify-center">
-              <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
+              <Loader2 className="w-6 h-6 text-black animate-spin" />
             </div>
           )}
 
           {!loading && error && <p className="text-red-500 font-bold text-sm text-center py-8">{error}</p>}
 
           {!loading && !error && detail && !detail.submitted && (
-            <p className="text-slate-400 font-medium text-sm text-center py-8">This student hasn't submitted this homework yet.</p>
+            <p className="text-black font-medium text-sm text-center py-8">This student hasn't submitted this homework yet.</p>
           )}
 
           {!loading && !error && detail?.submitted && (
             <div className="space-y-5">
               <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                <span className="text-sm font-bold text-slate-600">Score</span>
-                <span className="font-extrabold text-slate-900">{detail.score}/{detail.total}</span>
+                <span className="text-sm font-bold text-black">Score</span>
+                <span className="font-extrabold text-black">{detail.score}/{detail.total}</span>
               </div>
 
               {detail.questions.length === 0 && (
-                <p className="text-slate-400 font-medium text-sm text-center py-6">
+                <p className="text-black font-medium text-sm text-center py-6">
                   This homework's quiz is no longer available, so its questions can't be shown — the score above is still accurate.
                 </p>
               )}
 
               {detail.questions.map((q) => (
                 <div key={q.question_index} className="border border-slate-100 rounded-xl p-4">
-                  <p className="font-bold text-slate-800 text-sm mb-3">
+                  <p className="font-bold text-black text-sm mb-3">
                     {q.question_index + 1}. {q.question}
                   </p>
 
@@ -1859,7 +1868,7 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
 
                   <div className="space-y-1.5">
                     {(q.options || []).map((opt, idx) => {
-                      let cls = 'bg-slate-50 border border-slate-100 text-slate-400';
+                      let cls = 'bg-slate-50 border border-slate-100 text-black';
                       if (idx === q.correct) cls = 'bg-green-50 border border-green-300 text-green-700';
                       else if (idx === q.selected) cls = 'bg-red-50 border border-red-300 text-red-600';
                       return (
@@ -1877,7 +1886,7 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
                   )}
 
                   {q.explanation && (
-                    <p className="text-xs text-slate-500 font-medium mt-3 leading-relaxed">{q.explanation}</p>
+                    <p className="text-xs text-black font-medium mt-3 leading-relaxed">{q.explanation}</p>
                   )}
                 </div>
               ))}
@@ -1970,7 +1979,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
       <div className="relative bg-white rounded-3xl shadow-xl border border-slate-200 w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 sm:px-8 py-4 sm:py-5 border-b border-slate-100 shrink-0">
           <h3 className="font-extrabold text-black text-xl sm:text-2xl truncate">{assignment.title}</h3>
-          <button onClick={onClose} className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-black hover:bg-slate-100 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1978,7 +1987,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
         <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6 sm:py-8">
           {loading && (
             <div className="py-12 flex justify-center">
-              <Loader2 className="w-8 h-8 text-slate-300 animate-spin" />
+              <Loader2 className="w-8 h-8 text-black animate-spin" />
             </div>
           )}
 
@@ -1990,7 +1999,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
                 {player.score / player.questions.length >= 0.8 ? '🏆' : player.score / player.questions.length >= 0.5 ? '⭐' : '💪'}
               </div>
               <h4 className="font-bold text-black text-2xl sm:text-3xl mb-2">You scored {player.score}/{player.questions.length}</h4>
-              <p className="text-base text-slate-500 font-semibold">Your teacher can see this result, and it's saved to your learning history.</p>
+              <p className="text-base text-black font-semibold">Your teacher can see this result, and it's saved to your learning history.</p>
             </div>
           )}
 
@@ -2070,20 +2079,20 @@ function HistoryPanel({ session }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-      <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
-        <History className="w-4.5 h-4.5 text-slate-400" /> My learning history
+      <h2 className="font-bold text-black flex items-center gap-2 mb-4">
+        <History className="w-4.5 h-4.5 text-black" /> My learning history
       </h2>
 
       {loading && (
         <div className="py-8 flex justify-center">
-          <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
+          <Loader2 className="w-5 h-5 text-black animate-spin" />
         </div>
       )}
 
       {!loading && error && <p className="text-red-400 font-semibold text-sm text-center py-6">{error}</p>}
 
       {!loading && !error && history?.length === 0 && (
-        <p className="text-slate-400 font-medium text-sm text-center py-6">No attempts yet — complete some homework to see your history here.</p>
+        <p className="text-black font-medium text-sm text-center py-6">No attempts yet — complete some homework to see your history here.</p>
       )}
 
       {!loading && !error && history?.length > 0 && (
@@ -2091,10 +2100,10 @@ function HistoryPanel({ session }) {
           {history.map((h) => (
             <div key={h.submission_id} className="flex items-center justify-between border border-slate-100 rounded-xl px-4 py-2.5">
               <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-800 truncate">{h.assignment_title}</p>
-                <p className="text-xs text-slate-400 font-semibold">{formatDue(h.submitted_at)}</p>
+                <p className="text-sm font-bold text-black truncate">{h.assignment_title}</p>
+                <p className="text-xs text-black font-semibold">{formatDue(h.submitted_at)}</p>
               </div>
-              <span className="font-extrabold text-slate-900 shrink-0 ml-3 inline-flex items-center gap-1">
+              <span className="font-extrabold text-black shrink-0 ml-3 inline-flex items-center gap-1">
                 {h.score / h.total >= 0.8 && <Trophy className="w-3.5 h-3.5 text-amber-500" />}
                 {h.score}/{h.total}
               </span>
@@ -2128,13 +2137,13 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
     return (
       <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
         <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-        <p className="text-slate-700 font-bold text-lg mb-1">Couldn't load this view.</p>
-        <p className="text-slate-400 font-medium text-sm mb-5">{error}</p>
+        <p className="text-black font-bold text-lg mb-1">Couldn't load this view.</p>
+        <p className="text-black font-medium text-sm mb-5">{error}</p>
         <div className="flex items-center justify-center gap-3">
           <button onClick={onRetry} className="inline-flex items-center gap-2 bg-rose-500 text-white font-bold py-2.5 px-5 rounded-xl hover:bg-rose-600 transition-colors text-sm">
             <RefreshCw className="w-4 h-4" /> Try Again
           </button>
-          <button onClick={onLogout} className="inline-flex items-center gap-2 bg-slate-100 text-slate-600 font-bold py-2.5 px-5 rounded-xl hover:bg-slate-200 transition-colors text-sm">
+          <button onClick={onLogout} className="inline-flex items-center gap-2 bg-slate-100 text-black font-bold py-2.5 px-5 rounded-xl hover:bg-slate-200 transition-colors text-sm">
             Use a Different Code
           </button>
         </div>
@@ -2148,31 +2157,31 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Classroom</p>
-          <p className="text-xl font-extrabold text-slate-900">{data.classroom.name}</p>
-          {data.classroom.subject && <p className="text-sm text-slate-500 font-semibold mt-1">{data.classroom.subject}</p>}
-          {data.classroom.description && <p className="text-sm text-slate-500 font-medium mt-2">{data.classroom.description}</p>}
+          <p className="text-xs font-bold text-black uppercase tracking-wide mb-1">Classroom</p>
+          <p className="text-xl font-extrabold text-black">{data.classroom.name}</p>
+          {data.classroom.subject && <p className="text-sm text-black font-semibold mt-1">{data.classroom.subject}</p>}
+          {data.classroom.description && <p className="text-sm text-black font-medium mt-2">{data.classroom.description}</p>}
           {data.classroom.teacher_name && (
-            <p className="text-xs text-slate-400 font-semibold mt-3">Teacher: {data.classroom.teacher_name}</p>
+            <p className="text-xs text-black font-semibold mt-3">Teacher: {data.classroom.teacher_name}</p>
           )}
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
-            <ClipboardList className="w-4.5 h-4.5 text-slate-400" /> Assignments
+          <h2 className="font-bold text-black flex items-center gap-2 mb-4">
+            <ClipboardList className="w-4.5 h-4.5 text-black" /> Assignments
           </h2>
 
           {data.assignments.length === 0 ? (
-            <p className="text-sm text-slate-400 font-medium">No homework has been assigned yet.</p>
+            <p className="text-sm text-black font-medium">No homework has been assigned yet.</p>
           ) : (
             <div className="space-y-3">
               {data.assignments.map((a) => (
                 <div key={a.id} className="border border-slate-100 rounded-xl p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-800 truncate">{a.title}</p>
+                      <p className="font-bold text-black truncate">{a.title}</p>
                       {a.due_at && (
-                        <p className="text-xs text-slate-400 font-semibold flex items-center gap-1 mt-1">
+                        <p className="text-xs text-black font-semibold flex items-center gap-1 mt-1">
                           <Clock className="w-3 h-3" /> Due {formatDue(a.due_at)}
                         </p>
                       )}
@@ -2196,21 +2205,21 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
 
       <div className="space-y-6">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
-            <History className="w-4.5 h-4.5 text-slate-400" /> Learning history
+          <h2 className="font-bold text-black flex items-center gap-2 mb-4">
+            <History className="w-4.5 h-4.5 text-black" /> Learning history
           </h2>
 
           {data.history.length === 0 ? (
-            <p className="text-sm text-slate-400 font-medium">No completed homework yet.</p>
+            <p className="text-sm text-black font-medium">No completed homework yet.</p>
           ) : (
             <div className="space-y-3">
               {data.history.map((h) => (
                 <div key={h.submission_id} className="flex items-center justify-between gap-3 border-b border-slate-50 pb-3 last:border-0 last:pb-0">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-800 truncate">{h.assignment_title}</p>
-                    <p className="text-xs text-slate-400 font-semibold">{formatDue(h.submitted_at) || ''}</p>
+                    <p className="text-sm font-bold text-black truncate">{h.assignment_title}</p>
+                    <p className="text-xs text-black font-semibold">{formatDue(h.submitted_at) || ''}</p>
                   </div>
-                  <span className="shrink-0 text-sm font-extrabold text-slate-700">
+                  <span className="shrink-0 text-sm font-extrabold text-black">
                     {h.score}/{h.total}
                   </span>
                 </div>
@@ -2235,10 +2244,10 @@ function ConfirmModal({ title, body, confirmLabel, busy, onCancel, onConfirm }) 
         <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mb-4">
           <LogOut className="w-6 h-6 text-amber-500" />
         </div>
-        <h3 className="text-lg font-extrabold text-slate-900 mb-1.5">{title}</h3>
-        <p className="text-sm text-slate-500 font-medium mb-6 leading-relaxed">{body}</p>
+        <h3 className="text-lg font-extrabold text-black mb-1.5">{title}</h3>
+        <p className="text-sm text-black font-medium mb-6 leading-relaxed">{body}</p>
         <div className="flex items-center gap-3">
-          <button onClick={onCancel} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50">
+          <button onClick={onCancel} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50">
             Cancel
           </button>
           <button onClick={onConfirm} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-500 hover:bg-amber-600 transition-colors disabled:opacity-60">
@@ -2275,15 +2284,15 @@ function CodeSavedModal({ role, code, label, onContinue }) {
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${isTeacher ? 'bg-teal-50' : 'bg-indigo-50'}`}>
           <KeyRound className={`w-6 h-6 ${isTeacher ? 'text-teal-600' : 'text-indigo-600'}`} />
         </div>
-        <h3 className="text-lg font-extrabold text-slate-900 mb-1.5">Save your {label}</h3>
-        <p className="text-sm text-slate-500 font-medium mb-4 leading-relaxed">
+        <h3 className="text-lg font-extrabold text-black mb-1.5">Save your {label}</h3>
+        <p className="text-sm text-black font-medium mb-4 leading-relaxed">
           {isTeacher
             ? "This is private — never share it with students. It's the only way to log back into this classroom as teacher from another device."
             : "This is private. It's how you log back into your homework and history here from another device — your teacher won't see it."}
         </p>
         <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-5">
-          <span className="text-base font-extrabold text-slate-900 tracking-[0.12em] truncate">{code}</span>
-          <button onClick={handleCopy} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors shrink-0">
+          <span className="text-base font-extrabold text-black tracking-[0.12em] truncate">{code}</span>
+          <button onClick={handleCopy} className="inline-flex items-center gap-1.5 text-xs font-bold text-black hover:text-black transition-colors shrink-0">
             {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? 'Copied' : 'Copy'}
           </button>

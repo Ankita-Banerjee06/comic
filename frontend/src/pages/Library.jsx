@@ -252,7 +252,7 @@ export default function Library() {
       <button
         type="button"
         onClick={() => navigate('/explore')}
-        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm font-bold text-black hover:text-black transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
@@ -313,14 +313,14 @@ export default function Library() {
       </div>
 
       {/* Path / Breadcrumbs */}
-      <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
-        <button onClick={() => setActiveSubject(null)} className={`${!activeSubject ? 'text-slate-800' : 'hover:text-indigo-600'}`}>
+      <div className="flex items-center gap-2 text-sm font-bold text-black">
+        <button onClick={() => setActiveSubject(null)} className={`${!activeSubject ? 'text-black' : 'hover:text-indigo-600'}`}>
           {librarySpace === 'personal' ? 'My Library' : librarySpace === 'group' ? 'Group Space' : 'Classroom'}
         </button>
         {activeSubject && (
           <>
             <ChevronRight className="w-4 h-4" />
-            <span className="text-slate-800">{activeSubject}</span>
+            <span className="text-black">{activeSubject}</span>
           </>
         )}
       </div>
@@ -335,7 +335,7 @@ export default function Library() {
               className={`px-4 py-2 rounded-full font-semibold text-sm transition-colors ${
                 filter === key
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-white border border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600'
+                  : 'bg-white border border-slate-200 text-black hover:border-indigo-300 hover:text-indigo-600'
               }`}
             >
               {label}
@@ -347,7 +347,7 @@ export default function Library() {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="w-full appearance-none pl-4 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 font-semibold text-sm focus:outline-none focus:border-indigo-300 transition-all cursor-pointer"
+            className="w-full appearance-none pl-4 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-black font-semibold text-sm focus:outline-none focus:border-indigo-300 transition-all cursor-pointer"
           >
             {SORTS.map(({ key, label }) => (
               <option key={key} value={key}>
@@ -355,7 +355,7 @@ export default function Library() {
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none" />
         </div>
       </div>
 
@@ -365,10 +365,10 @@ export default function Library() {
       {status === 'error' && (
         <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
           <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-          <p className="text-slate-700 font-bold text-lg mb-1">
+          <p className="text-black font-bold text-lg mb-1">
             Unable to load your Library.
           </p>
-          <p className="text-slate-400 font-medium text-sm mb-5">
+          <p className="text-black font-medium text-sm mb-5">
             Something went wrong while fetching your projects.
           </p>
           <button
@@ -384,9 +384,9 @@ export default function Library() {
 
       {status === 'ready' && items.length > 0 && visibleItems.length === 0 && (
         <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-          <Search className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500 font-bold text-lg mb-1">No matches found</p>
-          <p className="text-slate-400 font-medium text-sm">
+          <Search className="w-8 h-8 text-black mx-auto mb-3" />
+          <p className="text-black font-bold text-lg mb-1">No matches found</p>
+          <p className="text-black font-medium text-sm">
             Try a different search term or filter.
           </p>
         </div>
@@ -405,8 +405,8 @@ export default function Library() {
                 <LibraryIcon className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="font-bold text-slate-800">{subject}</h4>
-                <p className="text-xs text-slate-500 font-medium">{subject === 'Uncategorized' ? visibleItems.length : Math.floor(Math.random() * 5) + 1} items</p>
+                <h4 className="font-bold text-black">{subject}</h4>
+                <p className="text-xs text-black font-medium">{subject === 'Uncategorized' ? visibleItems.length : Math.floor(Math.random() * 5) + 1} items</p>
               </div>
             </button>
           ))}
@@ -415,7 +415,7 @@ export default function Library() {
 
       {status === 'ready' && visibleItems.length > 0 && (
         <>
-          {activeSubject && <h3 className="font-bold text-slate-800 text-lg mb-4">Saved Visual Learning Content</h3>}
+          {activeSubject && <h3 className="font-bold text-black text-lg mb-4">Saved Visual Learning Content</h3>}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {visibleItems.map((item) => (
             <LibraryCard
@@ -461,17 +461,17 @@ export default function Library() {
             <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-4">
               <Trash2 className="w-6 h-6 text-red-500" />
             </div>
-            <h3 className="text-lg font-extrabold text-slate-900 mb-1.5">
+            <h3 className="text-lg font-extrabold text-black mb-1.5">
               Delete this project?
             </h3>
-            <p className="text-sm text-slate-500 font-medium mb-6 leading-relaxed">
+            <p className="text-sm text-black font-medium mb-6 leading-relaxed">
               All generated content related to this project will be removed.
             </p>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -492,25 +492,25 @@ export default function Library() {
         <div className="fixed inset-0 z-[9999] bg-slate-900/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-xl font-extrabold text-slate-800">Share Material</h3>
-              <button onClick={() => setShowShareModal(false)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="text-xl font-extrabold text-black">Share Material</h3>
+              <button onClick={() => setShowShareModal(false)} className="text-black hover:text-black">
                 <X size={24} />
               </button>
             </div>
             
             <div className="p-6 space-y-6">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Choose Destination</label>
+                <label className="block text-sm font-bold text-black mb-2">Choose Destination</label>
                 <div className="grid grid-cols-1 gap-2">
-                  <button onClick={() => setShareSpace('individual')} className={`py-3 rounded-xl text-sm font-bold border-2 transition-colors ${shareSpace === 'individual' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}>Individual Space</button>
-                  <button onClick={() => setShareSpace('group')} className={`py-3 rounded-xl text-sm font-bold border-2 transition-colors ${shareSpace === 'group' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}>Learning Group (Collab Room)</button>
-                  <button onClick={() => setShareSpace('class')} className={`py-3 rounded-xl text-sm font-bold border-2 transition-colors ${shareSpace === 'class' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-indigo-300'}`}>Class Library</button>
+                  <button onClick={() => setShareSpace('individual')} className={`py-3 rounded-xl text-sm font-bold border-2 transition-colors ${shareSpace === 'individual' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-black hover:border-indigo-300'}`}>Individual Space</button>
+                  <button onClick={() => setShareSpace('group')} className={`py-3 rounded-xl text-sm font-bold border-2 transition-colors ${shareSpace === 'group' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-black hover:border-indigo-300'}`}>Learning Group (Collab Room)</button>
+                  <button onClick={() => setShareSpace('class')} className={`py-3 rounded-xl text-sm font-bold border-2 transition-colors ${shareSpace === 'class' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-black hover:border-indigo-300'}`}>Class Library</button>
                 </div>
               </div>
             </div>
 
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-              <button onClick={() => setShowShareModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors">Cancel</button>
+              <button onClick={() => setShowShareModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-black hover:bg-slate-200 transition-colors">Cancel</button>
               <button
                 onClick={() => {
                   setShowShareModal(false);
@@ -558,11 +558,11 @@ export default function Library() {
       {/* 4-Step Flowchart */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-12 mb-8 bg-slate-50 py-6 rounded-2xl border border-slate-200">
         <div className="px-4 py-2 bg-indigo-100 rounded-xl shadow-sm border border-indigo-200 font-bold text-indigo-700">Learn</div>
-        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
         <div className="px-4 py-2 bg-emerald-100 rounded-xl shadow-sm border border-emerald-200 font-bold text-emerald-700">Save</div>
-        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
         <div className="px-4 py-2 bg-amber-100 rounded-xl shadow-sm border border-amber-200 font-bold text-amber-700">Revisit</div>
-        <ArrowRight className="w-5 h-5 text-slate-400 rotate-90 sm:rotate-0" />
+        <ArrowRight className="w-5 h-5 text-black rotate-90 sm:rotate-0" />
         <div className="px-4 py-2 bg-pink-600 rounded-xl shadow-sm border border-pink-600 font-bold text-white">Remember</div>
       </div>
 
@@ -628,7 +628,7 @@ function LibraryCard({ item, onPreview, onDelete }) {
           <button
             onClick={onDelete}
             title="Delete"
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-black hover:bg-red-50 hover:text-red-500 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -687,14 +687,14 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
               <p className={`text-xs font-bold uppercase tracking-wide ${meta.iconColor}`}>
                 {meta.label}
               </p>
-              <h3 className="font-extrabold text-slate-900 truncate">
+              <h3 className="font-extrabold text-black truncate">
                 {data?.title || item.title || `${meta.label} project`}
               </h3>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-slate-50 text-black hover:bg-slate-100 hover:text-black transition-colors"
           >
             <X className="w-4.5 h-4.5" />
           </button>
@@ -703,7 +703,7 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {loading && (
-            <div className="py-16 flex flex-col items-center justify-center text-slate-400">
+            <div className="py-16 flex flex-col items-center justify-center text-black">
               <Loader2 className="w-7 h-7 animate-spin mb-3" />
               <p className="font-semibold text-sm">Loading preview…</p>
             </div>
@@ -712,8 +712,8 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
           {!loading && error && (
             <div className="py-16 flex flex-col items-center justify-center text-center">
               <AlertTriangle className="w-7 h-7 text-red-400 mb-3" />
-              <p className="text-slate-700 font-bold mb-1">Couldn't load this preview.</p>
-              <p className="text-slate-400 text-sm font-medium mb-4">{error}</p>
+              <p className="text-black font-bold mb-1">Couldn't load this preview.</p>
+              <p className="text-black text-sm font-medium mb-4">{error}</p>
               <button
                 onClick={onRetry}
                 className="inline-flex items-center gap-2 bg-slate-900 text-white font-bold py-2 px-4 rounded-xl hover:bg-slate-800 transition-colors text-sm"
@@ -734,7 +734,7 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
           <button
             onClick={onShare}
-            className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-slate-600 bg-white border border-slate-200 hover:border-slate-300 transition-colors"
+            className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-black bg-white border border-slate-200 hover:border-slate-300 transition-colors"
           >
             <ArrowUpRight className="w-4 h-4" /> Share
           </button>
@@ -860,7 +860,7 @@ function AmiviPreview({ item, data }) {
             type="button"
             onClick={() => setViewMode('slogan')}
             className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
-              viewMode === 'slogan' ? 'bg-white text-slate-800 shadow' : 'text-slate-500'
+              viewMode === 'slogan' ? 'bg-white text-black shadow' : 'text-black'
             }`}
           >
             Image + Slogan
@@ -869,7 +869,7 @@ function AmiviPreview({ item, data }) {
             type="button"
             onClick={() => setViewMode('description')}
             className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
-              viewMode === 'description' ? 'bg-white text-slate-800 shadow' : 'text-slate-500'
+              viewMode === 'description' ? 'bg-white text-black shadow' : 'text-black'
             }`}
           >
             Image + Description
@@ -899,18 +899,18 @@ function AmiviPreview({ item, data }) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <ImageOff className="w-6 h-6 text-slate-300" />
+                      <ImageOff className="w-6 h-6 text-black" />
                     )}
                   </div>
                   <div className="p-2.5">
-                    <p className="text-xs font-bold text-slate-700 truncate">
+                    <p className="text-xs font-bold text-black truncate">
                       {chunk.text || chunk.key_point || `Chunk ${globalIndex + 1}`}
                     </p>
                     {captionFor(chunk) ? (
                       <p
                         className={`text-[11px] font-semibold mt-0.5 ${
                           viewMode === 'description'
-                            ? 'text-slate-500 line-clamp-2'
+                            ? 'text-black line-clamp-2'
                             : 'text-orange-600 truncate'
                         }`}
                       >
@@ -918,7 +918,7 @@ function AmiviPreview({ item, data }) {
                       </p>
                     ) : (
                       viewMode === 'description' && (
-                        <p className="text-[11px] text-slate-300 italic mt-0.5">No explanation yet</p>
+                        <p className="text-[11px] text-black italic mt-0.5">No explanation yet</p>
                       )
                     )}
                   </div>
@@ -932,17 +932,17 @@ function AmiviPreview({ item, data }) {
               <button
                 onClick={() => setChunkPage((p) => Math.max(0, p - 1))}
                 disabled={chunkPage === 0}
-                className="w-9 h-9 rounded-full bg-slate-100 shadow flex items-center justify-center text-slate-600 disabled:opacity-30"
+                className="w-9 h-9 rounded-full bg-slate-100 shadow flex items-center justify-center text-black disabled:opacity-30"
               >
                 <ChevronLeft className="w-4.5 h-4.5" />
               </button>
-              <p className="text-xs font-bold text-slate-400">
+              <p className="text-xs font-bold text-black">
                 Page {chunkPage + 1} of {totalChunkPages}
               </p>
               <button
                 onClick={() => setChunkPage((p) => Math.min(totalChunkPages - 1, p + 1))}
                 disabled={chunkPage === totalChunkPages - 1}
-                className="w-9 h-9 rounded-full bg-slate-100 shadow flex items-center justify-center text-slate-600 disabled:opacity-30"
+                className="w-9 h-9 rounded-full bg-slate-100 shadow flex items-center justify-center text-black disabled:opacity-30"
               >
                 <ChevronRight className="w-4.5 h-4.5" />
               </button>
@@ -957,7 +957,7 @@ function AmiviPreview({ item, data }) {
 
           <button
             onClick={closeLightbox}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center text-slate-700 hover:bg-white transition-colors"
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center text-black hover:bg-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -965,7 +965,7 @@ function AmiviPreview({ item, data }) {
           {lightboxIndex > 0 && (
             <button
               onClick={showPrevChunk}
-              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 shadow flex items-center justify-center text-slate-700 hover:bg-white transition-colors"
+              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 shadow flex items-center justify-center text-black hover:bg-white transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -973,7 +973,7 @@ function AmiviPreview({ item, data }) {
           {lightboxIndex < chunks.length - 1 && (
             <button
               onClick={showNextChunk}
-              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 shadow flex items-center justify-center text-slate-700 hover:bg-white transition-colors"
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 shadow flex items-center justify-center text-black hover:bg-white transition-colors"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -989,17 +989,17 @@ function AmiviPreview({ item, data }) {
                 />
               ) : (
                 <div className="w-full h-96 flex items-center justify-center">
-                  <ImageOff className="w-12 h-12 text-slate-300" />
+                  <ImageOff className="w-12 h-12 text-black" />
                 </div>
               )}
             </div>
             <div className="p-6 text-center">
-              <p className="text-4xl sm:text-5xl font-extrabold text-slate-800">
+              <p className="text-4xl sm:text-5xl font-extrabold text-black">
                 {lightboxChunk.text || lightboxChunk.key_point || `Chunk ${lightboxIndex + 1}`}
               </p>
               {captionFor(lightboxChunk) ? (
                 viewMode === 'description' ? (
-                  <p className="text-lg sm:text-xl text-slate-600 font-medium mt-3 max-w-2xl mx-auto">
+                  <p className="text-lg sm:text-xl text-black font-medium mt-3 max-w-2xl mx-auto">
                     {captionFor(lightboxChunk)}
                   </p>
                 ) : (
@@ -1009,12 +1009,12 @@ function AmiviPreview({ item, data }) {
                 )
               ) : (
                 viewMode === 'description' && (
-                  <p className="text-base text-slate-300 italic mt-3">
+                  <p className="text-base text-black italic mt-3">
                     No explanation saved yet for this Key Point — open it in AMIVI's Explain step to add one.
                   </p>
                 )
               )}
-              <p className="text-sm font-bold text-slate-400 mt-4">
+              <p className="text-sm font-bold text-black mt-4">
                 {lightboxIndex + 1} of {chunks.length}
               </p>
             </div>
@@ -1079,7 +1079,7 @@ function AmicoPreview({ item, data, onRepaired, onToast }) {
   return (
     <div className="space-y-4">
       {project.learning_objective && (
-        <p className="text-sm text-slate-500 font-medium">{project.learning_objective}</p>
+        <p className="text-sm text-black font-medium">{project.learning_objective}</p>
       )}
 
       {hasDuplicatePages && (
@@ -1109,7 +1109,7 @@ function AmicoPreview({ item, data, onRepaired, onToast }) {
           />
         ) : (
           <div className="h-64 flex items-center justify-center">
-            <ImageOff className="w-8 h-8 text-slate-300" />
+            <ImageOff className="w-8 h-8 text-black" />
           </div>
         )}
 
@@ -1118,14 +1118,14 @@ function AmicoPreview({ item, data, onRepaired, onToast }) {
             <button
               onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
               disabled={pageIndex === 0}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center text-slate-600 disabled:opacity-30"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center text-black disabled:opacity-30"
             >
               <ChevronLeft className="w-4.5 h-4.5" />
             </button>
             <button
               onClick={() => setPageIndex((i) => Math.min(pages.length - 1, i + 1))}
               disabled={pageIndex === pages.length - 1}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center text-slate-600 disabled:opacity-30"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center text-black disabled:opacity-30"
             >
               <ChevronRight className="w-4.5 h-4.5" />
             </button>
@@ -1134,7 +1134,7 @@ function AmicoPreview({ item, data, onRepaired, onToast }) {
       </div>
 
       {pages.length > 1 && (
-        <p className="text-center text-xs font-bold text-slate-400">
+        <p className="text-center text-xs font-bold text-black">
           Page {pageIndex + 1} of {pages.length}
         </p>
       )}
@@ -1152,13 +1152,13 @@ function QuizPreview({ data }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+      <p className="text-xs font-bold text-black uppercase tracking-wide">
         {questions.length} question{questions.length === 1 ? '' : 's'} · saved answers below
       </p>
 
       {questions.map((q, i) => (
         <div key={i} className="rounded-2xl border border-slate-200 p-4">
-          <p className="font-bold text-slate-800 mb-3">
+          <p className="font-bold text-black mb-3">
             {i + 1}. {q.q}
           </p>
 
@@ -1177,13 +1177,13 @@ function QuizPreview({ data }) {
                 className={`flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg ${
                   idx === q.correct
                     ? 'bg-green-50 text-green-700'
-                    : 'bg-slate-50 text-slate-500'
+                    : 'bg-slate-50 text-black'
                 }`}
               >
                 {idx === q.correct ? (
                   <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
                 ) : (
-                  <XCircle className="w-4 h-4 text-slate-300 shrink-0" />
+                  <XCircle className="w-4 h-4 text-black shrink-0" />
                 )}
                 {opt}
               </div>
@@ -1191,7 +1191,7 @@ function QuizPreview({ data }) {
           </div>
 
           {q.explanation && (
-            <p className="text-xs text-slate-400 font-medium mt-3 leading-relaxed">
+            <p className="text-xs text-black font-medium mt-3 leading-relaxed">
               💡 {q.explanation}
             </p>
           )}
@@ -1203,7 +1203,7 @@ function QuizPreview({ data }) {
 
 function EmptyPreviewNote({ text }) {
   return (
-    <div className="py-10 text-center text-slate-400 font-semibold text-sm">{text}</div>
+    <div className="py-10 text-center text-black font-semibold text-sm">{text}</div>
   );
 }
 
@@ -1233,10 +1233,10 @@ function EmptyLibrary({ navigate }) {
       <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-4">
         <LibraryIcon className="w-7 h-7 text-indigo-500" />
       </div>
-      <p className="text-slate-800 font-extrabold text-xl mb-1.5">
+      <p className="text-black font-extrabold text-xl mb-1.5">
         📚 Your Library is empty
       </p>
-      <p className="text-slate-400 font-medium text-sm mb-6 max-w-sm mx-auto">
+      <p className="text-black font-medium text-sm mb-6 max-w-sm mx-auto">
         Everything you create with AMIVI, AMICO and Quiz will show up here.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
