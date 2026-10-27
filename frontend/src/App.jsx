@@ -30,6 +30,7 @@ import Classroom from './pages/Classroom';
 import Courses from './pages/Courses';
 import Tutorials from './pages/Tutorials';
 import CoreEcosystems from './pages/CoreEcosystems';
+import Help from './pages/Help';
 
 // Auth Pages
 import Login from './pages/Auth/Login';
@@ -110,6 +111,7 @@ function App() {
           <Route path="/classroom" element={<Classroom />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/tutorials" element={<Tutorials />} />
+          <Route path="/help" element={<Help />} />
         </Route>
 
         {/* Fallback */}

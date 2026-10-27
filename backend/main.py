@@ -772,10 +772,40 @@ KID_SAFE_IMAGE_SUFFIX = (
 )
 
 
+# Categories that always block text, even educational/historical/
+# literary material, because a K-12 learning tool has no legitimate
+# reason to surface them. Plain "violence" and "illicit" are
+# deliberately left OUT of this list: a lesson on Macbeth, World
+# War 2, the French Revolution, or any number of other standard
+# classroom topics is going to involve violence in the subject
+# matter, and OpenAI's moderation model flags that broad category
+# even for an innocuous title/topic line with nothing graphic in
+# it (e.g. "Macbeth by Shakespeare - key points, 12 panels"). The
+# categories below stay blocked because they have no educational
+# upside at any age.
+BLOCKED_MODERATION_CATEGORIES = (
+    "sexual",
+    "sexual_minors",
+    "hate",
+    "hate_threatening",
+    "harassment_threatening",
+    "self_harm",
+    "self_harm_intent",
+    "self_harm_instructions",
+    "violence_graphic",
+    "illicit_violent",
+)
+
+
 def moderate_text(text, context="This"):
     """
-    Blocks clearly unsafe text (sexual, sexual/minors, violent,
-    hateful, self-harm, etc.) using OpenAI's moderation endpoint.
+    Blocks clearly unsafe text (sexual, sexual/minors, hateful,
+    self-harm, graphic violence, etc.) using OpenAI's moderation
+    endpoint. Deliberately does NOT block on the broad "violence"
+    or "illicit" categories alone — see BLOCKED_MODERATION_CATEGORIES
+    above — so that legitimate educational material covering history,
+    literature, or current events (which routinely mentions war,
+    death, murder, etc. without being graphic) isn't rejected.
     Fails OPEN (allows the request through) if the moderation
     call itself errors, so a transient API hiccup never blocks
     normal classroom use.
@@ -791,7 +821,12 @@ def moderate_text(text, context="This"):
             input=text[:8000],
         )
 
-        flagged = result.results[0].flagged
+        categories = result.results[0].categories
+
+        flagged = any(
+            getattr(categories, cat, False)
+            for cat in BLOCKED_MODERATION_CATEGORIES
+        )
 
     except Exception as exc:
 

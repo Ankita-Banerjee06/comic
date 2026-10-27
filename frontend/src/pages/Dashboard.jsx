@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Loader2,
   School,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getMyClassrooms } from '../services/api';
@@ -262,6 +263,15 @@ function StudentDashboard({ user }) {
       accentColor: 'text-teal-600',
       image: '/dashboard-collaboration.png',
     },
+    {
+      to: '/help',
+      icon: HelpCircle,
+      title: 'New Here? Get Help',
+      description: 'A simple step-by-step map of where to go and what to do first.',
+      tint: 'bg-rose-50',
+      iconColor: 'text-rose-600',
+      accentColor: 'text-rose-600',
+    },
   ];
 
   return (
@@ -333,6 +343,15 @@ function TeacherDashboard({ user }) {
       iconColor: 'text-indigo-600',
       accentColor: 'text-indigo-600',
       image: '/dashboard-collaboration.png',
+    },
+    {
+      to: '/help',
+      icon: HelpCircle,
+      title: 'New Here? Get Help',
+      description: 'A simple step-by-step map of where to go and what to do first.',
+      tint: 'bg-rose-50',
+      iconColor: 'text-rose-600',
+      accentColor: 'text-rose-600',
     },
   ];
 
