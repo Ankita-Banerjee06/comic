@@ -684,10 +684,10 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
               <Icon className={`w-4.5 h-4.5 ${meta.iconColor}`} />
             </div>
             <div className="min-w-0">
-              <p className={`text-xs font-bold uppercase tracking-wide ${meta.iconColor}`}>
+              <p className={`text-sm font-bold uppercase tracking-wide ${meta.iconColor}`}>
                 {meta.label}
               </p>
-              <h3 className="font-extrabold text-black truncate">
+              <h3 className="text-lg font-extrabold text-black truncate">
                 {data?.title || item.title || `${meta.label} project`}
               </h3>
             </div>
@@ -859,7 +859,7 @@ function AmiviPreview({ item, data }) {
           <button
             type="button"
             onClick={() => setViewMode('slogan')}
-            className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+            className={`text-sm font-bold px-3 py-1.5 rounded-full transition-colors ${
               viewMode === 'slogan' ? 'bg-white text-black shadow' : 'text-black'
             }`}
           >
@@ -868,7 +868,7 @@ function AmiviPreview({ item, data }) {
           <button
             type="button"
             onClick={() => setViewMode('description')}
-            className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+            className={`text-sm font-bold px-3 py-1.5 rounded-full transition-colors ${
               viewMode === 'description' ? 'bg-white text-black shadow' : 'text-black'
             }`}
           >
@@ -903,12 +903,12 @@ function AmiviPreview({ item, data }) {
                     )}
                   </div>
                   <div className="p-2.5">
-                    <p className="text-xs font-bold text-black truncate">
+                    <p className="text-sm font-bold text-black truncate">
                       {chunk.text || chunk.key_point || `Chunk ${globalIndex + 1}`}
                     </p>
                     {captionFor(chunk) ? (
                       <p
-                        className={`text-[11px] font-semibold mt-0.5 ${
+                        className={`text-sm font-semibold mt-0.5 ${
                           viewMode === 'description'
                             ? 'text-black line-clamp-2'
                             : 'text-orange-600 truncate'
@@ -918,7 +918,7 @@ function AmiviPreview({ item, data }) {
                       </p>
                     ) : (
                       viewMode === 'description' && (
-                        <p className="text-[11px] text-black italic mt-0.5">No explanation yet</p>
+                        <p className="text-sm text-black italic mt-0.5">No explanation yet</p>
                       )
                     )}
                   </div>
@@ -936,7 +936,7 @@ function AmiviPreview({ item, data }) {
               >
                 <ChevronLeft className="w-4.5 h-4.5" />
               </button>
-              <p className="text-xs font-bold text-black">
+              <p className="text-sm font-bold text-black">
                 Page {chunkPage + 1} of {totalChunkPages}
               </p>
               <button
@@ -1079,19 +1079,19 @@ function AmicoPreview({ item, data, onRepaired, onToast }) {
   return (
     <div className="space-y-4">
       {project.learning_objective && (
-        <p className="text-sm text-black font-medium">{project.learning_objective}</p>
+        <p className="text-base text-black font-medium">{project.learning_objective}</p>
       )}
 
       {hasDuplicatePages && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-xs font-bold text-amber-700">
+          <p className="text-sm font-bold text-amber-700">
             Two or more pages are showing the same image. This can happen on
             comics saved before a fix — rebuild them from the saved artwork.
           </p>
           <button
             onClick={handleRepair}
             disabled={repairing}
-            className="shrink-0 inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg font-bold text-xs text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-60 transition-colors"
+            className="shrink-0 inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg font-bold text-sm text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-60 transition-colors"
           >
             {repairing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             {repairing ? 'Fixing…' : 'Fix page display'}
@@ -1134,7 +1134,7 @@ function AmicoPreview({ item, data, onRepaired, onToast }) {
       </div>
 
       {pages.length > 1 && (
-        <p className="text-center text-xs font-bold text-black">
+        <p className="text-center text-sm font-bold text-black">
           Page {pageIndex + 1} of {pages.length}
         </p>
       )}
@@ -1152,13 +1152,13 @@ function QuizPreview({ data }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-bold text-black uppercase tracking-wide">
+      <p className="text-sm font-bold text-black uppercase tracking-wide">
         {questions.length} question{questions.length === 1 ? '' : 's'} · saved answers below
       </p>
 
       {questions.map((q, i) => (
         <div key={i} className="rounded-2xl border border-slate-200 p-4">
-          <p className="font-bold text-black mb-3">
+          <p className="text-lg font-bold text-black mb-3">
             {i + 1}. {q.q}
           </p>
 
@@ -1174,7 +1174,7 @@ function QuizPreview({ data }) {
             {(q.options || []).map((opt, idx) => (
               <div
                 key={idx}
-                className={`flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg ${
+                className={`flex items-center gap-2 text-base font-semibold px-3 py-2 rounded-lg ${
                   idx === q.correct
                     ? 'bg-green-50 text-green-700'
                     : 'bg-slate-50 text-black'
@@ -1191,7 +1191,7 @@ function QuizPreview({ data }) {
           </div>
 
           {q.explanation && (
-            <p className="text-xs text-black font-medium mt-3 leading-relaxed">
+            <p className="text-sm text-black font-medium mt-3 leading-relaxed">
               💡 {q.explanation}
             </p>
           )}
