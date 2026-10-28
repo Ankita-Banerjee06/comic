@@ -24,6 +24,7 @@ import uuid
 import textwrap
 
 from urllib.parse import urlparse
+from concurrent.futures import ThreadPoolExecutor
 
 from openai import OpenAI
 
@@ -1972,6 +1973,37 @@ def extract_video_text(
 # AMIVI
 # ============================================================
 
+def derive_fallback_title(text, max_words=6):
+    """
+    Builds a short, on-topic fallback title directly from what the
+    person typed, for the rare case the AI's own title generation
+    comes back empty. Takes the first line/sentence, trims it to a
+    handful of words, and only falls back to a generic label if
+    there's truly nothing usable to work with.
+    """
+
+    text = (text or "").strip()
+
+    if not text:
+        return "AMIVI Visual Learning"
+
+    first_line = text.splitlines()[0].strip()
+
+    # Stop at the first sentence-ending punctuation too, so a long
+    # paragraph pasted in as "material" doesn't become the title.
+    for stop in (".", "!", "?"):
+        if stop in first_line:
+            first_line = first_line.split(stop)[0].strip()
+            break
+
+    words = first_line.split()
+
+    if not words:
+        return "AMIVI Visual Learning"
+
+    return " ".join(words[:max_words])[:80]
+
+
 def generate_amivi_content(
     text_input,
     language="en",
@@ -1986,7 +2018,7 @@ def generate_amivi_content(
         "micro-bits or chunks.\n\n"
 
         "Rules:\n"
-        "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the material.\n"
+        "- Create a short, clear title (roughly 2 to 6 words) that genuinely captures the MAIN TOPIC of the material — a real heading someone would recognize, not a vague or overly clipped label. If the material already names its subject (a book, person, event, concept), use that name plainly rather than paraphrasing it away.\n"
         "- Create 5 to 10 chunks depending on the length and complexity.\n"
         "- Redesign the AMIVI output as a simple, visual-first learning card system.\n"
         "- Every individual AMIVI visual card must be exactly 11.7 × 14.7 in the required format.\n"
@@ -4611,8 +4643,14 @@ async def amivi_generate(
             request.text.strip()
         )
 
+        # Fallback ONLY — used if the AI's own title generation
+        # comes back empty. Derived from what the person actually
+        # typed (first line/sentence of their topic) rather than a
+        # generic label, so even the fallback reads as a real,
+        # on-topic heading instead of "AMIVI Visual Learning" for
+        # everything.
         source_title = (
-            "AMIVI Visual Learning"
+            derive_fallback_title(source_text)
         )
 
         source_url = None
@@ -6636,6 +6674,248 @@ def library_project_delete(project_id: int, current_user=Depends(get_current_use
         "project_id": project_id,
         "message": "Project deleted.",
     }
+
+
+# ============================================================
+# ESSENTIAL LEARNING — SUBJECT / CHAPTER GROUPING
+#
+# Every AMIVI / AMICO / Quiz project is auto-classified into one of
+# a fixed set of subject buckets, plus a "chapter" (the specific
+# topic — e.g. "Photosynthesis") so the Essential Learning page can
+# show Subject -> Chapter -> {AMIVI, AMICO, Quiz} without the user
+# doing any manual organizing. Classification happens lazily, the
+# first time a project is seen by these endpoints, and is cached on
+# the Project row (subject / chapter / chapter_key) so it only runs
+# once per project. chapter_key is a normalized slug of chapter used
+# to silently merge near-duplicate chapter names ("Photosynthesis" /
+# "photosynthesis!" / "Photosynthesis ") without fuzzy matching.
+# ============================================================
+
+SUBJECT_CATEGORIES = (
+    "Science", "Math", "History", "Language", "Arts", "Technology", "Other",
+)
+
+
+def normalize_chapter_key(chapter: str) -> str:
+
+    key = (chapter or "").strip().lower()
+    key = re.sub(r"[^a-z0-9]+", "-", key)
+    key = key.strip("-")
+
+    return key or "unsorted"
+
+
+def classify_subject_chapter(title: str, input_text: str) -> tuple[str, str]:
+    """Ask the model to bucket a project into one of the fixed
+    SUBJECT_CATEGORIES and name its chapter/topic. Falls back to
+    ("Other", <title>) on any failure so classification never blocks
+    a project from showing up in Essential Learning."""
+
+    basis = (title or "").strip() or (input_text or "")[:500].strip()
+    fallback_chapter = (title or "").strip() or "Unsorted"
+
+    if not basis:
+        return ("Other", fallback_chapter)
+
+    try:
+
+        result = call_json_model(
+            TERRA_MODEL,
+            (
+                "Classify this learning material into exactly one school "
+                f"subject from this fixed list: {', '.join(SUBJECT_CATEGORIES)}. "
+                "Also give it a short, specific chapter/topic name (2 to 6 "
+                "words) that other material on the same topic would share "
+                '— e.g. "Photosynthesis", "World War II", "Quadratic '
+                'Equations". Return strict JSON only: '
+                '{"subject": "...", "chapter": "..."}. subject must be '
+                "exactly one of the listed options, chosen as the closest "
+                "fit even if imperfect."
+            ),
+            basis,
+        )
+
+        subject = result.get("subject") or "Other"
+
+        if subject not in SUBJECT_CATEGORIES:
+            subject = "Other"
+
+        chapter = (result.get("chapter") or "").strip() or fallback_chapter
+
+        return (subject, chapter)
+
+    except Exception as exc:
+
+        print(f"Subject/chapter classification failed (defaulting): {exc}")
+
+        return ("Other", fallback_chapter)
+
+
+def ensure_projects_classified(db, projects) -> None:
+    """Backfill subject/chapter/chapter_key on every project in
+    `projects` that doesn't already have it, running the model calls
+    in parallel so a library with many never-classified projects
+    doesn't time out the request. Commits each row as it finishes."""
+
+    unclassified = [p for p in projects if not p.subject or not p.chapter_key]
+
+    if not unclassified:
+        return
+
+    def classify_one(project):
+        return (project, classify_subject_chapter(project.title, project.input_text))
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(classify_one, unclassified))
+
+    for project, (subject, chapter) in results:
+        project.subject = subject
+        project.chapter = chapter
+        project.chapter_key = normalize_chapter_key(chapter)
+        db.add(project)
+
+    db.commit()
+
+
+def _chapter_project_summary(project):
+
+    if not project:
+        return None
+
+    data = project.data or {}
+    thumbnail_media_id = data.get("thumbnail_media_id")
+
+    return {
+        "id": project.id,
+        "title": project.title,
+        "thumbnail_url": (
+            f"/api/media/{thumbnail_media_id}"
+            if thumbnail_media_id
+            else None
+        ),
+    }
+
+
+def _library_projects_for_user(db, user_id):
+
+    return (
+        db.query(Project)
+        .filter(
+            Project.project_type.in_(LIBRARY_PROJECT_TYPES),
+            (Project.user_id == user_id) | (Project.user_id.is_(None)),
+        )
+        .all()
+    )
+
+
+@app.get("/api/chapters")
+def chapters_subjects(current_user=Depends(get_current_user)):
+
+    db = SessionLocal()
+
+    try:
+
+        projects = _library_projects_for_user(db, current_user.id)
+        ensure_projects_classified(db, projects)
+
+        subjects: dict[str, set[str]] = {}
+
+        for project in projects:
+            subject = project.subject or "Other"
+            subjects.setdefault(subject, set()).add(
+                project.chapter_key or "unsorted"
+            )
+
+        results = [
+            {"subject": subject, "chapter_count": len(keys)}
+            for subject, keys in subjects.items()
+        ]
+        results.sort(key=lambda s: s["subject"])
+
+        return {"subjects": results}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/chapters/{subject}")
+def chapters_for_subject(subject: str, current_user=Depends(get_current_user)):
+
+    db = SessionLocal()
+
+    try:
+
+        projects = _library_projects_for_user(db, current_user.id)
+        ensure_projects_classified(db, projects)
+
+        matching = [p for p in projects if (p.subject or "Other") == subject]
+
+        grouped: dict[str, dict] = {}
+
+        for p in matching:
+
+            key = p.chapter_key or "unsorted"
+
+            bucket = grouped.setdefault(
+                key,
+                {
+                    "chapter_key": key,
+                    "chapter": p.chapter or "Unsorted",
+                    "amivi": None,
+                    "amico": None,
+                    "quiz": None,
+                },
+            )
+
+            bucket[p.project_type] = _chapter_project_summary(p)
+
+        chapters = sorted(grouped.values(), key=lambda c: c["chapter"].lower())
+
+        return {"chapters": chapters}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/chapters/{subject}/{chapter_key}")
+def chapter_hub(
+    subject: str,
+    chapter_key: str,
+    current_user=Depends(get_current_user),
+):
+
+    db = SessionLocal()
+
+    try:
+
+        projects = _library_projects_for_user(db, current_user.id)
+        ensure_projects_classified(db, projects)
+
+        matching = [
+            p for p in projects
+            if (p.subject or "Other") == subject
+            and (p.chapter_key or "unsorted") == chapter_key
+        ]
+
+        if not matching:
+            raise HTTPException(status_code=404, detail="Chapter not found.")
+
+        hub = {
+            "chapter": matching[0].chapter or "Unsorted",
+            "chapter_key": chapter_key,
+            "subject": subject,
+            "amivi": None,
+            "amico": None,
+            "quiz": None,
+        }
+
+        for p in matching:
+            hub[p.project_type] = serialize_library_project(p)
+
+        return hub
+
+    finally:
+        db.close()
 
 
 # ============================================================

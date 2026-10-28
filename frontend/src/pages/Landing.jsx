@@ -37,36 +37,36 @@ const audiences = [
 const features = [
   {
     tag: 'AMIVI',
-    title: 'See it clearly.',
+    title: 'SEE IT',
     desc: 'Turn any learning material into clear diagrams and visual summaries instantly.',
-    color: '#1d4ed8',
-    tint: '#eff6ff',
-    soft: '#bfdbfe',
-    border: '#60a5fa',
+    color: '#160cd8',
+    tint: '#f3f3fd',
+    soft: '#c5c2f5',
+    border: '#6861e6',
     to: '/amivi',
     cta: 'Create Visuals',
     image: '/vlq-see-tool.png',
   },
   {
     tag: 'AMICO',
-    title: 'Understand it deeply.',
+    title: 'UNDERSTAND IT',
     desc: 'Transform concepts into multi-panel comic stories with scenes and dialogue.',
-    color: '#be185d',
-    tint: '#fdf2f8',
-    soft: '#fbcfe8',
-    border: '#f472b6',
+    color: '#fb19aa',
+    tint: '#fff4fb',
+    soft: '#fec6ea',
+    border: '#fc6ac8',
     to: '/amico',
     cta: 'Create Comic',
     image: '/vlq-understand-tool.png',
   },
   {
     tag: 'QUIZ',
-    title: 'Prove you’ve mastered it.',
+    title: 'MASTER IT',
     desc: 'Test your understanding with image-backed interactive quizzes and explanations.',
-    color: '#7c3aed',
-    tint: '#f5f3ff',
-    soft: '#ddd6fe',
-    border: '#a78bfa',
+    color: '#00b050',
+    tint: '#f2fbf6',
+    soft: '#bfebd3',
+    border: '#59cc8d',
     to: '/quiz',
     cta: 'Start Quiz',
     image: '/vlq-quiz-tool.png',
@@ -94,7 +94,7 @@ export default function Landing() {
         />
         <div aria-hidden className="absolute inset-x-0 bottom-0 h-10 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(15,23,42,0.28), transparent)' }} />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14" style={{ minHeight: 'calc(100vh - 84px)' }} />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14" style={{ minHeight: 'calc(100vh - 116px)' }} />
       </section>
 
       {/* ════════════════════════════════════════════════════════════
@@ -167,7 +167,7 @@ export default function Landing() {
                     {card.tag}
                   </div>
 
-                  <h3 className="text-4xl sm:text-5xl font-black mb-3 tracking-tight" style={{ color: '#000000' }}>
+                  <h3 className="text-4xl sm:text-5xl lg:text-4xl font-black mb-3 tracking-tight whitespace-nowrap" style={{ color: '#000000' }}>
                     {card.title}
                   </h3>
 
@@ -204,8 +204,13 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto rounded-3xl text-center relative overflow-hidden shadow-xl border-2" style={{ minHeight: 300, background: 'linear-gradient(120deg, #dbeafe 0%, #ede9fe 50%, #fce7f3 100%)', borderColor: '#c7d2fe' }}>
           <div aria-hidden className="absolute inset-0 opacity-60" style={{ background: 'radial-gradient(circle at 15% 20%, rgba(255,255,255,0.6) 0%, transparent 40%), radial-gradient(circle at 85% 80%, rgba(255,255,255,0.5) 0%, transparent 35%)' }} />
           <div className="relative z-10 p-8 sm:p-16 flex flex-col items-center justify-center h-full" style={{ minHeight: 300 }}>
-            <h2 className="font-black mb-8 leading-tight tracking-tight" style={{ fontSize: 'clamp(40px,5.5vw,64px)', color: '#000000' }}>
-              Ready to learn at the speed of sight?
+            <h2 className="mb-8 leading-tight tracking-tight" style={{ color: '#000000' }}>
+              <span className="block font-bold" style={{ fontSize: 'clamp(22px,3vw,32px)' }}>
+                Ready to learn at the
+              </span>
+              <span className="block font-black" style={{ fontSize: 'clamp(36px,6vw,64px)' }}>
+                Speed of Sight?
+              </span>
             </h2>
             <Link to="/amivi"
               className="inline-flex items-center gap-3 px-10 py-5 rounded-2xl font-black transition-all hover:-translate-y-1 hover:shadow-2xl border-2"

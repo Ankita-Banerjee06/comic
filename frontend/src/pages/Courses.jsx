@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight, ArrowLeft, BookOpen, ChevronRight, Loader2, Sparkles,
   Atom, Calculator, Landmark, Languages, Palette, Cpu, FolderOpen,
-  Image as ImageIcon, Plus,
+  Image as ImageIcon, Plus, Users, Share2, BarChart3, Trophy,
 } from 'lucide-react';
 import {
   getChapterSubjects, getSubjectChapters, getChapterHub,
@@ -44,6 +44,73 @@ const CONTENT_META = {
   amico: { label: 'AMICO', sub: 'Comic story', tint: 'bg-pink-50', color: 'text-pink-600', border: 'border-pink-200' },
   quiz: { label: 'Quiz', sub: 'Test yourself', tint: 'bg-purple-50', color: 'text-purple-600', border: 'border-purple-200' },
 };
+
+// The six-step loop a study group runs to turn individual Essential
+// Learning into a shared, peer-reviewed quiz — the explainer card
+// shown at the top of the Subjects view.
+const ESSENTIAL_LEARNING_FLOW = [
+  { label: 'Identify', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
+  { label: 'Understand', color: 'bg-blue-50 border-blue-200 text-blue-700' },
+  { label: 'Apply', color: 'bg-teal-50 border-teal-200 text-teal-700' },
+  { label: 'Retain', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+];
+
+const QUIZ_SYSTEM_STEPS = [
+  {
+    title: 'Group Formation',
+    caption: 'Four or five learners form a small study group.',
+    icon: Users,
+    image: '/vlq-essential-learning-step1-group-formation.jpg',
+    tint: 'bg-indigo-50',
+    border: 'border-indigo-200',
+    iconColor: 'text-indigo-600',
+  },
+  {
+    title: 'Visual Sharing',
+    caption: 'They share what each of them learned through AMIVI visuals.',
+    icon: Share2,
+    image: '/vlq-essential-learning-step2-visual-sharing.jpg',
+    tint: 'bg-blue-50',
+    border: 'border-blue-200',
+    iconColor: 'text-blue-600',
+  },
+  {
+    title: 'Quiz Generation',
+    caption: 'The group leader generates a quiz from everything the group has covered.',
+    icon: Sparkles,
+    image: '/vlq-essential-learning-step3-quiz-generation.jpg',
+    tint: 'bg-purple-50',
+    border: 'border-purple-200',
+    iconColor: 'text-purple-600',
+  },
+  {
+    title: 'Essential Quiz Production',
+    caption: 'VLQ turns that material into a focused Essential Learning quiz.',
+    icon: Cpu,
+    image: '/vlq-essential-learning-step4-quiz-production.jpg',
+    tint: 'bg-teal-50',
+    border: 'border-teal-200',
+    iconColor: 'text-teal-600',
+  },
+  {
+    title: 'Assessment & Feedback',
+    caption: "The group sees what's been mastered and what still needs reinforcing.",
+    icon: BarChart3,
+    image: '/vlq-essential-learning-step5-assessment-feedback.jpg',
+    tint: 'bg-amber-50',
+    border: 'border-amber-200',
+    iconColor: 'text-amber-600',
+  },
+  {
+    title: 'Action & Mastery',
+    caption: 'Share it. Discuss it. Reinforce it. Master it.',
+    icon: Trophy,
+    image: '/vlq-essential-learning-step6-action-mastery.jpg',
+    tint: 'bg-pink-50',
+    border: 'border-pink-200',
+    iconColor: 'text-pink-600',
+  },
+];
 
 export default function Courses() {
   const navigate = useNavigate();
@@ -174,8 +241,106 @@ export default function Courses() {
         </div>
       </div>
 
+      {/* ======================================================
+          What Essential Learning means — badge, description, and
+          the Identify → Understand → Apply → Retain flow.
+      ======================================================= */}
+
+      {view === 'subjects' && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            <img
+              src="/vlq-badge-essential-learning.png"
+              alt=""
+              className="w-20 h-20 object-contain flex-shrink-0"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+            <div>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-black mb-2">Essential Learning</h2>
+              <ul className="space-y-1 text-black font-semibold text-sm sm:text-base">
+                <li>Focuses learning on what is genuinely important.</li>
+                <li>Key ideas, relationships and understanding replace unnecessary trivia.</li>
+                <li>Learners concentrate on knowledge worth remembering.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center flex-wrap gap-2 mt-6 pt-6 border-t border-slate-100">
+            {ESSENTIAL_LEARNING_FLOW.map((step, i) => (
+              <div key={step.label} className="flex items-center gap-2">
+                <span className={`px-4 py-2 rounded-xl border font-extrabold text-sm sm:text-base ${step.color}`}>
+                  {step.label}
+                </span>
+                {i < ESSENTIAL_LEARNING_FLOW.length - 1 && (
+                  <ArrowRight className="w-4 h-4 text-black flex-shrink-0" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================
+          VLQ Essential Learning Quiz System — the six-step loop a
+          study group runs together, from forming the group through
+          mastering what the quiz showed still needed work.
+      ======================================================= */}
+
+      {view === 'subjects' && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+          <div className="text-center mb-8">
+            <p className="text-black font-semibold text-sm sm:text-base max-w-2xl mx-auto mb-4">
+              A structured peer-review loop that turns Essential Learning into lasting mastery —
+              identify what's been learned and what still needs reinforcing, then check and reinforce it together.
+            </p>
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-extrabold text-sm sm:text-base shadow-sm">
+              <img
+                src="/vlq-logo-clean.png"
+                alt=""
+                className="h-5 w-auto object-contain"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              Essential Learning Quiz System
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {QUIZ_SYSTEM_STEPS.map((step, i) => {
+              const Icon = step.icon;
+              return (
+                <div
+                  key={step.title}
+                  className={`rounded-2xl border overflow-hidden ${step.tint} ${step.border}`}
+                >
+                  <div className="aspect-[16/10] overflow-hidden bg-white border-b border-black/5">
+                    <img
+                      src={step.image}
+                      alt=""
+                      className={`w-full h-full object-cover ${step.imageFit || ''}`}
+                      onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                    />
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`w-11 h-11 rounded-xl bg-white border ${step.border} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                        <Icon className={`w-5 h-5 ${step.iconColor}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-xs font-extrabold ${step.iconColor}`}>STEP {i + 1}</p>
+                        <h3 className="font-extrabold text-black leading-tight">{step.title}</h3>
+                      </div>
+                    </div>
+                    <p className="text-black font-medium text-sm">{step.caption}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 flex-wrap">
+      <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 flex-wrap bg-emerald-50/60 border border-emerald-100 rounded-xl px-4 py-2.5 w-fit">
         <button
           onClick={backToSubjects}
           className={view === 'subjects' ? 'text-slate-800' : 'hover:text-green-700'}
@@ -447,14 +612,19 @@ function ChapterHub({ hub, generating, onGenerate, onOpenProject, onBack }) {
 
 function EmptyState({ title, desc, onBack }) {
   return (
-    <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-      <Sparkles className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-      <p className="text-slate-500 font-bold text-lg mb-1">{title}</p>
-      <p className="text-slate-400 font-medium text-sm mb-4">{desc}</p>
+    <div
+      className="col-span-full py-16 text-center rounded-2xl border-2 border-dashed border-emerald-200"
+      style={{ background: 'linear-gradient(160deg, #ecfdf5 0%, #ffffff 60%)' }}
+    >
+      <div className="w-16 h-16 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
+        <Sparkles className="w-8 h-8 text-emerald-600" />
+      </div>
+      <p className="text-slate-800 font-extrabold text-lg mb-1">{title}</p>
+      <p className="text-slate-500 font-semibold text-sm mb-4 max-w-sm mx-auto">{desc}</p>
       {onBack && (
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-sm font-bold text-green-700 hover:text-green-800"
+          className="inline-flex items-center gap-2 text-sm font-extrabold text-emerald-700 hover:text-emerald-800"
         >
           <ArrowLeft className="w-4 h-4" /> Go back
         </button>

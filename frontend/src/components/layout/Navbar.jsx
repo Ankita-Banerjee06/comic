@@ -78,12 +78,9 @@ export default function Navbar() {
   if (!isAuthenticated) {
     return (
       <header className="sticky top-0 z-50 bg-slate-950 border-b border-white/10 shadow-lg">
-        <div className="w-full px-6 lg:px-12 flex items-center justify-between" style={{ height: 84 }}>
-          <Link to="/" className="flex items-center flex-shrink-0">
-            <img src="/vlq-logo-clean.png" alt="VLQ" className="h-14 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <span className="ml-2.5 text-base font-bold uppercase tracking-widest text-white hidden sm:inline leading-tight">
-              Learn at the<br />Speed of Sight
-            </span>
+        <div className="w-full px-6 lg:px-12 flex items-center justify-between" style={{ height: 116 }}>
+          <Link to="/" className="flex items-center flex-shrink-0 py-2">
+            <img src="/vlq-logo-navbar.png" alt="VLQ — Learn at the Speed of Sight" className="h-[98px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.png'; }} />
           </Link>
 
           {/* Desktop actions */}
@@ -136,13 +133,10 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-slate-950 border-b border-white/10 shadow-lg">
-      <div className="w-full px-6 lg:px-12 flex items-center gap-4" style={{ height: 84 }}>
+      <div className="w-full px-6 lg:px-12 flex items-center gap-4" style={{ height: 116 }}>
 
-        <Link to="/" className="flex items-center flex-shrink-0">
-          <img src="/vlq-logo-clean.png" alt="VLQ" className="h-12 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          <span className="ml-2 text-sm font-bold uppercase tracking-widest text-white hidden xl:inline leading-tight">
-            Learn at the<br />Speed of Sight
-          </span>
+        <Link to="/" className="flex items-center flex-shrink-0 py-2">
+          <img src="/vlq-logo-navbar.png" alt="VLQ — Learn at the Speed of Sight" className="h-[98px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.png'; }} />
         </Link>
 
         {/* Desktop Nav */}
