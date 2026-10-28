@@ -192,6 +192,11 @@ class AmiviPhotoStoryRequest(BaseModel):
     project_id: int
 
 
+class AmiviCompleteVisualRequest(BaseModel):
+    project_id: int
+    language: str = "en"
+
+
 class AmicoRequest(BaseModel):
     homework_prompt: str = ""
     language: str = "en"
@@ -5201,6 +5206,94 @@ async def amivi_generate_photo_story(
         import traceback
 
         traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
+# AMIVI COMPLETE VISUAL — optional Stage 3. One new illustration
+# that visually connects every already-generated Microbit (chunk)
+# into a single cohesive scene, instead of the chunk-by-chunk
+# images alone.
+# ============================================================
+
+@app.post("/api/amivi/generate_complete_visual")
+async def amivi_generate_complete_visual(
+    request: AmiviCompleteVisualRequest,
+):
+
+    try:
+
+        require_services()
+
+        project = get_project(request.project_id)
+
+        if project.project_type != "amivi":
+
+            raise HTTPException(
+                status_code=404,
+                detail="AMIVI project not found.",
+            )
+
+        chunks = list_amivi_chunks_for_project(
+            request.project_id
+        )
+
+        if not chunks:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "This AMIVI project has no generated "
+                    "content yet to build a Complete Visual from."
+                ),
+            )
+
+        key_points = [
+            (chunk.key_point or chunk.slogan or chunk.text or "").strip()
+            for chunk in chunks
+        ]
+        key_points = [kp for kp in key_points if kp]
+
+        topic = project.title or "this topic"
+
+        prompt = (
+            f"A single, cohesive educational illustration about "
+            f"\"{topic}\" that visually connects and summarizes "
+            f"these key ideas in one unified scene, showing how "
+            f"they relate to each other rather than as separate "
+            f"panels: "
+            + "; ".join(key_points[:8])
+        )
+
+        moderate_text(prompt, "This Complete Visual request")
+
+        image_id = generate_image(
+            prompt,
+            f"amivi_complete_visual_{request.project_id}_{uuid.uuid4().hex[:8]}.png",
+            request.project_id,
+        )
+
+        image_url = f"/api/media/{image_id}"
+
+        update_project_data(
+            request.project_id,
+            {"complete_visual_image_url": image_url},
+        )
+
+        return {
+            "status": "success",
+            "image_id": image_id,
+            "image_url": image_url,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
 
         raise HTTPException(
             status_code=500,
