@@ -4933,6 +4933,13 @@ async def amivi_generate(
         return {
             "status": "success",
             "project_id": project_id,
+            # Was missing: without it, the frontend's heading block
+            # (gated on `result?.title`) just didn't render right
+            # after a fresh generation — it only ever showed up on
+            # reopening the lesson from the Library, since the title
+            # was being saved to the project correctly, just never
+            # sent back in this response.
+            "title": final_title,
             "source_url": source_url,
             "video_id": video_id,
             "video_url": (
