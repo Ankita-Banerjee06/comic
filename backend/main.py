@@ -1,6 +1,5 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -23,11 +22,6 @@ import secrets
 import shutil
 import uuid
 import textwrap
-import threading
-import concurrent.futures
-import time
-import socket
-import ipaddress
 
 from urllib.parse import urlparse
 
@@ -42,7 +36,6 @@ from moviepy.editor import (
 # pyrefly: ignore [missing-import]
 from pypdf import PdfReader
 from docx import Document
-from bs4 import BeautifulSoup
 
 import requests
 import yt_dlp
@@ -90,12 +83,6 @@ LUNA_MODEL = "gpt-5.6-luna"
 
 IMAGE_MODEL = "gpt-image-2"
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
-
-# Narration (video voiceover) — an expressive, instructable TTS model,
-# unlike the old local Piper engine it replaces. Voice + delivery style
-# are both tunable below without touching the call sites.
-NARRATOR_MODEL = "gpt-4o-mini-tts"
-NARRATOR_VOICE = os.getenv("AMIVI_NARRATOR_VOICE", "fable")
 
 
 client = (
@@ -176,24 +163,8 @@ class AuthSwitchRoleRequest(BaseModel):
 class AmiviRequest(BaseModel):
     text: str = ""
     language: str = "en"
-    # Defaults to off for MVP demonstrations — a teacher presenting
-    # live shouldn't have video generation (slower, another point of
-    # failure) running unless they deliberately opt in. The frontend
-    # checkbox mirrors this default; kept here too so any other
-    # caller that omits the field gets the same safe default.
-    generate_video: bool = False
+    generate_video: bool = True
     video_url: str | None = None
-
-    # When set and no text/video is supplied, AMIVI is generated
-    # from this existing project's own material (e.g. "Generate
-    # AMIVI" from a chapter hub that already has an AMICO or Quiz),
-    # and the new project inherits that project's subject/chapter.
-    source_project_id: int | None = None
-
-
-class AmiviUrlExtractRequest(BaseModel):
-    url: str
-    language: str = "en"
 
 
 class AmiviRegenerateImageRequest(BaseModel):
@@ -216,22 +187,8 @@ class AmiviEditChunkRequest(BaseModel):
     language: str = "en"
 
 
-class AmiviExplainChunkRequest(BaseModel):
-    project_id: int | None = None
-    chunk_id: int | None = None
-    key_point: str = ""
-    slogan: str = ""
-    subject: str = ""
-    language: str = "en"
-
-
 class AmiviPhotoStoryRequest(BaseModel):
     project_id: int
-
-
-class AmiviCompleteVisualRequest(BaseModel):
-    project_id: int
-    language: str = "en"
 
 
 class AmicoRequest(BaseModel):
@@ -358,9 +315,9 @@ class AssignmentCreateRequest(BaseModel):
     member_token: str
     title: str
     instructions: str = ""
-    # Optional — a teacher can assign just Visuals and/or a Comic with
-    # no quiz at all. A quiz is only needed when the homework should
-    # be auto-graded with a score.
+    # Optional — a teacher can assign just Visuals and/or a Comic
+    # with no quiz at all. A quiz is only needed when the homework
+    # should be auto-graded with a score.
     quiz_project_id: int | None = None
     amivi_project_id: int | None = None
     amico_project_id: int | None = None
@@ -645,19 +602,24 @@ def auth_me(current_user=Depends(get_current_user)):
     return {"user": serialize_user(current_user)}
 
 
+# Lets a signed-in person flip their OWN account between the
+# Teacher and Student experiences in place — same account, same
+# saved Library content, no re-registering. Mainly for testing/
+# demoing both sides of the platform without two separate logins.
 @app.post("/api/auth/switch_role")
-def auth_switch_role(payload: AuthSwitchRoleRequest, current_user=Depends(get_current_user)):
-    # Lets a signed-in user flip their own account between Student and
-    # Teacher views, in place — same account id, same saved Library
-    # content, no re-registering. Mainly for a single person (a teacher
-    # building lessons, or anyone testing/demoing the app) who needs to
-    # see both the teacher and student experience without juggling two
-    # separate accounts.
+def auth_switch_role(
+    payload: AuthSwitchRoleRequest,
+    current_user=Depends(get_current_user),
+):
 
-    role = (payload.role or "").strip().lower()
+    role = payload.role.strip().lower()
 
     if role not in ("student", "teacher"):
-        raise HTTPException(status_code=400, detail="Role must be 'student' or 'teacher'.")
+
+        raise HTTPException(
+            status_code=400,
+            detail='role must be "student" or "teacher".',
+        )
 
     db = SessionLocal()
 
@@ -669,6 +631,7 @@ def auth_switch_role(payload: AuthSwitchRoleRequest, current_user=Depends(get_cu
             raise HTTPException(status_code=404, detail="Account not found.")
 
         user.role = role
+
         db.commit()
         db.refresh(user)
 
@@ -695,59 +658,6 @@ def require_services():
             status_code=500,
             detail="DATABASE_URL is not set.",
         )
-
-
-def friendly_error_detail(exc):
-
-    """
-    Every endpoint's catch-all handler used to send str(exc)
-    straight to the caller as the HTTPException detail — fine for
-    an unexpected bug, but it meant a well-understood OpenAI
-    account problem (out of credits, rate limited, a prompt
-    blocked by moderation) showed up to a teacher or student as raw
-    SDK text like "Error 429 — insufficient_quota —
-    credit_balance_exhausted", which reads as broken and gives them
-    nothing they can act on. This maps the handful of OpenAI
-    failure modes the app has actually hit in production to a
-    short, plain-language message instead. Anything not recognized
-    here falls through unchanged, so a genuinely new/unexpected
-    error is still fully visible for debugging — this only
-    softens the well-known, expected ones.
-    """
-
-    text = str(exc)
-    lowered = text.lower()
-
-    if (
-        "insufficient_quota" in lowered
-        or "credit_balance_exhausted" in lowered
-    ):
-
-        return (
-            "We're temporarily unable to generate new content — "
-            "our AI service has run out of credits. Please try "
-            "again later."
-        )
-
-    if (
-        "rate_limit_exceeded" in lowered
-        or "rate limit" in lowered
-    ):
-
-        return (
-            "We're receiving a lot of requests right now — please "
-            "wait a moment and try again."
-        )
-
-    if "moderation_blocked" in lowered:
-
-        return (
-            "That request was blocked by our content safety "
-            "system. Please try different wording or a different "
-            "photo."
-        )
-
-    return text
 
 
 # ============================================================
@@ -1019,9 +929,6 @@ def save_project(
     language,
     data,
     user_id=None,
-    subject=None,
-    chapter=None,
-    chapter_key=None,
 ):
 
     db = SessionLocal()
@@ -1035,9 +942,6 @@ def save_project(
             language=language,
             data=data,
             user_id=user_id,
-            subject=subject,
-            chapter=chapter,
-            chapter_key=chapter_key,
         )
 
         db.add(row)
@@ -1048,140 +952,6 @@ def save_project(
 
     finally:
         db.close()
-
-
-# ============================================================
-# ESSENTIAL LEARNING — Subject / Chapter grouping
-#
-# Deliberately conservative: exact-match-only normalization, no
-# fuzzy similarity. "Photosynthesis", "photosynthesis" and
-# "Photosynthesis Basics" all collapse to the same chapter_key,
-# but two genuinely different topics never get silently merged.
-# ============================================================
-
-SUBJECT_CATEGORIES = (
-    "Science",
-    "Math",
-    "History",
-    "Language",
-    "Arts",
-    "Technology",
-    "Other",
-)
-
-_CHAPTER_KEY_FILLER_PREFIXES = (
-    "introduction to ",
-    "intro to ",
-    "basics of ",
-    "overview of ",
-    "understanding ",
-    "what is ",
-    "fundamentals of ",
-    "the ",
-)
-
-_CHAPTER_KEY_FILLER_SUFFIXES = (
-    " basics",
-    " fundamentals",
-    " explained",
-    " overview",
-    " 101",
-    " for beginners",
-    " introduction",
-)
-
-
-def normalize_chapter_key(name):
-    """
-    Turns a chapter display name into a deterministic grouping key,
-    so "Photosynthesis", "photosynthesis" and "Photosynthesis
-    Basics" all land in the same chapter while "Photosynthesis" and
-    "Cellular Respiration" never accidentally merge.
-    """
-
-    import re
-
-    key = (name or "").strip().lower()
-
-    # Strip punctuation, collapse whitespace.
-    key = re.sub(r"[^\w\s]", " ", key)
-    key = re.sub(r"\s+", " ", key).strip()
-
-    if not key:
-        return ""
-
-    # Strip known filler prefixes/suffixes in a loop until stable,
-    # so "Introduction to Photosynthesis Basics" fully reduces to
-    # "photosynthesis" rather than stopping after one pass.
-    changed = True
-
-    while changed:
-
-        changed = False
-
-        for prefix in _CHAPTER_KEY_FILLER_PREFIXES:
-
-            if key.startswith(prefix):
-                key = key[len(prefix):].strip()
-                changed = True
-
-        for suffix in _CHAPTER_KEY_FILLER_SUFFIXES:
-
-            if key.endswith(suffix):
-                key = key[: -len(suffix)].strip()
-                changed = True
-
-    return key
-
-
-def resolve_chapter_metadata(
-    source_project_id=None,
-    llm_subject_category=None,
-    chapter_display_name=None,
-):
-    """
-    Decides the (subject, chapter, chapter_key) to save on a new
-    AMIVI/AMICO/Quiz project.
-
-    - If this generation was explicitly derived from an existing
-      sibling project (source_project_id set — "Send to AMICO",
-      "Generate Quiz from this chapter", etc.), inherit that
-      project's subject/chapter/chapter_key directly. This
-      guarantees perfect grouping with zero risk of the inherited
-      content landing in a different chapter than its source,
-      since no fresh normalization is involved at all.
-    - Otherwise, classify fresh: subject comes from the LLM's own
-      subject_category guess (falling back to "Other"), chapter is
-      the display name as generated, and chapter_key is its
-      normalized form.
-    """
-
-    if source_project_id:
-
-        try:
-            source_project = get_project(source_project_id)
-
-        except HTTPException:
-            source_project = None
-
-        if source_project is not None and source_project.chapter_key:
-
-            return (
-                source_project.subject,
-                source_project.chapter,
-                source_project.chapter_key,
-            )
-
-    subject = (
-        llm_subject_category
-        if llm_subject_category in SUBJECT_CATEGORIES
-        else "Other"
-    )
-
-    chapter = (chapter_display_name or "").strip() or "Untitled"
-    chapter_key = normalize_chapter_key(chapter) or chapter.lower()
-
-    return (subject, chapter, chapter_key)
 
 
 def save_media(
@@ -1257,51 +1027,6 @@ def save_amivi_chunk(
         db.refresh(row)
 
         return row.id
-
-    finally:
-        db.close()
-
-
-def update_amivi_chunk_description(chunk_id, description):
-    """
-    Persists an EXPLAIN-stage (Box 2) explanation onto its Microbit
-    row, so it's available later from the database itself — e.g.
-    when AMICO builds its "Send to AMICO" package from this AMIVI
-    project — instead of living only in the AMIVI page's in-memory
-    state and being lost on reload or when read from elsewhere.
-
-    Best-effort: a failure here must never break the explain_chunk
-    response the teacher is already looking at.
-    """
-
-    if not chunk_id:
-        return
-
-    db = SessionLocal()
-
-    try:
-
-        row = (
-            db.query(AmiviChunk)
-            .filter(AmiviChunk.id == chunk_id)
-            .first()
-        )
-
-        if not row:
-            return
-
-        row.description = description
-
-        db.add(row)
-        db.commit()
-
-    except Exception as exc:
-
-        print(
-            f"update_amivi_chunk_description failed for "
-            f"chunk {chunk_id} (non-fatal): {exc}"
-        )
-        db.rollback()
 
     finally:
         db.close()
@@ -2244,227 +1969,6 @@ def extract_video_text(
 
 
 # ============================================================
-# WEBPAGE URL EXTRACTION
-# (the Uploads box's "paste a website URL" option — a teacher
-# pastes an article link, e.g. a Wikipedia page, and this pulls
-# out just the readable educational text so they don't have to
-# copy/paste the whole page by hand.)
-# ============================================================
-
-# Hosts/IP ranges a pasted URL must never be allowed to reach —
-# this endpoint makes a server-side request to whatever URL the
-# user supplies, so without this check a pasted URL could be used
-# to probe the backend's own network (localhost, cloud metadata
-# endpoints, other internal services) rather than a real public
-# webpage.
-def _is_safe_external_url(url: str) -> bool:
-
-    parsed = urlparse(url)
-
-    if parsed.scheme not in {"http", "https"}:
-        return False
-
-    hostname = parsed.hostname
-
-    if not hostname:
-        return False
-
-    if hostname.lower() in {"localhost"}:
-        return False
-
-    # socket.getaddrinfo() has no built-in timeout and can hang well
-    # past any sane request budget if DNS is slow or unreachable —
-    # left unbounded, that hang was blocking this whole (synchronous)
-    # check, which in turn blocked the server. Give it a hard ceiling
-    # in a worker thread instead of letting it stall indefinitely.
-    # Note: `pool.shutdown(wait=False)` — a `with ThreadPoolExecutor()`
-    # block would call shutdown(wait=True) on the way out, which
-    # blocks until the stalled lookup itself finishes, defeating the
-    # timeout entirely. We abandon it instead: the one leaked thread
-    # dies on its own once the lookup eventually returns (or never,
-    # if the host is truly unreachable) without holding up this
-    # request.
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    try:
-        future = pool.submit(socket.getaddrinfo, hostname, None)
-        resolved_ips = {info[4][0] for info in future.result(timeout=6)}
-    except (socket.gaierror, concurrent.futures.TimeoutError):
-        return False
-    finally:
-        pool.shutdown(wait=False)
-
-    for ip_text in resolved_ips:
-
-        try:
-            ip = ipaddress.ip_address(ip_text)
-        except ValueError:
-            return False
-
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-        ):
-            return False
-
-    return True
-
-
-def extract_webpage_text(url: str) -> dict:
-    """
-    Fetches a public webpage and pulls out its main readable text
-    (stripping navigation, ads, scripts, etc.) — this is the generic
-    "any article/educational page" path, e.g. a Wikipedia article.
-    Separate from extract_video_text() above, which is specifically
-    for video platforms (YouTube, etc.) and reads captions/audio
-    instead of page text.
-    """
-
-    url = (url or "").strip()
-
-    if not url:
-        raise HTTPException(
-            status_code=400,
-            detail="Please paste a website URL.",
-        )
-
-    if not _is_safe_external_url(url):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Please provide a valid, public http/https "
-                "website URL."
-            ),
-        )
-
-    try:
-        response = requests.get(
-            url,
-            # (connect timeout, read timeout) instead of one shared
-            # number — a slow/unreachable host now fails fast (8s)
-            # rather than potentially stacking up to ~40s across both
-            # phases before the caller sees anything.
-            timeout=(8, 20),
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (compatible; VLQ-AMIVI/1.0; "
-                    "+https://vlq.app)"
-                )
-            },
-            allow_redirects=True,
-            stream=True,
-        )
-
-        response.raise_for_status()
-
-        content_type = response.headers.get("content-type", "")
-
-        if "html" not in content_type.lower():
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "That URL doesn't look like a webpage "
-                    "(expected HTML content)."
-                ),
-            )
-
-        # Cap how much of the response we read — enough for even a
-        # long article, without downloading an unbounded page body.
-        max_bytes = 3_000_000
-        raw = response.raw.read(max_bytes + 1, decode_content=True)
-
-        if len(raw) > max_bytes:
-            raw = raw[:max_bytes]
-
-        html = raw.decode(
-            response.encoding or "utf-8",
-            errors="ignore",
-        )
-
-    except HTTPException:
-        raise
-
-    except requests.RequestException as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Could not open that URL: {exc}",
-        )
-
-    soup = BeautifulSoup(html, "html.parser")
-
-    for tag in soup(
-        [
-            "script",
-            "style",
-            "noscript",
-            "nav",
-            "header",
-            "footer",
-            "aside",
-            "form",
-            "iframe",
-            "svg",
-        ]
-    ):
-        tag.decompose()
-
-    title_tag = soup.find("title")
-    title = (
-        title_tag.get_text(strip=True)
-        if title_tag
-        else urlparse(url).hostname or "Webpage"
-    )
-
-    # Prefer the page's main content container when there is one —
-    # falls back to the whole (already-stripped) page otherwise.
-    main_content = (
-        soup.find("article")
-        or soup.find("main")
-        or soup.find(id=re.compile(r"content", re.I))
-        or soup.find(
-            class_=re.compile(r"(article|content|main)", re.I)
-        )
-        or soup.body
-        or soup
-    )
-
-    raw_text = main_content.get_text(separator="\n")
-
-    lines = [
-        line.strip()
-        for line in raw_text.splitlines()
-        if line.strip()
-    ]
-
-    text = "\n".join(lines)
-
-    # Plenty for even a long Wikipedia-style article, while keeping
-    # the downstream INTRODUCE-stage prompt a sane size.
-    max_chars = 12000
-
-    if len(text) > max_chars:
-        text = text[:max_chars]
-
-    if len(text) < 100:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Could not find enough readable text on that "
-                "page."
-            ),
-        )
-
-    return {
-        "title": title,
-        "text": text,
-        "source": "webpage",
-        "url": url,
-    }
-
-
-# ============================================================
 # AMIVI
 # ============================================================
 
@@ -2474,55 +1978,48 @@ def generate_amivi_content(
 ):
 
     prompt = (
-        "You are AMIVI, an educational visual synthesis engine running "
-        "the INTRODUCE stage of the AMIVI system.\n\n"
+        "You are AMIVI, an educational visual synthesis engine.\n\n"
 
-        "The user will provide one large educational passage — the "
-        "SUBJECT.\n\n"
+        "The user will provide one large educational passage.\n\n"
 
-        "Generate separate individual Chunks/Microbits for the subject. "
-        "Choose the natural number of essential Key Points required by "
-        "the subject; do NOT force a fixed number — use as many or as "
-        "few Microbits as the subject genuinely needs.\n\n"
+        "Transform that material into meaningful educational "
+        "micro-bits or chunks.\n\n"
 
         "Rules:\n"
         "- Create a very short, maximum 2-word title that captures the MAIN TOPIC of the material.\n"
-        "- Also write a one-sentence subject_description that plainly introduces the subject as a whole — a single, clear sentence a teacher could read aloud to open the lesson, in the style of 'Photosynthesis is the process by which green plants transform light energy into chemical energy.' It must stand alone (no 'this subject' or 'in this lesson' framing) and must not repeat or list the individual Key Points — it introduces the topic in general, before any Key Point is shown.\n"
-        "- Classify the overall subject into exactly one of these fixed categories and return it as subject_category: Science, Math, History, Language, Arts, Technology, Other. Pick the single best fit; use Other only if none genuinely apply.\n"
-        "- Each Microbit should contain exactly: one essential Key Point Name, one relevant image, and one memorable slogan of maximum 4 words.\n"
-        "- Generate each Microbit separately so it can be individually selected and presented for teaching.\n"
-        "- Do NOT combine the Microbits into one poster or image here — every Microbit stays its own separate, standalone card. (A connected 'Complete Visual' may be generated separately afterward, as its own later step — never as part of this set.)\n"
+        "- Create 5 to 10 chunks depending on the length and complexity.\n"
+        "- Redesign the AMIVI output as a simple, visual-first learning card system.\n"
         "- Every individual AMIVI visual card must be exactly 11.7 × 14.7 in the required format.\n"
-        "- IMAGE REQUIREMENTS for image_prompt — be precise, this is read by an image generator, not a human:\n"
-        "  * Describe a concrete, literal scene that illustrates the SPECIFIC MECHANISM OR ACTION of THIS one Key Point, not a generic portrait of the overall subject. Find the one concrete visual device that makes this Key Point's idea, specifically, visible — e.g. a Key Point about light draws visible light itself (glowing rays, sunbeams striking a surface); a Key Point about something moving draws the movement directly (droplets, an arrow, a flow); a Key Point about a gas draws the gas entering or leaving (small arrows, bubbles, a wisp at an opening); a Key Point about an internal structure or substance draws a close-up or cross-section that reveals it. The visual device must be a DIFFERENT one for every Key Point in the set.\n"
-        "  * Hard requirement: no two Key Points in this set may end up as near-identical images. Before finalizing each image_prompt, check it against the others you are writing in this same set — if two would show basically the same composition (e.g. 'a plant in soil under the sun' repeated with only a minor prop swapped), rewrite them so the camera angle, framing, and central visual action are clearly different and specific to each one's own concept. Someone comparing any two images from the set side by side, with the text covered, should immediately see they depict different ideas.\n"
-        "  * Simple, clear, colourful, educational illustration style — not photorealistic, not cluttered.\n"
-        "  * Keep the scene focused on THIS Key Point's own mechanism as described above — do not depict other Key Points' content. The set may share ONE small consistent anchor (e.g. the same single plant, character, or object recurring across cards) purely so the pictures read as belonging to the same overall SUBJECT — but that anchor is secondary framing only, never the main picture: this Key Point's own mechanism must be the dominant, unmistakable visual focus of its image, not the shared anchor.\n"
-        "  * The slogan for this Microbit IS the main topic of the picture — build the scene directly around what the slogan is saying, so the single clearest visual idea in the image is the slogan's idea, not a loosely related detail.\n"
-        "  * Any character, person, animal, or main subject in the scene must be fully contained inside the frame and roughly centered, with clear visible background margin on every side — explicitly instruct the image model to show the ENTIRE subject (head to feet / full extent), never cropped, cut off, zoomed in too close, or extending past the edges of the image.\n"
-        "  * Explicitly describe the same consistent illustration STYLE across every Microbit in this set — same rendering technique, same line weight, same color palette family — so the set feels like one unified series by style alone. Never achieve that unity by repeating the same scene, composition, or camera angle; style stays constant, content and composition do not.\n"
-        "  * Incorporate the 11.7 x 14.7 size requirement into the prompt.\n"
-        "- CRITICAL: Do NOT include any text, words, labels, captions, slogans, or typography in the image_prompt itself. The generated image must be completely text-free — it is a pure illustration. The UI renders the Key Point and slogan as separate text.\n"
-        "- Create a SECOND supporting image prompt for the same Microbit from a different angle, following the same image requirements above.\n"
-        "- Also write one short spoken narration line (voice_script) per Microbit, for optional audio/video playback — this is narration, not on-screen text. Write it the way a warm, upbeat animated-adventure narrator would say it out loud to a curious kid — natural, conversational, short and clear, with a little wonder, excitement or personality where it fits. Never a flat, formal textbook sentence.\n"
-        "- Set the 'text' field to the same value as 'key_point'. Leave the 'description' field as an empty string — explanations are generated separately in the later EXPLAIN stage, not here.\n"
-        "- Keep the points in a clear, logical learning sequence.\n\n"
+        "- Each card should contain only: One clear educational illustration representing the key concept, and One short Key Point in large, bold, highly readable text.\n"
+        "- Clean, simple educational styling. No slogans, long descriptions, audio controls, buttons, or unnecessary text.\n"
+        "- The visual and Key Point should work together as one simple educational explanation.\n"
+        "- The FINAL chunk in the 'chunks' array MUST be the 'Complete Visual'. Its image_prompt should combine all previous concepts into one connected educational visual. Its key_point should just be the MAIN TOPIC, and its text should summarize the concepts.\n"
+        "- Create a detailed supporting image prompt for each chunk incorporating the 11.7 x 14.7 size requirement.\n"
+        "- CRITICAL: Do NOT include any text, words, labels, or typography in the image_prompt itself. The generated image must be completely text-free. The UI will render the key point text separately.\n"
+        "- Create a SECOND supporting image prompt for the same chunk from a different angle.\n"
+        "- Flow: Learning Material -> Key Points -> Individual Visual Cards -> Complete Connected Visual.\n"
+        "- Keep the design clean, colorful, consistent, educational, and easy to understand at a glance.\n"
+        "- Create one quick 'check yourself' multiple-choice question for each chunk with EXACTLY two answer options (one correct, one plausible but wrong).\n\n"
 
         "Return ONLY valid JSON in this exact structure:\n"
         "{\n"
         '  "title": "...",\n'
-        '  "subject_description": "...",\n'
-        '  "subject_category": "...",\n'
         '  "chunks": [\n'
         "    {\n"
         '      "chunk_number": 1,\n'
         '      "key_point": "...",\n'
         '      "text": "...",\n'
         '      "slogan": "...",\n'
-        '      "description": "",\n'
+        '      "description": "...",\n'
         '      "image_prompt": "...",\n'
         '      "image_prompt_2": "...",\n'
-        '      "voice_script": "..."\n'
+        '      "voice_script": "...",\n'
+        '      "mcq": {\n'
+        '        "question": "...",\n'
+        '        "option_a": "...",\n'
+        '        "option_b": "...",\n'
+        '        "correct": "a"\n'
+        "      }\n"
         "    }\n"
         "  ]\n"
         "}\n\n"
@@ -2539,179 +2036,16 @@ def generate_amivi_content(
     )
 
 
-def generate_amivi_explanation(
-    key_point,
-    slogan,
-    subject_context,
-    language="en",
-):
-    """
-    AMIVI EXPLAIN stage. Takes ONE already-generated Microbit (its Key
-    Point Name + slogan, from the INTRODUCE stage) and produces a short,
-    standalone explanation for just that Microbit — called on demand
-    when a single Microbit is selected, not as part of the bulk
-    INTRODUCE generation.
-    """
-
-    prompt = (
-        "You are AMIVI EXPLAIN, the second stage of the AMIVI system.\n\n"
-
-        "You are given ONE Microbit that was already created in the "
-        "INTRODUCE stage: its Key Point Name and its slogan. Use ONLY "
-        "this stored output. Do not re-analyse the original learning "
-        "material, do not invent or introduce a new Key Point, and do "
-        "not change or rename this one.\n\n"
-
-        "Generate a short, clear explanation for this individual "
-        "Microbit only. Keep the same Key Point Name and the same "
-        "slogan, and write as if the same image/visual identity from "
-        "INTRODUCE is still being shown, so the learner recognises and "
-        "reinforces the same visual memory.\n\n"
-
-        "Describe only the essential information needed to understand "
-        "this Key Point, using simple, concise language appropriate to "
-        "the subject and learner. This explanation is for ONE Microbit "
-        "presented on its own — do not reference or summarize other "
-        "Key Points. Keep it to around 1 to 3 short sentences — never "
-        "a long essay or a full paragraph.\n\n"
-
-        "Return ONLY valid JSON in this exact structure:\n"
-        '{\n  "explanation": "..."\n}\n\n'
-
-        + get_language_instruction(
-            language
-        )
-    )
-
-    user_input = (
-        f"Subject: {subject_context}\n"
-        f"Key Point: {key_point}\n"
-        f"Slogan: {slogan}"
-    )
-
-    return call_json_model(
-        TERRA_MODEL,
-        prompt,
-        user_input,
-    )
-
-
-def generate_amivi_complete_visual_prompt(
-    key_points,
-    subject,
-    language="en",
-):
-    """
-    Optional Stage 3. Takes the ordered list of Key Points already
-    created by INTRODUCE (never re-analyses the original material or
-    invents new ones) and asks the model to write ONE image prompt for
-    a single connected illustration that shows how they relate —
-    via arrows, sequence, or cause-and-effect — rather than simply
-    placing the individual Microbit images next to each other.
-    """
-
-    prompt = (
-        "You are AMIVI, writing the image prompt for the optional "
-        "'Complete Visual' stage, which comes after INTRODUCE and "
-        "EXPLAIN.\n\n"
-
-        "You are given the ordered list of Key Points already created "
-        "in the INTRODUCE stage. Do not re-analyse the subject or "
-        "invent new Key Points — use exactly the ones given, in the "
-        "order given.\n\n"
-
-        "Write ONE detailed image prompt for a single connected "
-        "educational illustration that brings these Key Points "
-        "together into one simple visual story — using arrows, "
-        "sequence, or cause-and-effect connections between them, so "
-        "the relationship between the Key Points is clear at a "
-        "glance. Do not just describe the Key Points placed side by "
-        "side — describe how they connect and flow into each other.\n\n"
-
-        "The image must be simple, clear, colourful, and in the same "
-        "consistent educational illustration style as the individual "
-        "Microbits. It should feel like a simple educational "
-        "story/infographic.\n\n"
-
-        "CRITICAL: Do NOT include any text, words, labels, captions, "
-        "or typography in the image itself — describe only the "
-        "visual scene, arrows, and connections. It must be text-free.\n\n"
-
-        "Return ONLY valid JSON in this exact structure:\n"
-        '{\n  "image_prompt": "..."\n}\n\n'
-
-        + get_language_instruction(
-            language
-        )
-    )
-
-    ordered_points = "\n".join(
-        f"{i + 1}. {kp}"
-        for i, kp in enumerate(key_points)
-    )
-
-    user_input = (
-        f"Subject: {subject}\n\n"
-        f"Key Points in order:\n{ordered_points}"
-    )
-
-    return call_json_model(
-        TERRA_MODEL,
-        prompt,
-        user_input,
-    )
-
-
 # ============================================================
 # AMICO STORY GENERATION
 # ============================================================
 
-def build_amico_structure_hint(total_panels, key_point_count=None):
+def build_amico_structure_hint(total_panels):
 
     middle_count = max(
         0,
         total_panels - 2,
     )
-
-    # When this comic is transforming an already-finished AMIVI
-    # package, the caller (amico_generate) has already sized
-    # total_panels so middle_count >= key_point_count — so give the
-    # model an exact, unambiguous 1:1 instruction instead of the
-    # generic "pieces" language below, which is what a 6-Key-Point
-    # package condensed into a 4-panel comic (2 middle panels) used
-    # to fall back on, inviting it to quietly drop or blend Key
-    # Points together.
-    if key_point_count is not None and middle_count >= key_point_count:
-
-        key_point_line = (
-            f"There are exactly {key_point_count} Key Points in "
-            f"the source package and {middle_count} middle panels "
-            "available — give each Key Point its own dedicated "
-            "panel, in the exact order given, one Key Point per "
-            "panel. Do not skip, merge, or combine any Key Point "
-            "into another panel."
-            + (
-                f" The remaining "
-                f"{middle_count - key_point_count} middle panel(s) "
-                "beyond the Key Points may be used to expand on "
-                "the single most important or trickiest Key Point "
-                "with an extra supporting panel (e.g. a concrete "
-                "example), never to introduce new, unrelated "
-                "content."
-                if middle_count > key_point_count
-                else ""
-            )
-        )
-
-    else:
-
-        key_point_line = (
-            "Do not skip a piece that's needed to understand the "
-            "topic — if there are more pieces than panels, "
-            "prioritize the most essential ones and only combine "
-            "the smallest, most closely related pieces into one "
-            "panel when there truly isn't room for a panel each."
-        )
 
     return (
         f"Panel 1: Introduce the topic through a character "
@@ -2731,7 +2065,11 @@ def build_amico_structure_hint(total_panels, key_point_count=None):
         f"picture. EACH INDIVIDUAL PANEL should focus on just ONE "
         f"of these pieces (or one step) — never try to fit several "
         f"pieces into a single panel. Define any term the first "
-        f"time it is used. {key_point_line}\n"
+        f"time it is used. Do not skip a piece that's needed to "
+        f"understand the topic — if there are more pieces than "
+        f"panels, prioritize the most essential ones and only "
+        f"combine the smallest, most closely related pieces into "
+        f"one panel when there truly isn't room for a panel each.\n"
 
         f"Panel {total_panels}: End with a memorable recap, "
         f"mnemonic, question, or fun takeaway that reinforces the "
@@ -2745,8 +2083,6 @@ def generate_amico_comic(
     total_panels=8,
     character_reference="",
     character_name="",
-    from_amivi_package=False,
-    key_point_count=None,
 ):
 
     if character_name and character_reference:
@@ -2781,32 +2117,10 @@ def generate_amico_comic(
 
         character_line = ""
 
-    source_package_line = (
-        (
-            "IMPORTANT — SOURCE MATERIAL: the text below is NOT raw, "
-            "unanalysed material. It is an ALREADY-FINISHED AMIVI "
-            "learning package: a Subject plus its essential Key "
-            "Points, already identified, sequenced, illustrated, and "
-            "explained. Do NOT re-analyse the subject from scratch, "
-            "and do NOT invent, merge, drop, reorder, or rename any "
-            "Key Point — treat the given Key Points, in the given "
-            "order, as fixed. Your job is only to TRANSFORM this "
-            "existing package into a connected comic story: turn "
-            "each Key Point into one or more panels, in the given "
-            "sequence, using its slogan and explanation as the "
-            "factual basis for that panel's dialogue and "
-            "learning_point.\n\n"
-        )
-        if from_amivi_package
-        else ""
-    )
-
     prompt = (
         "You are AMICO's storytelling engine.\n\n"
 
-        + source_package_line
-
-        + f"Create a connected {total_panels}-panel educational "
+        f"Create a connected {total_panels}-panel educational "
         "comic that teaches the learner the given topic through "
         "storytelling and visual explanation.\n\n"
 
@@ -2835,8 +2149,7 @@ def generate_amico_comic(
         "The comic must follow this structure:\n"
 
         + build_amico_structure_hint(
-            total_panels,
-            key_point_count if from_amivi_package else None,
+            total_panels
         )
 
         + "Keep the story connected across all panels.\n"
@@ -2898,23 +2211,18 @@ def generate_amico_comic(
         "and MUST also instruct the image model to draw the dialogue "
         "directly in the image as large, clean, easily readable "
         "comic speech bubbles (oversized white bubble with generous "
-        "padding, thick black outline, big bold black lettering, a "
-        "pointed tail toward the speaking character) — one bubble "
-        "per line of dialogue (at most 3 bubbles total), positioned "
-        "near the character who says it, using EXACTLY the same "
-        "wording as this panel's dialogue field, with no other text "
-        "anywhere in the image. Inside each bubble, the speaker's "
-        "name (the word before the colon) must be written in bold "
-        "colored lettering — a distinct color per character, kept "
+        "padding, thick black outline, big bold black lettering "
+        "sized so it is comfortably readable at a glance, a pointed "
+        "tail toward the speaking character) — one bubble per line "
+        "of dialogue (at most 3 bubbles total), positioned near the "
+        "character who says it, using EXACTLY the same wording as "
+        "this panel's dialogue field, with no other text anywhere "
+        "in the image. Inside each bubble, the speaker's name (the "
+        "word before the colon) must be written in bold colored "
+        "lettering — a distinct color per character, kept "
         "consistent for that character across every panel — while "
         "the rest of the line stays in plain black lettering, so "
-        "each speaker is easy to tell apart at a glance. The "
-        "lettering must stay legible even when this panel is "
-        "enlarged and projected on a classroom screen from the "
-        "back of the room — the letter height should be roughly "
-        "4-6% of the image's own height, never small, thin, or "
-        "densely packed text, even if that means the bubble takes "
-        "up a noticeably larger share of the panel.\n"
+        "each speaker is easy to tell apart at a glance.\n"
         "The image_prompt must explicitly instruct the image model "
         "to draw ONE single, unified scene for this panel — never "
         "a grid, filmstrip, sequence of smaller pictures, or "
@@ -2934,17 +2242,10 @@ def generate_amico_comic(
         "panel's image_prompt so they can talk and react to each "
         "other throughout the whole comic.\n\n"
 
-        "Also classify the overall topic into exactly one of these "
-        "fixed categories and return it as subject_category: "
-        "Science, Math, History, Language, Arts, Technology, "
-        "Other. Pick the single best fit; use Other only if none "
-        "genuinely apply.\n\n"
-
         "Return ONLY valid JSON using exactly this structure:\n\n"
 
         "{\n"
         '  "title": "...",\n'
-        '  "subject_category": "...",\n'
         '  "learning_objective": "...",\n'
         '  "characters": [\n'
         "    {\n"
@@ -3030,12 +2331,7 @@ def review_amico_comic(
         "(exact wording, one bubble per line) drawn directly in "
         "the image, next to the character who says it, with each "
         "speaker's name highlighted in a distinct color (consistent "
-        "per character) inside the bubble, AND that the lettering "
-        "must stay legible even when the panel is enlarged and "
-        "projected on a classroom screen (letter height roughly "
-        "4-6% of the image's height) — if an image_prompt is "
-        "missing this classroom-legibility instruction, add it. "
-        "Also ensure every image_prompt explicitly instructs "
+        "per character) inside the bubble, AND explicitly instructs "
         "the image model to draw ONE single unified scene — never "
         "a grid, filmstrip, or multiple sub-panels within one "
         "image.\n"
@@ -3351,32 +2647,11 @@ def generate_quiz_from_source(
         "explanation (1-2 short, simple sentences explaining "
         "why the correct answer is right), and "
         "image_prompt (a short description of a simple, clear "
-        "illustration setting the scene for the question's "
-        "subject matter in general — NEVER an illustration of "
-        "the correct answer specifically, and never one that "
-        "would be a different, telling picture for a wrong "
-        "answer than for the right one. A student looking only "
-        "at the image, before reading any option, must not be "
-        "able to guess which option is correct from it. "
-        "CRITICAL: the image itself must contain NO text, "
-        "words, labels, captions, titles, or arrows pointing "
-        "at or naming anything — it is a pure, wordless "
-        "illustration, never a labeled diagram or map. For "
-        "example, for 'Which organ pumps blood around the "
-        "body?' use a plain, unlabeled illustration of a human "
-        "body or a classroom science-lesson scene — never a "
-        "diagram of a heart with its chambers labeled, since "
-        "that draws and names the correct answer outright.\n\n"
-
-        "Also classify the overall topic into exactly one of these "
-        "fixed categories and return it as subject_category: "
-        "Science, Math, History, Language, Arts, Technology, "
-        "Other. Pick the single best fit; use Other only if none "
-        "genuinely apply.\n\n"
+        "illustration or labeled map/diagram that supports the "
+        "correct answer).\n\n"
 
         'Return ONLY JSON in this structure: '
-        '{"quiz":{"title":"...","subject_category":"...",'
-        '"questions":[...]}}\n\n'
+        '{"quiz":{"title":"...","questions":[...]}}\n\n'
 
         + get_language_instruction(
             language
@@ -3393,52 +2668,6 @@ def generate_quiz_from_source(
 # ============================================================
 # GPT IMAGE 2
 # ============================================================
-
-def optimize_png_bytes(data):
-
-    """
-    Losslessly re-compresses a PNG — no visible change at all, just
-    a smaller file. OpenAI's own PNG encoder isn't tuned for file
-    size, and every image saved through generate_image() is
-    immutable afterwards (see save_media — a regenerate always gets
-    a brand-new media id, nothing is ever re-encoded in place), so
-    this one-time recompression at save time is what every later
-    page view, download, and Render bandwidth GB benefits from.
-    Falls back to the original bytes if the re-encode ever fails or
-    doesn't actually come out smaller, so this can never make an
-    otherwise-good image worse or missing.
-    """
-
-    try:
-
-        image = Image.open(io.BytesIO(data))
-        image.load()
-
-        buffer = io.BytesIO()
-
-        image.save(
-            buffer,
-            format="PNG",
-            optimize=True,
-        )
-
-        optimized = buffer.getvalue()
-
-        return (
-            optimized
-            if len(optimized) < len(data)
-            else data
-        )
-
-    except Exception as exc:
-
-        print(
-            f"PNG re-optimization failed, using the "
-            f"original image bytes instead: {exc}"
-        )
-
-        return data
-
 
 def generate_image(
     prompt,
@@ -3470,10 +2699,6 @@ def generate_image(
 
     image_data = base64.b64decode(
         result.data[0].b64_json
-    )
-
-    image_data = optimize_png_bytes(
-        image_data
     )
 
     return save_media(
@@ -3653,7 +2878,6 @@ def generate_avatar_image(
     description,
     style,
     filename,
-    fallback_label=None,
 ):
 
     style_text = (
@@ -3668,129 +2892,22 @@ def generate_avatar_image(
         "background, no text, no watermark, no speech bubbles."
     )
 
-    # Was a raw generate_image() call — any OpenAI error (most
-    # commonly the safety system blocking a generated prompt, as
-    # happened in production: moderation_blocked) propagated
-    # straight out of this function, through the endpoint's own
-    # try/except, as a 500 that failed avatar creation outright
-    # even though a perfectly good photo description had already
-    # been derived. Use the same resilient wrapper AMIVI/AMICO
-    # already rely on for their own image generation: retries once
-    # with a generic, clearly G-rated fallback prompt before
-    # giving up, which is especially likely to succeed here since
-    # an avatar portrait is a much simpler, safer image than a full
-    # scene.
-    return generate_image_resilient(
+    return generate_image(
         prompt=prompt,
         filename=filename,
-        fallback_label=fallback_label,
     )
 
 
 # ============================================================
-# NARRATION (OpenAI TTS)
-#
-# Video narration used to be synthesized locally by Piper (a CLI
-# subprocess per call, one fixed voice, no tone/style control —
-# see the Piper memory-concurrency fix elsewher in this file's
-# history). It's been replaced with OpenAI's TTS: a warmer, more
-# expressive narrator with an actual style instruction, instead of
-# Piper's flat, same-every-time delivery. The concurrency gate below
-# is kept for the same practical reason as before — capping how many
-# narration calls run at once — just repurposed from "protect local
-# RAM from parallel Piper processes" to "don't fire an unbounded
-# burst of API calls at once" (rate limits / cost spikes), since
-# /api/amivi/generate can still fan out up to 8 chunks in parallel,
-# each wanting its own narration.
+# PIPER
 # ============================================================
-
-# How many narration calls may be in flight at once, across ALL
-# requests this instance is handling. Reads the old PIPER_* env var
-# names too, so an already-configured Render instance keeps working
-# unchanged after this switch.
-NARRATION_MAX_CONCURRENCY = int(
-    os.getenv(
-        "NARRATION_MAX_CONCURRENCY",
-        os.getenv("PIPER_MAX_CONCURRENCY", "3"),
-    )
-)
-
-# A hung network call would otherwise hold its concurrency slot
-# forever and eventually starve every other narration request.
-NARRATION_TIMEOUT_SECONDS = int(
-    os.getenv(
-        "NARRATION_TIMEOUT_SECONDS",
-        os.getenv("PIPER_TIMEOUT_SECONDS", "30"),
-    )
-)
-
-_narration_semaphore = threading.Semaphore(
-    NARRATION_MAX_CONCURRENCY
-)
-_narration_active_count = 0
-_narration_active_lock = threading.Lock()
-
-# Style direction for NARRATOR_MODEL's "instructions" parameter —
-# this is what actually moves the delivery away from "strict
-# teacher" and toward an animated-adventure narrator. The script
-# text itself (voice_script, written by generate_amivi_content
-# above) was also updated to ask for the same warmer, conversational
-# style, so both the words and the delivery pull the same direction.
-NARRATOR_INSTRUCTIONS = (
-    "You are narrating a fun, animated educational adventure for "
-    "kids — think energetic, friendly adventure-show narrator, not "
-    "a classroom lecture. Speak warmly and conversationally, with "
-    "genuine enthusiasm and natural pauses between phrases. Vary "
-    "your pacing and energy to match the line — curious and gentle "
-    "for calm facts, excited and playful for fun or surprising "
-    "ones. Light, natural humor is welcome where the line invites "
-    "it. Never sound flat, formal, stern, or like you're reading "
-    "off a page."
-)
-
-try:
-    # Unix-only (Render runs Linux); the dev machine here is
-    # Windows, where this simply isn't available, so memory
-    # logging below degrades to a no-op rather than failing.
-    import resource as _resource
-except ImportError:
-    _resource = None
-
-
-def _process_rss_mb():
-    """
-    Best-effort current process memory (RSS, in MB), for the
-    diagnostic logs below. Returns None where unsupported (e.g.
-    local Windows dev) instead of raising.
-    """
-
-    if _resource is None:
-        return None
-
-    try:
-
-        usage_kb = _resource.getrusage(
-            _resource.RUSAGE_SELF
-        ).ru_maxrss
-
-        # ru_maxrss is KB on Linux, bytes on macOS.
-        divisor = 1024 if platform.system() != "Darwin" else (1024 * 1024)
-
-        return round(usage_kb / divisor, 1)
-
-    except Exception:
-        return None
-
 
 def generate_voice(
     text,
     filename,
     language="en",
     project_id=None,
-    correlation_id=None,
 ):
-
-    global _narration_active_count
 
     if not text:
 
@@ -3798,64 +2915,79 @@ def generate_voice(
             "Voice text is empty."
         )
 
-    if not client:
+    piper_exec = (
+        "piper.exe"
+        if platform.system() == "Windows"
+        else "piper"
+    )
+
+    piper_path = os.path.join(
+        os.path.dirname(__file__),
+        "piper",
+        piper_exec,
+    )
+
+    if not os.path.exists(
+        piper_path
+    ):
+
+        piper_path = piper_exec
+
+    model_name = (
+        "es_ES-sharvard-medium.onnx"
+        if language == "es"
+        else "en_US-lessac-medium.onnx"
+    )
+
+    model_path = os.path.join(
+        os.path.dirname(__file__),
+        "piper",
+        model_name,
+    )
+
+    if not os.path.exists(
+        model_path
+    ):
 
         raise Exception(
-            "OpenAI client is not configured "
-            "(OPENAI_API_KEY missing)."
+            f"Piper model not found: {model_path}"
         )
 
-    job_id = correlation_id or f"{project_id or 'no-project'}:{filename}"
-
-    acquired = False
-    start_time = time.monotonic()
+    temp_path = None
 
     try:
 
-        # Blocks here (in this worker thread, not the asyncio
-        # event loop — generate_voice always runs inside a
-        # ThreadPoolExecutor) until a narration slot is free,
-        # instead of letting an unbounded number of API calls fire
-        # at once.
-        _narration_semaphore.acquire()
-        acquired = True
+        with tempfile.NamedTemporaryFile(
+            suffix=".wav",
+            delete=False,
+        ) as temp_file:
 
-        with _narration_active_lock:
-            _narration_active_count += 1
-            active_now = _narration_active_count
+            temp_path = temp_file.name
 
-        print(
-            f"[tts] start job={job_id} lang={language} "
-            f"active={active_now}/{NARRATION_MAX_CONCURRENCY} "
-            f"rss_mb={_process_rss_mb()}"
+        subprocess.run(
+            [
+                piper_path,
+                "--model",
+                model_path,
+                "--output_file",
+                temp_path,
+            ],
+            input=text.encode(
+                "utf-8"
+            ),
+            check=True,
         )
 
-        try:
+        with open(
+            temp_path,
+            "rb",
+        ) as audio_file:
 
-            response = client.with_options(
-                timeout=NARRATION_TIMEOUT_SECONDS
-            ).audio.speech.create(
-                model=NARRATOR_MODEL,
-                voice=NARRATOR_VOICE,
-                input=text,
-                instructions=NARRATOR_INSTRUCTIONS,
-                response_format="wav",
+            audio_data = (
+                audio_file.read()
             )
 
-        except Exception as tts_exc:
-
-            print(
-                f"[tts] TIMEOUT_OR_ERROR job={job_id} "
-                f"error={tts_exc}"
-            )
-
-            raise Exception(
-                f"Narration generation failed: {tts_exc}"
-            )
-
-        audio_data = response.content
-
-        result = save_media(
+        return save_media(
             data=audio_data,
             filename=filename,
             mime_type="audio/wav",
@@ -3863,34 +2995,14 @@ def generate_voice(
             project_id=project_id,
         )
 
-        duration = round(time.monotonic() - start_time, 2)
-
-        print(
-            f"[tts] done job={job_id} duration_s={duration} "
-            f"rss_mb={_process_rss_mb()}"
-        )
-
-        return result
-
-    except Exception as exc:
-
-        duration = round(time.monotonic() - start_time, 2)
-
-        print(
-            f"[tts] FAILED job={job_id} duration_s={duration} "
-            f"error={exc}"
-        )
-
-        raise
-
     finally:
 
-        if acquired:
+        if (
+            temp_path
+            and os.path.exists(temp_path)
+        ):
 
-            with _narration_active_lock:
-                _narration_active_count -= 1
-
-            _narration_semaphore.release()
+            os.remove(temp_path)
 
 
 # ============================================================
@@ -3946,43 +3058,30 @@ def create_amivi_video(
                         img = img.convert("RGB")
                         draw = ImageDraw.Draw(img)
                         width, height = img.size
-                        # Bigger + bolder, to read like the card slogans
-                        # do. The old "arialbd.ttf" lookup only ever
-                        # resolved on Windows — on Render (Linux) it
-                        # silently failed and fell back to PIL's
-                        # built-in default font, which ignores the
-                        # requested size entirely (always ~10px no
-                        # matter what font_size is), which is why the
-                        # caption rendered tiny in the deployed video.
-                        # get_font() is the same cross-platform helper
-                        # the AMICO/Photo Story cards already use.
-                        font_size = max(32, int(width * 0.075))
-                        font = get_font(font_size, bold=True)
-
-                        def _text_width(text, f):
-                            return (
-                                draw.textlength(text, font=f)
-                                if hasattr(draw, 'textlength')
-                                else len(text) * (font_size * 0.6)
-                            )
-
-                        # One line, like the card slogans — shrink the
-                        # font (down to a sane floor) to fit the frame
-                        # width instead of wrapping across multiple
-                        # lines, which read small and cluttered.
-                        max_text_width = int(width * 0.9)
-                        while font_size > 18 and _text_width(text_to_draw, font) > max_text_width:
-                            font_size -= 2
-                            font = get_font(font_size, bold=True)
-
+                        font_size = max(24, int(width * 0.06))
+                        try:
+                            font = ImageFont.truetype("arialbd.ttf", font_size)
+                        except IOError:
+                            font = ImageFont.load_default()
+                        
+                        char_width = draw.textlength("A", font=font) if hasattr(draw, 'textlength') else 15
+                        max_chars = int((width * 0.9) / (char_width or 10))
+                        max_chars = max(15, max_chars)
+                        lines = textwrap.wrap(text_to_draw, width=max_chars)
+                        
                         line_height = draw.textbbox((0,0), "A", font=font)[3] if hasattr(draw, 'textbbox') else font_size
-                        line_w = _text_width(text_to_draw, font)
-                        x = (width - line_w) / 2
-                        current_y = height - line_height - int(height * 0.05)
+                        line_spacing = int(line_height * 0.2)
+                        total_text_height = (line_height * len(lines)) + (line_spacing * (len(lines) - 1))
+                        
+                        current_y = height - total_text_height - int(height * 0.05)
                         stroke_width = max(2, int(font_size * 0.05))
-
-                        draw.text((x, current_y), text_to_draw, font=font, fill="black", stroke_width=stroke_width, stroke_fill="white")
-
+                        
+                        for line in lines:
+                            line_w = draw.textlength(line, font=font) if hasattr(draw, 'textlength') else len(line)*char_width
+                            x = (width - line_w) / 2
+                            draw.text((x, current_y), line, font=font, fill="white", stroke_width=stroke_width, stroke_fill="black")
+                            current_y += line_height + line_spacing
+                        
                         img.save(image_file.name)
                 except Exception as e:
                     print("Error overlaying text on video image:", e)
@@ -4466,38 +3565,6 @@ def split_into_rows(panel_count):
     return rows
 
 
-def split_into_rows_wide(panel_count, max_per_row=3):
-
-    """
-    Like split_into_rows, but allows up to 3 panels per row instead
-    of 2. Used only for the Photo Story diagram sheet: unlike a
-    comic, which reads panel-by-panel in a fixed left-to-right
-    order (so a narrower 2-wide grid matches how it's meant to be
-    read), a Photo Story's panels are independent diagram stages
-    with no strict reading pair-up, so a wider grid is fine — and
-    keeps the overall page closer to landscape/square instead of a
-    tall, narrow A4-like strip. A page that shape fits a normal
-    screen's display area much better: when a viewer's screen fits
-    the page to its height, a landscape/square page also fills
-    most of the available width, where a tall strip leaves large
-    empty margins on either side.
-    """
-
-    rows = []
-
-    remaining = panel_count
-
-    while remaining > 0:
-
-        take = min(max_per_row, remaining)
-
-        rows.append(take)
-
-        remaining -= take
-
-    return rows
-
-
 def distribute(total, count):
 
     """
@@ -4525,31 +3592,23 @@ def draw_rainbow_frame(
 ):
 
     """
-    Draws a soft gradient ring around the whole canvas — a stack
-    of concentric rounded-rectangle outlines that blend smoothly
-    from a deep indigo at the outer edge to a soft lavender at the
-    inner edge, giving the page an elegant glowing frame. (Used to
-    sweep through the full hue wheel as a multi-color rainbow —
-    replaced with this calmer two-tone gradient, which reads as a
-    deliberate, premium border instead of a novelty rainbow and
-    matches AMIVI/AMICO's purple accent color elsewhere in the
-    app. Function name kept as-is since both call sites still just
-    want "the frame".)
+    Draws a soft pastel rainbow ring around the whole canvas — a
+    stack of concentric rounded-rectangle outlines that sweep
+    through the hue wheel from the outer edge inward, giving the
+    page a gentle glowing frame (low saturation, high brightness,
+    so it reads as pastel rather than neon).
     """
-
-    frame_start = (67, 56, 161)   # deep indigo
-    frame_end = (216, 180, 254)   # soft lavender
 
     for i in range(thickness):
 
-        t = i / max(thickness - 1, 1)
+        hue = i / thickness
 
-        color = tuple(
-            round(
-                frame_start[channel]
-                + (frame_end[channel] - frame_start[channel]) * t
-            )
-            for channel in range(3)
+        r, g, b = colorsys.hsv_to_rgb(hue, 0.4, 1.0)
+
+        color = (
+            int(r * 255),
+            int(g * 255),
+            int(b * 255),
         )
 
         draw.rounded_rectangle(
@@ -5090,12 +4149,13 @@ def render_photostory_page(
     row_plan = (
         [1] * len(panels)
         if layout == "vertical"
-        # 3-wide instead of the comic page's 2-wide — see
-        # split_into_rows_wide's docstring: this is what keeps the
-        # finished sheet close to landscape/square instead of a
-        # tall A4-shaped strip.
-        else split_into_rows_wide(len(panels))
+        else split_into_rows(len(panels))
     )
+
+    # Sized up well past a real A4 sheet (like the character
+    # comic page) so the diagram and its captions fill more of
+    # the screen and stay sharp when viewed full screen or
+    # zoomed in.
 
     frame_thickness = 86
     frame_radius = 110
@@ -5103,49 +4163,33 @@ def render_photostory_page(
     outer_padding = frame_thickness + 34
     gap = 29
 
-    # header_height/footer_height sized to comfortably fit the
-    # larger title_font/footer_font below (a plain size bump here
-    # without also bumping these would just crowd/clip the text).
-    header_height = 280 if story_title else 0
-    footer_height = 210
+    header_height = 220 if story_title else 0
+    footer_height = 196
 
     if layout == "vertical":
 
-        content_width = 2450
-        row_heights = [1140] * len(row_plan)
+        content_width = 2190
+        row_heights = [940] * len(row_plan)
 
     else:
 
-        # The page's shape now follows its own content instead of
-        # being forced into an A4 ratio and then squeezed to fit:
-        # pick a page width, work out how tall one row needs to be
-        # to comfortably hold its image plus its caption at these
-        # font sizes, and let the page's total height be whatever
-        # that adds up to. For a 6-panel story (3-per-row x 2 rows)
-        # this lands close to landscape/square, so it actually
-        # fills a normal screen's width instead of rendering as a
-        # tall, narrow strip with empty space on either side.
-        page_width = 3800
+        page_width = 3400
+        page_height = round(page_width * 297 / 210)
 
         content_width = page_width - outer_padding * 2
 
-        max_cols = max(row_plan) if row_plan else 1
+        page_content_height = (
+            page_height
+            - outer_padding * 2
+            - header_height
+            - footer_height
+        )
 
-        col_width = (
-            content_width - (max_cols - 1) * gap
-        ) // max_cols
-
-        # A squarish-to-slightly-tall illustration area per panel,
-        # plus a fixed caption block sized to comfortably fit the
-        # panel title (wrapped, up to 2 lines) and 2-3 lines of
-        # caption at caption_font.
-        image_height = round(col_width * 0.95)
-        caption_height = 700
-
-        row_heights = [
-            image_height + caption_height
-            for _ in row_plan
-        ]
+        row_heights = distribute(
+            page_content_height
+            - (len(row_plan) - 1) * gap,
+            len(row_plan),
+        )
 
     content_height = (
         sum(row_heights)
@@ -5188,33 +4232,28 @@ def render_photostory_page(
         fill="#FFFFFF",
     )
 
-    # Bumped up noticeably from the original sizes — the first
-    # version of this page read as too small both on a projector
-    # and on a printed page, so every piece of text here is
-    # deliberately large and bold rather than merely "readable".
-
     title_font = get_font(
-        140,
+        98,
         bold=True,
     )
 
     subtitle_font = get_font(
-        64,
+        50,
         bold=False,
     )
 
     panel_title_font = get_font(
-        100,
+        78,
         bold=True,
     )
 
     caption_font = get_font(
-        98,
+        58,
         bold=False,
     )
 
     footer_font = get_font(
-        60,
+        52,
         bold=True,
     )
 
@@ -5241,7 +4280,7 @@ def render_photostory_page(
             draw.text(
                 (
                     canvas_width // 2,
-                    outer_padding + 198,
+                    outer_padding + 144,
                 ),
                 f"Page {page_number} of {total_pages}",
                 fill="#555555",
@@ -5250,44 +4289,36 @@ def render_photostory_page(
             )
 
     # --------------------------------------------------------
-    # Panel rendering — each cell is a single rounded card: the
-    # illustration on top (rounded top corners) and a captioned
-    # label strip underneath, inside ONE continuous bordered
-    # frame rather than two separate boxes with a gap between
-    # them. The panel title is wrapped and capped at 2 lines
-    # (instead of being drawn as one unbroken line), so a longer
-    # title can never spill past its own column and overlap the
-    # neighboring panel — the bug the old fixed-width single-line
-    # draw.text() call above used to produce.
+    # Panel rendering — each cell is the illustration on top and
+    # a captioned label strip underneath (no in-image text), so
+    # every explanation stays crisp and readable regardless of
+    # how well the image model follows instructions.
     # --------------------------------------------------------
 
     panels_top = outer_padding + header_height
 
+    palette = [
+        "#E64980", "#1E88E5", "#F5A623",
+        "#43A047", "#8E24AA", "#00897B",
+        "#EF5350", "#5C6BC0",
+    ]
+
     panel_index = 0
     y = panels_top
-
-    card_radius = 44
-    card_shadow_offset = 10
 
     for row_index, row_count in enumerate(row_plan):
 
         row_height = row_heights[row_index]
 
-        # Matches the fixed caption_height used to size row_heights
-        # above (vertical layout's single fixed row_height needs
-        # its own split, since it never went through that sizing).
-        caption_height = (
-            700
-            if layout != "vertical"
-            else max(
-                360,
-                round(row_height * 0.36),
-            )
+        caption_height = max(
+            225,
+            round(row_height * 0.40),
         )
 
         image_height = (
             row_height
             - caption_height
+            - 10
         )
 
         row_span = (
@@ -5308,36 +4339,11 @@ def render_photostory_page(
 
             image, panel = panel_images[panel_index]
 
+            color = palette[
+                panel_index % len(palette)
+            ]
+
             panel_index += 1
-
-            panel_bottom = y + image_height + caption_height
-
-            # Soft drop shadow, then the card itself — one rounded
-            # rectangle spanning image + caption together so there
-            # is a single clean frame instead of the old look of
-            # two independent boxes stacked with a visible gap.
-
-            draw.rounded_rectangle(
-                (
-                    x + card_shadow_offset,
-                    y + card_shadow_offset,
-                    x + this_width - 1 + card_shadow_offset,
-                    panel_bottom - 1 + card_shadow_offset,
-                ),
-                radius=card_radius,
-                fill="#D7D7E0",
-            )
-
-            draw.rounded_rectangle(
-                (
-                    x,
-                    y,
-                    x + this_width - 1,
-                    panel_bottom - 1,
-                ),
-                radius=card_radius,
-                fill="#F1F1F4",
-            )
 
             fitted_image = cover_crop(
                 image,
@@ -5345,75 +4351,45 @@ def render_photostory_page(
                 image_height,
             )
 
-            # Clip the photo to the card's rounded TOP corners only
-            # — its bottom edge sits flush against the caption strip
-            # right below it, so only the top needs rounding. Built
-            # by drawing the rounded shape on a taller mask than the
-            # image and cropping off the bottom rounding, which
-            # leaves a flat bottom edge and rounded top corners.
-
-            mask = Image.new(
-                "L",
-                (this_width, image_height + card_radius),
-                0,
-            )
-
-            mask_draw = ImageDraw.Draw(mask)
-
-            mask_draw.rounded_rectangle(
-                (
-                    0,
-                    0,
-                    this_width - 1,
-                    image_height + card_radius - 1,
-                ),
-                radius=card_radius,
-                fill=255,
-            )
-
-            mask = mask.crop(
-                (0, 0, this_width, image_height)
-            )
-
             canvas.paste(
                 fitted_image,
-                (x, y),
-                mask,
-            )
-
-            divider_y = y + image_height
-
-            draw.line(
                 (
-                    x + 6,
-                    divider_y,
-                    x + this_width - 7,
-                    divider_y,
+                    x,
+                    y,
                 ),
-                fill="#111111",
-                width=4,
             )
 
-            # Redraw the card's outline on top of the pasted photo
-            # so the border reads as one unbroken frame around the
-            # whole card rather than being interrupted by the image.
-
-            draw.rounded_rectangle(
+            draw.rectangle(
                 (
                     x,
                     y,
                     x + this_width - 1,
-                    panel_bottom - 1,
+                    y + image_height - 1,
                 ),
-                radius=card_radius,
                 outline="#111111",
                 width=8,
             )
 
-            caption_top = divider_y
+            caption_top = (
+                y
+                + image_height
+                + 10
+            )
+
+            draw.rectangle(
+                (
+                    x,
+                    caption_top,
+                    x + this_width - 1,
+                    caption_top + caption_height - 10,
+                ),
+                fill="#F1F1F4",
+                outline="#111111",
+                width=5,
+            )
 
             text_x = x + 40
-            text_y = caption_top + 30
+            text_y = caption_top + 24
 
             panel_title = panel.get(
                 "title",
@@ -5422,49 +4398,17 @@ def render_photostory_page(
 
             if panel_title:
 
-                raw_title_lines = wrap_text(
+                draw.text(
+                    (
+                        text_x,
+                        text_y,
+                    ),
                     panel_title,
-                    panel_title_font,
-                    this_width - 80,
-                )
-
-                title_lines = raw_title_lines[:2]
-
-                if len(raw_title_lines) > 2:
-                    title_lines[-1] = (
-                        title_lines[-1].rstrip() + "…"
-                    )
-
-                title_line_bbox = draw.textbbox(
-                    (0, 0),
-                    "Ag",
+                    fill=color,
                     font=panel_title_font,
                 )
 
-                title_line_height = (
-                    title_line_bbox[3] - title_line_bbox[1]
-                    + 14
-                )
-
-                for line in title_lines:
-
-                    draw.text(
-                        (
-                            text_x,
-                            text_y,
-                        ),
-                        line,
-                        # Was the per-panel palette color — made every
-                        # stage title a different color, which read as
-                        # "not black" even though everything else was.
-                        # Pure black now, matching the caption below it.
-                        fill="#000000",
-                        font=panel_title_font,
-                    )
-
-                    text_y += title_line_height
-
-                text_y += 14
+                text_y += 100
 
             # Clip the caption to however many lines actually fit
             # inside the caption box (rather than trusting the
@@ -5472,7 +4416,7 @@ def render_photostory_page(
             # caption can never visually collide with the next
             # row of panels — it just ends with an ellipsis.
 
-            caption_line_spacing = 26
+            caption_line_spacing = 14
 
             line_bbox = draw.textbbox(
                 (0, 0),
@@ -5488,7 +4432,7 @@ def render_photostory_page(
             available_caption_height = (
                 caption_top
                 + caption_height
-                - 30
+                - 24
                 - text_y
             )
 
@@ -5524,7 +4468,7 @@ def render_photostory_page(
                     ),
                     line,
                     font=caption_font,
-                    fill="#000000",
+                    fill="#222222",
                 )
 
                 caption_y += caption_line_height
@@ -5650,158 +4594,6 @@ def compose_amico_photostory(
 
 
 # ============================================================
-# AMIVI FILE UPLOAD / EXTRACTION
-#
-# The "Upload a PDF, Word document or TXT file" button on the
-# AMIVI page has always posted here — this route just didn't
-# exist yet, so every upload silently 404'd. Reuses the same
-# extract_text_from_file() helper Quiz's file-upload path already
-# relies on, so PDF/DOCX/TXT all work identically to Quiz.
-# ============================================================
-
-@app.post("/api/amivi/extract")
-async def amivi_extract(
-    file: UploadFile = File(...),
-):
-
-    try:
-
-        file_bytes = await file.read()
-
-        if not file_bytes:
-
-            raise HTTPException(
-                status_code=400,
-                detail="The uploaded file is empty.",
-            )
-
-        # CPU-bound (PDF/DOCX parsing) — same reasoning as the
-        # weblink extractor: keep it off the event loop so a large
-        # or awkward file can't stall other requests while it parses.
-        text = await run_in_threadpool(
-            extract_text_from_file,
-            file_bytes,
-            file.filename or "upload.txt",
-        )
-
-        text = (text or "").strip()
-
-        if not text:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "No readable text was found in "
-                    "that file."
-                ),
-            )
-
-        return {"text": text}
-
-    except HTTPException:
-        raise
-
-    except Exception as exc:
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to extract content from file: {exc}",
-        )
-
-
-@app.post("/api/amivi/extract_url")
-async def amivi_extract_url(
-    request: AmiviUrlExtractRequest,
-):
-    """
-    Uploads box's "paste a website URL" option. Tries a video-site
-    transcript first (captions/audio) when the URL looks like a
-    video platform, otherwise reads the page itself (e.g. a
-    Wikipedia article) and pulls out its readable text — same
-    {"text": ...} shape as the file-upload extractor above, so the
-    frontend handles both identically.
-    """
-
-    try:
-
-        url = (request.url or "").strip()
-
-        if not url:
-            raise HTTPException(
-                status_code=400,
-                detail="Please paste a website URL.",
-            )
-
-        parsed = urlparse(url)
-
-        video_hosts = (
-            "youtube.com",
-            "youtu.be",
-            "vimeo.com",
-            "dailymotion.com",
-        )
-
-        is_video_url = bool(
-            parsed.hostname
-            and any(
-                parsed.hostname.lower() == host
-                or parsed.hostname.lower().endswith(f".{host}")
-                for host in video_hosts
-            )
-        )
-
-        if is_video_url:
-
-            try:
-                # extract_video_text() and extract_webpage_text()
-                # below are both plain blocking functions (network
-                # requests, DNS lookups) called from an `async def`
-                # route — run directly they'd block this whole
-                # server's single event loop for as long as the
-                # external site takes to respond, stalling every
-                # other in-flight request (and, if that outlasts
-                # Render's own gateway timeout, dropping the client's
-                # connection outright — which shows up in the browser
-                # as "Failed to fetch" rather than any error message
-                # from us). run_in_threadpool() keeps the slow I/O off
-                # the event loop so one slow pasted URL can't do that.
-                video_result = await run_in_threadpool(
-                    extract_video_text,
-                    url,
-                    request.language,
-                )
-
-                return {
-                    "text": video_result["text"],
-                    "title": video_result["title"],
-                }
-
-            except HTTPException:
-                # Fall through to the generic webpage reader below
-                # rather than failing outright — some video-host
-                # links (e.g. a non-video page on youtube.com) are
-                # still just readable pages.
-                pass
-
-        page_result = await run_in_threadpool(extract_webpage_text, url)
-
-        return {
-            "text": page_result["text"],
-            "title": page_result["title"],
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as exc:
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to extract content from that URL: {exc}",
-        )
-
-
-# ============================================================
 # AMIVI GENERATE
 # ============================================================
 
@@ -5849,29 +4641,6 @@ async def amivi_generate(
                 request.video_url
             )
 
-        # If no text/video was supplied but an existing sibling
-        # project was given as the source (e.g. "Generate AMIVI"
-        # from a chapter hub that already has an AMICO or Quiz),
-        # fall back to that project's own saved material.
-        if not source_text and request.source_project_id:
-
-            try:
-                sibling_project = get_project(
-                    request.source_project_id
-                )
-
-                source_text = (
-                    sibling_project.input_text
-                    or sibling_project.title
-                    or ""
-                ).strip()
-
-                if sibling_project.title:
-                    source_title = f"AMIVI - {sibling_project.title}"
-
-            except HTTPException:
-                pass
-
         if not source_text:
 
             raise HTTPException(
@@ -5916,13 +4685,6 @@ async def amivi_generate(
         # -----------------------------------------------------
 
         final_title = content.get("title") or source_title
-        subject_description = content.get("subject_description") or ""
-
-        chapter_subject, chapter_name, chapter_key = resolve_chapter_metadata(
-            source_project_id=request.source_project_id,
-            llm_subject_category=content.get("subject_category"),
-            chapter_display_name=final_title,
-        )
 
         project_id = save_project(
             project_type="amivi",
@@ -5934,9 +4696,6 @@ async def amivi_generate(
                 "source_url": source_url,
             },
             user_id=current_user.id,
-            subject=chapter_subject,
-            chapter=chapter_name,
-            chapter_key=chapter_key,
         )
 
         processed_chunks = [None] * len(chunks)
@@ -5974,17 +4733,6 @@ async def amivi_generate(
                 "",
             )
 
-            # Server-side safety net for the INTRODUCE requirement
-            # "a memorable slogan — maximum 4 words": the prompt
-            # asks the model for this, but nothing enforced it, so
-            # a model that drifts past 4 words shipped straight to
-            # the UI uncapped. Trim here rather than trusting the
-            # prompt alone.
-            slogan_words = slogan.split()
-
-            if len(slogan_words) > 4:
-                slogan = " ".join(slogan_words[:4])
-
             description = chunk.get(
                 "description",
                 "",
@@ -5995,10 +4743,43 @@ async def amivi_generate(
                 "",
             )
 
+            image_id = generate_image_resilient(
+                prompt=chunk.get(
+                    "image_prompt",
+                    "",
+                ),
+                filename=(
+                    f"amivi_{project_id}"
+                    f"_chunk_{index}.png"
+                ),
+                project_id=project_id,
+                fallback_label=(
+                    slogan or key_point or text
+                ),
+            )
+
+            # Second supporting image — best-effort: a chunk still
+            # works fine with only its first image if this fails.
+            image2_id = None
+
             image_prompt_2 = chunk.get(
                 "image_prompt_2",
                 "",
             )
+
+            if image_prompt_2:
+
+                image2_id = generate_image_resilient(
+                    prompt=image_prompt_2,
+                    filename=(
+                        f"amivi_{project_id}"
+                        f"_chunk_{index}_b.png"
+                    ),
+                    project_id=project_id,
+                    fallback_label=(
+                        slogan or key_point or text
+                    ),
+                )
 
             mcq = chunk.get("mcq") or {}
 
@@ -6026,166 +4807,47 @@ async def amivi_generate(
                 mcq_option_b = None
                 mcq_correct = None
 
-            # This Microbit's explanation, its 1-2 images, and its
-            # narration audio are three independent network calls
-            # (text model, image model, voice model) that don't
-            # depend on each other's results — running them one
-            # after another was most of why a chunk took so long.
-            # Fire them at the same time instead and only wait on
-            # whichever is slowest.
-
-            def _gen_explanation():
-
-                if description or not key_point:
-                    return description
-
-                try:
-
-                    explain_result = generate_amivi_explanation(
-                        key_point=key_point,
-                        slogan=slogan,
-                        subject_context=final_title,
-                        language=request.language,
-                    )
-
-                    return (
-                        (explain_result or {})
-                        .get("explanation", "")
-                        .strip()
-                    )
-
-                except Exception as explain_exc:
-
-                    print(
-                        "AMIVI explanation generation "
-                        f"failed for chunk {index} "
-                        f"(non-fatal): {explain_exc}"
-                    )
-                    return description
-
-            def _gen_image():
-
-                return generate_image_resilient(
-                    prompt=chunk.get(
-                        "image_prompt",
-                        "",
-                    ),
-                    filename=(
-                        f"amivi_{project_id}"
-                        f"_chunk_{index}.png"
-                    ),
-                    project_id=project_id,
-                    fallback_label=(
-                        slogan or key_point or text
-                    ),
-                )
-
-            def _gen_image2():
-
-                # Second supporting image — best-effort: a chunk
-                # still works fine with only its first image if
-                # this fails, or if there's no second prompt at all.
-                if not image_prompt_2:
-                    return None
-
-                return generate_image_resilient(
-                    prompt=image_prompt_2,
-                    filename=(
-                        f"amivi_{project_id}"
-                        f"_chunk_{index}_b.png"
-                    ),
-                    project_id=project_id,
-                    fallback_label=(
-                        slogan or key_point or text
-                    ),
-                )
-
-            def _gen_audio():
-
-                # Best-effort, same reasoning as the images above:
-                # a chunk still works fine (just silently, without
-                # narration) if voice synthesis fails for it.
-                try:
-
-                    return generate_voice(
-                        text=voice_script,
-                        filename=(
-                            f"amivi_{project_id}"
-                            f"_chunk_{index}.wav"
-                        ),
-                        language=request.language,
-                        project_id=project_id,
-                        correlation_id=(
-                            f"amivi_generate:project={project_id}"
-                            f":chunk={index}"
-                        ),
-                    )
-
-                except Exception as audio_exc:
-
-                    print(
-                        "AMIVI voice generation "
-                        f"failed for chunk {index}: "
-                        f"{audio_exc}"
-                    )
-                    return None
-
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=4
-            ) as chunk_executor:
-
-                explanation_future = chunk_executor.submit(_gen_explanation)
-                image_future = chunk_executor.submit(_gen_image)
-                image2_future = chunk_executor.submit(_gen_image2)
-                audio_future = chunk_executor.submit(_gen_audio)
-
-                description = explanation_future.result()
-                image_id = image_future.result()
-                image2_id = image2_future.result()
-                audio_id = audio_future.result()
-
-            # Everything above this point (explanation/image/audio
-            # generation) is already best-effort per sub-task, so a
-            # failure there degrades gracefully to None/placeholder
-            # content. The DB write below was the one remaining
-            # unguarded step: if it raised, the exception propagated
-            # out of this whole function, which future.result() then
-            # re-raises in the main thread — failing the ENTIRE
-            # multi-chunk /api/amivi/generate request (and every
-            # other chunk's already-successful work along with it)
-            # over one chunk's DB hiccup. Wrapped the same way the
-            # image/audio/explanation calls already are, so one bad
-            # chunk degrades to a placeholder entry instead of
-            # taking the whole generation down.
+            # Best-effort, same reasoning as the images above: a
+            # chunk still works fine (just silently, without
+            # narration) if voice synthesis fails for it.
+            audio_id = None
 
             try:
 
-                chunk_id = save_amivi_chunk(
+                audio_id = generate_voice(
+                    text=voice_script,
+                    filename=(
+                        f"amivi_{project_id}"
+                        f"_chunk_{index}.wav"
+                    ),
+                    language=request.language,
                     project_id=project_id,
-                    chunk_number=chunk_number,
-                    key_point=key_point,
-                    text=text,
-                    slogan=slogan,
-                    description=description,
-                    image_id=image_id,
-                    image2_id=image2_id,
-                    audio_id=audio_id,
-                    voice_script=voice_script,
-                    mcq_question=mcq_question,
-                    mcq_option_a=mcq_option_a,
-                    mcq_option_b=mcq_option_b,
-                    mcq_correct=mcq_correct,
                 )
 
-            except Exception as save_exc:
+            except Exception as audio_exc:
 
                 print(
-                    "AMIVI chunk save failed for chunk "
-                    f"{index} (non-fatal to the rest of the "
-                    f"batch): {save_exc}"
+                    "AMIVI voice generation "
+                    f"failed for chunk {index}: "
+                    f"{audio_exc}"
                 )
 
-                chunk_id = None
+            chunk_id = save_amivi_chunk(
+                project_id=project_id,
+                chunk_number=chunk_number,
+                key_point=key_point,
+                text=text,
+                slogan=slogan,
+                description=description,
+                image_id=image_id,
+                image2_id=image2_id,
+                audio_id=audio_id,
+                voice_script=voice_script,
+                mcq_question=mcq_question,
+                mcq_option_a=mcq_option_a,
+                mcq_option_b=mcq_option_b,
+                mcq_correct=mcq_correct,
+            )
 
             return {
                 "chunk_id": chunk_id,
@@ -6222,7 +4884,6 @@ async def amivi_generate(
                 "mcq_option_a": mcq_option_a,
                 "mcq_option_b": mcq_option_b,
                 "mcq_correct": mcq_correct,
-                "save_failed": chunk_id is None,
             }
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
@@ -6272,8 +4933,6 @@ async def amivi_generate(
         return {
             "status": "success",
             "project_id": project_id,
-            "title": final_title,
-            "subject_description": subject_description,
             "source_url": source_url,
             "video_id": video_id,
             "video_url": (
@@ -6295,7 +4954,7 @@ async def amivi_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -6326,34 +4985,14 @@ async def amivi_regenerate_image(
 
         moderate_text(prompt, "This image request")
 
-        # Same resilient wrapper the batch-generation paths already
-        # use (see generate_avatar_image) — a one-off "regenerate
-        # this image" click is a very plausible place to re-hit a
-        # moderation block, and without this it was a raw 500
-        # instead of the one safe automatic retry other image
-        # generation already gets.
-        image_id = generate_image_resilient(
-            prompt=prompt,
-            filename=(
+        image_id = generate_image(
+            prompt,
+            (
                 f"amivi_regen_"
                 f"{uuid.uuid4().hex[:8]}.png"
             ),
-            project_id=project_id,
-            fallback_label=(
-                request.text or request.slogan or "this Microbit"
-            ),
+            project_id,
         )
-
-        if image_id is None:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "We couldn't regenerate this image — it may "
-                    "have been blocked by the safety system. "
-                    "Please try different wording."
-                ),
-            )
 
         return {
             "status": "success",
@@ -6370,7 +5009,7 @@ async def amivi_regenerate_image(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -6424,173 +5063,7 @@ async def amivi_edit_chunk(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
-        )
-
-
-# ============================================================
-# AMIVI EXPLAIN
-# (second stage — generates a short explanation for ONE already-
-# generated Microbit, on demand when that Microbit is individually
-# selected. Does not touch or regenerate its image.)
-# ============================================================
-
-@app.post("/api/amivi/explain_chunk")
-async def amivi_explain_chunk(
-    request: AmiviExplainChunkRequest,
-):
-
-    try:
-
-        require_services()
-
-        if not request.key_point:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "A Key Point is required "
-                    "to generate an explanation."
-                ),
-            )
-
-        result = generate_amivi_explanation(
-            key_point=request.key_point,
-            slogan=request.slogan,
-            subject_context=(
-                request.subject
-                or request.key_point
-            ),
-            language=request.language,
-        )
-
-        explanation = (
-            (result or {})
-            .get("explanation", "")
-            .strip()
-        )
-
-        # Save it onto the Microbit itself (not just the response)
-        # so the completed EXPLAIN package is available from the
-        # database later — including when AMICO builds its "Send
-        # to AMICO" package from this project.
-        if explanation:
-            update_amivi_chunk_description(
-                request.chunk_id,
-                explanation,
-            )
-
-        return {
-            "status": "success",
-            "explanation": explanation,
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as exc:
-
-        raise HTTPException(
-            status_code=500,
-            detail=friendly_error_detail(exc),
-        )
-
-
-# ============================================================
-# AMIVI COMPLETE VISUAL
-# (optional Stage 3 — comes after INTRODUCE + EXPLAIN. Generates
-# ONE brand-new connected illustration showing how the already-
-# generated Key Points relate to each other, instead of a plain
-# collage of the existing Microbit images. Individual Microbits
-# are never touched or replaced by this.)
-# ============================================================
-
-@app.post("/api/amivi/generate_complete_visual")
-async def amivi_generate_complete_visual(
-    request: AmiviCompleteVisualRequest,
-):
-
-    try:
-
-        require_services()
-
-        project = get_project(request.project_id)
-
-        if not project or project.project_type != "amivi":
-
-            raise HTTPException(
-                status_code=404,
-                detail="AMIVI project not found.",
-            )
-
-        chunks = list_amivi_chunks_for_project(
-            request.project_id
-        )
-
-        key_points = [
-            chunk.key_point
-            for chunk in chunks
-            if chunk.key_point
-        ]
-
-        if not key_points:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "No Microbits are available yet "
-                    "to build a Complete Visual."
-                ),
-            )
-
-        visual_prompt_result = generate_amivi_complete_visual_prompt(
-            key_points=key_points,
-            subject=project.title or "",
-            language=request.language,
-        )
-
-        image_prompt = (
-            (visual_prompt_result or {})
-            .get("image_prompt", "")
-            .strip()
-        )
-
-        image_id = generate_image_resilient(
-            prompt=image_prompt,
-            filename=(
-                f"amivi_{request.project_id}"
-                f"_complete_visual.png"
-            ),
-            project_id=request.project_id,
-            fallback_label=project.title or "the lesson",
-        )
-
-        if not image_id:
-
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to generate the Complete Visual image.",
-            )
-
-        update_project_data(
-            request.project_id,
-            {"complete_visual_image_id": image_id},
-        )
-
-        return {
-            "status": "success",
-            "image_id": image_id,
-            "image_url": f"/api/media/{image_id}",
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as exc:
-
-        raise HTTPException(
-            status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -6686,7 +5159,7 @@ async def amivi_generate_photo_story(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -6733,183 +5206,23 @@ async def amico_generate(
 
         topic = request.homework_prompt.strip()
 
-        # True only when the material below is an already-finished
-        # AMIVI package (Subject + Key Points + slogans +
-        # explanations), never raw, unanalysed text — tells Terra
-        # not to re-analyse/re-derive the Key Points itself.
-        source_is_amivi_package = False
-        key_point_count = None
-        source_project = None
-
         if request.source_project_id:
 
             source_project = get_project(
                 request.source_project_id
             )
 
-            amivi_chunks = list_amivi_chunks_for_project(
-                request.source_project_id
+            source_text = (
+                source_project.input_text
+                or source_project.title
+                or ""
             )
 
-            if amivi_chunks:
-
-                # "Send to AMICO" / "Import from AMIVI" transfers the
-                # EXPLAIN (Box 2) package, not the raw original
-                # material: Subject + each essential Key Point, in
-                # sequence, with its slogan, its visual anchor, and
-                # its brief explanation. AMICO then transforms this
-                # existing package into a story instead of
-                # re-analysing the source from scratch.
-                package_lines = [
-                    f"Subject: {source_project.title or 'Untitled'}",
-                    "",
-                    "Essential Key Points, in sequence (already "
-                    "analysed — use exactly these, in this exact "
-                    "order):",
-                    "",
-                ]
-
-                # Counts only the Key Points that actually make it
-                # into the package below (an empty one is skipped) —
-                # used right after the loop to make sure there are
-                # enough middle panels for every Key Point to get
-                # its own panel, instead of silently asking the
-                # model to cram several Key Points' worth of content
-                # into too few panels.
-                key_point_count = 0
-
-                for idx, chunk in enumerate(amivi_chunks, start=1):
-
-                    key_point = (
-                        chunk.key_point or chunk.text or ""
-                    ).strip()
-
-                    if not key_point:
-                        continue
-
-                    key_point_count += 1
-
-                    slogan = (chunk.slogan or "").strip()
-                    explanation = (chunk.description or "").strip()
-
-                    # A Microbit the teacher never clicked "AMIVI
-                    # Explain" on still needs to arrive as part of a
-                    # *completed* EXPLAIN package — generate and
-                    # persist its explanation now rather than
-                    # sending AMICO a half-finished Key Point.
-                    if not explanation:
-
-                        try:
-
-                            explain_result = generate_amivi_explanation(
-                                key_point=key_point,
-                                slogan=slogan,
-                                subject_context=(
-                                    source_project.title or key_point
-                                ),
-                                language=request.language,
-                            )
-
-                            explanation = (
-                                (explain_result or {})
-                                .get("explanation", "")
-                                .strip()
-                            )
-
-                            if explanation:
-
-                                update_amivi_chunk_description(
-                                    chunk.id,
-                                    explanation,
-                                )
-
-                        except Exception:
-                            explanation = ""
-
-                    package_lines.append(
-                        f"{idx}. Key Point: {key_point}"
-                    )
-
-                    if slogan:
-                        package_lines.append(
-                            f'   Slogan: "{slogan}"'
-                        )
-
-                    if explanation:
-                        package_lines.append(
-                            f"   Explanation: {explanation}"
-                        )
-
-                    package_lines.append(
-                        "   Visual anchor: AMIVI already illustrated "
-                        "this Key Point with its own image — keep "
-                        "this panel's imagery true to that same "
-                        "concept."
-                    )
-
-                    package_lines.append("")
-
-                package_text = "\n".join(package_lines).strip()
-
-                topic = (
-                    f"{package_text}\n\nAdditional creative "
-                    f"direction from the teacher: {topic}"
-                    if topic
-                    else package_text
-                )
-
-                source_is_amivi_package = True
-
-                # ---------------------------------------------
-                # Make sure every Key Point can get its own panel.
-                #
-                # Panel 1 is the intro and the last panel is the
-                # recap (see build_amico_structure_hint), so only
-                # total_panels - 2 panels are actually available to
-                # carry Key Points. If the teacher's chosen
-                # panels-per-page/pages selection leaves fewer
-                # middle panels than there are Key Points, the
-                # model is caught between two instructions that
-                # can't both hold — "never drop a Key Point" and
-                # "you only have this many panels" — which is
-                # exactly how a 6-Key-Point package condensed into
-                # 4 panels can quietly lose content. Add pages
-                # (keeping the teacher's chosen panels-per-page
-                # layout) until there's room for one middle panel
-                # per Key Point, capped at the system's existing
-                # 6-page maximum — if even 6 pages genuinely isn't
-                # enough room, the prompt's existing "combine only
-                # the smallest, most closely related pieces" rule
-                # is the fallback.
-                # ---------------------------------------------
-
-                min_total_panels = key_point_count + 2
-
-                if min_total_panels > total_panels:
-
-                    pages_count = min(
-                        6,
-                        -(-min_total_panels // panels_per_page),
-                    )
-
-                    total_panels = panels_per_page * pages_count
-
-            else:
-
-                # No Microbits saved yet on this project (shouldn't
-                # normally happen) — fall back to whatever raw
-                # material the project has rather than failing.
-                source_text = (
-                    source_project.input_text
-                    or source_project.title
-                    or ""
-                )
-
-                topic = (
-                    f"{topic}\n\nBased on this material:\n{source_text}"
-                    if topic
-                    else source_text
-                )
+            topic = (
+                f"{topic}\n\nBased on this material:\n{source_text}"
+                if topic
+                else source_text
+            )
 
         if not topic:
 
@@ -6961,8 +5274,6 @@ async def amico_generate(
             total_panels,
             character_reference,
             character_name,
-            source_is_amivi_package,
-            key_point_count,
         )
 
         # -----------------------------------------------------
@@ -7007,31 +5318,16 @@ async def amico_generate(
         # Save project
         # -----------------------------------------------------
 
-        comic_title = comic.get(
-            "title",
-            "AMICO Comic",
-        )
-
-        chapter_subject, chapter_name, chapter_key = resolve_chapter_metadata(
-            source_project_id=request.source_project_id,
-            llm_subject_category=comic.get("subject_category"),
-            chapter_display_name=(
-                source_project.title
-                if source_project is not None
-                else comic_title
-            ),
-        )
-
         project_id = save_project(
             project_type="amico",
-            title=comic_title,
+            title=comic.get(
+                "title",
+                "AMICO Comic",
+            ),
             input_text=topic,
             language=request.language,
             data=comic,
             user_id=current_user.id,
-            subject=chapter_subject,
-            chapter=chapter_name,
-            chapter_key=chapter_key,
         )
 
         # -----------------------------------------------------
@@ -7099,70 +5395,16 @@ async def amico_generate(
             processed_panels
         )
 
-        # Persist the generated panels (each with its own paid-for
-        # image already saved as a MediaAsset) onto the project
-        # NOW, before composition — compose_amico_comic below does
-        # its own DB writes (one per page sheet) and, rarely, can
-        # fail on a transient hiccup. Until this point, the only
-        # retrievable copy of these panels was this function's
-        # local variable: if composition failed before this save,
-        # the generated artwork would still exist in the database
-        # but nothing in the Library could find it, so the only way
-        # forward looked like generating everything again — at
-        # full cost. With panels saved here first, that scenario
-        # instead just needs a recompose (free — reuses the saved
-        # images, no new AI calls) to finish the job.
-        update_project_data(
-            project_id,
-            {"panels": processed_panels},
-        )
-
         # -----------------------------------------------------
         # Compose one comic sheet per page
         # -----------------------------------------------------
 
-        try:
-
-            pages = compose_amico_comic(
-                project_id=project_id,
-                comic=comic,
-                panels_per_page=panels_per_page,
-                layout=layout,
-            )
-
-        except Exception as compose_exc:
-
-            # One retry — the panels/images themselves are already
-            # safely saved (see above), so this costs nothing but a
-            # little time, and absorbs a transient DB/render blip
-            # the same way generate_image_resilient retries once.
-            print(
-                "AMICO page composition failed, retrying once: "
-                f"{compose_exc}"
-            )
-
-            try:
-
-                pages = compose_amico_comic(
-                    project_id=project_id,
-                    comic=comic,
-                    panels_per_page=panels_per_page,
-                    layout=layout,
-                )
-
-            except Exception:
-
-                raise HTTPException(
-                    status_code=500,
-                    detail=(
-                        "Your comic's artwork generated "
-                        "successfully and is saved — only laying "
-                        "it out into pages failed. Nothing needs "
-                        "to be regenerated: reopen this project "
-                        f"(#{project_id}) from your Library and "
-                        "use Recompose to finish it for free."
-                    ),
-                )
+        pages = compose_amico_comic(
+            project_id=project_id,
+            comic=comic,
+            panels_per_page=panels_per_page,
+            layout=layout,
+        )
 
         comic["pages"] = pages
 
@@ -7247,7 +5489,7 @@ async def amico_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -7273,26 +5515,14 @@ async def amico_regenerate_panel(
 
         moderate_text(prompt, "This panel request")
 
-        image_id = generate_image_resilient(
-            prompt=prompt,
-            filename=(
+        image_id = generate_image(
+            prompt,
+            (
                 f"amico_regen_"
                 f"{uuid.uuid4().hex[:8]}.png"
             ),
-            project_id=request.project_id,
-            fallback_label=request.title or "this panel",
+            request.project_id,
         )
-
-        if image_id is None:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "We couldn't regenerate this panel's image — "
-                    "it may have been blocked by the safety "
-                    "system. Please try different wording."
-                ),
-            )
 
         return {
             "status": "success",
@@ -7309,7 +5539,7 @@ async def amico_regenerate_panel(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -7400,28 +5630,13 @@ async def amico_edit_panel(
                 f"with no other text:\n{request.dialogue}"
             )
 
-            new_image_id = generate_image_resilient(
+            new_image_id = generate_image(
                 prompt=override_prompt,
                 filename=(
                     f"amico_edit_{uuid.uuid4().hex[:8]}.png"
                 ),
                 project_id=request.project_id,
-                fallback_label=(
-                    target_panel.get("title") or "this panel"
-                ),
             )
-
-            if new_image_id is None:
-
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "We couldn't redraw this panel with the "
-                        "new dialogue — it may have been blocked "
-                        "by the safety system. Please try "
-                        "different wording."
-                    ),
-                )
 
             target_panel["image_id"] = new_image_id
             target_panel["image_url"] = f"/api/media/{new_image_id}"
@@ -7443,7 +5658,7 @@ async def amico_edit_panel(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -7547,29 +5762,14 @@ async def amico_add_panel(
             request.topic_hint or data.get("title", ""),
         )
 
-        image_id = generate_image_resilient(
+        image_id = generate_image(
             prompt=new_panel.get("image_prompt", ""),
             filename=(
                 f"amico_add_"
                 f"{uuid.uuid4().hex[:8]}.png"
             ),
             project_id=request.project_id,
-            fallback_label=(
-                new_panel.get("title") or "this new panel"
-            ),
         )
-
-        if image_id is None:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "We couldn't generate an image for the new "
-                    "panel — it may have been blocked by the "
-                    "safety system. Please try a different topic "
-                    "hint."
-                ),
-            )
 
         insert_at = max(
             0,
@@ -7614,7 +5814,7 @@ async def amico_add_panel(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -7695,7 +5895,7 @@ async def amico_recompose(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -7912,7 +6112,7 @@ async def amico_photostory_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -7955,25 +6155,7 @@ async def avatar_generate(
             filename=(
                 f"avatar_{uuid.uuid4().hex[:8]}.png"
             ),
-            fallback_label=name or "a friendly comic character",
         )
-
-        if image_id is None:
-
-            # Even the safe, generic retry inside
-            # generate_avatar_image got blocked — genuinely rare,
-            # but a clean, actionable error beats saving an avatar
-            # with no image (which would just show as a broken
-            # thumbnail in the picker).
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "We couldn't generate an avatar image from "
-                    "this photo — it may have been blocked by the "
-                    "safety system. Please try a different photo "
-                    "or style."
-                ),
-            )
 
         avatar_id = save_avatar(
             name=name or "My Avatar",
@@ -8001,7 +6183,7 @@ async def avatar_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -8055,7 +6237,7 @@ def avatar_delete(avatar_id: int):
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -8215,10 +6397,12 @@ def library_list(current_user=Depends(get_current_user)):
     return {"projects": results}
 
 
-def serialize_library_project(project):
-    # Shared by the owner-gated /api/library/{id} endpoint and the
-    # classroom-scoped assignment-project-view endpoint below, so both
-    # read the exact same up-to-date shape instead of drifting apart.
+# Shared by the owner-only /api/library/{id} endpoint below AND
+# by the classroom-scoped assignment_project_view endpoint (a
+# member who only joined with a class code, no full account, is
+# still allowed to see whatever project their teacher attached to
+# a homework assignment — see that endpoint for the access check).
+def serialize_library_project(project) -> dict:
 
     # Start from whatever's on the project itself, then layer
     # in the fully up-to-date content from the child table that
@@ -8233,7 +6417,7 @@ def serialize_library_project(project):
     if project.project_type == "amivi":
 
         chunks = list_amivi_chunks_for_project(
-            project.id
+            project_id
         )
 
         data["chunks"] = [
@@ -8290,7 +6474,7 @@ def serialize_library_project(project):
     elif project.project_type == "amico":
 
         comic = latest_comic_for_project(
-            project.id
+            project_id
         )
 
         if comic:
@@ -8299,7 +6483,7 @@ def serialize_library_project(project):
     elif project.project_type == "quiz":
 
         quiz = latest_quiz_for_project(
-            project.id
+            project_id
         )
 
         if quiz:
@@ -8346,21 +6530,26 @@ def library_project_detail(project_id: int, current_user=Depends(get_current_use
     return serialize_library_project(project)
 
 
+# Classroom-scoped exception to the owner-only endpoint above — a
+# student (or parent) who only joined a classroom with a code, with
+# no full account of their own, has no "ownership" over the
+# teacher's project in the normal sense. This lets them view
+# whatever project their teacher actually attached to a homework
+# assignment, authorized by classroom membership (member_token)
+# instead of account ownership.
 @app.get("/api/classrooms/{class_code}/assignments/{assignment_id}/project/{kind}")
-def assignment_project_view(class_code: str, assignment_id: int, kind: str, member_token: str):
-    # Lets a classroom member (teacher or student, verified by their own
-    # member_token — not the main account system) open the exact AMIVI/
-    # AMICO/quiz a teacher attached to one of their assignments, without
-    # needing to own that project. The main /api/library/{id} endpoint
-    # above stays strictly owner-only; this is a narrow, assignment-scoped
-    # exception to that rule, not a loosening of it: it only ever returns
-    # the specific project id already recorded on an assignment the caller
-    # is a verified member of that assignment's own classroom.
+def assignment_project_view(
+    class_code: str,
+    assignment_id: int,
+    kind: str,
+    member_token: str,
+):
 
     if kind not in ("quiz", "amivi", "amico"):
+
         raise HTTPException(
             status_code=400,
-            detail="kind must be one of: quiz, amivi, amico.",
+            detail='kind must be "quiz", "amivi", or "amico".',
         )
 
     db = SessionLocal()
@@ -8389,14 +6578,19 @@ def assignment_project_view(class_code: str, assignment_id: int, kind: str, memb
         }[kind]
 
         if not project_id:
+
             raise HTTPException(
                 status_code=404,
                 detail=f"This assignment has no {kind} attached.",
             )
 
-        project = get_project(project_id)
+        project = (
+            db.query(Project)
+            .filter(Project.id == project_id)
+            .first()
+        )
 
-        if not project or project.project_type != kind:
+        if not project:
             raise HTTPException(status_code=404, detail="Project not found.")
 
         return serialize_library_project(project)
@@ -8438,182 +6632,6 @@ def library_project_delete(project_id: int, current_user=Depends(get_current_use
 
 
 # ============================================================
-# ESSENTIAL LEARNING — Subjects → Chapters → Chapter hub
-#
-# Entirely derived from the Library's own saved AMIVI/AMICO/Quiz
-# projects via their subject/chapter/chapter_key columns — no
-# separate chapter table. Projects saved before this feature
-# existed have no subject/chapter metadata and are grouped under
-# a single "Unsorted" bucket rather than being hidden, so nothing
-# a user already saved ever disappears from here.
-# ============================================================
-
-@app.get("/api/chapters")
-def list_chapter_subjects(current_user=Depends(get_current_user)):
-
-    projects = list_library_projects(user_id=current_user.id)
-
-    subjects = {}
-
-    for row in projects:
-
-        subject = row.subject or "Unsorted"
-        key = row.chapter_key or f"__unsorted_{row.id}"
-
-        subjects.setdefault(subject, set()).add(key)
-
-    result = [
-        {
-            "subject": subject,
-            "chapter_count": len(keys),
-        }
-        for subject, keys in subjects.items()
-    ]
-
-    # Unsorted last, otherwise biggest subject first.
-    result.sort(
-        key=lambda s: (
-            s["subject"] == "Unsorted",
-            -s["chapter_count"],
-        )
-    )
-
-    return {"subjects": result}
-
-
-@app.get("/api/chapters/{subject}")
-def list_subject_chapters(subject: str, current_user=Depends(get_current_user)):
-
-    projects = list_library_projects(user_id=current_user.id)
-
-    if subject == "Unsorted":
-        projects = [p for p in projects if not p.subject]
-    else:
-        projects = [p for p in projects if p.subject == subject]
-
-    chapters = {}
-
-    for row in projects:
-
-        key = row.chapter_key or f"__unsorted_{row.id}"
-        display = row.chapter or row.title or "Untitled"
-
-        bucket = chapters.setdefault(
-            key,
-            {
-                "chapter_key": key,
-                "chapter": display,
-                "amivi": None,
-                "amico": None,
-                "quiz": None,
-                "updated_at": None,
-            },
-        )
-
-        row_data = row.data or {}
-        thumbnail_media_id = row_data.get("thumbnail_media_id")
-
-        bucket[row.project_type] = {
-            "id": row.id,
-            "title": row.title,
-            "thumbnail_url": (
-                f"/api/media/{thumbnail_media_id}"
-                if thumbnail_media_id
-                else None
-            ),
-        }
-
-        timestamp = (
-            row.created_at.isoformat()
-            if row.created_at
-            else None
-        )
-
-        if timestamp and (
-            not bucket["updated_at"]
-            or timestamp > bucket["updated_at"]
-        ):
-            bucket["updated_at"] = timestamp
-
-    chapter_list = sorted(
-        chapters.values(),
-        key=lambda c: c["updated_at"] or "",
-        reverse=True,
-    )
-
-    return {
-        "subject": subject,
-        "chapters": chapter_list,
-    }
-
-
-@app.get("/api/chapters/{subject}/{chapter_key}")
-def get_chapter_hub(
-    subject: str,
-    chapter_key: str,
-    current_user=Depends(get_current_user),
-):
-
-    projects = list_library_projects(user_id=current_user.id)
-
-    if subject == "Unsorted":
-        projects = [p for p in projects if not p.subject]
-    else:
-        projects = [p for p in projects if p.subject == subject]
-
-    rows = [
-        p
-        for p in projects
-        if (p.chapter_key or f"__unsorted_{p.id}") == chapter_key
-    ]
-
-    if not rows:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Chapter not found.",
-        )
-
-    content = {}
-    chapter_display = None
-
-    for row in rows:
-
-        chapter_display = chapter_display or row.chapter or row.title
-
-        # Each sibling slot keeps only the most recent project of
-        # that type (rows already come back newest-first).
-        if row.project_type not in content:
-
-            data = row.data or {}
-            thumbnail_media_id = data.get("thumbnail_media_id")
-
-            content[row.project_type] = {
-                "id": row.id,
-                "title": row.title,
-                "created_at": (
-                    row.created_at.isoformat()
-                    if row.created_at
-                    else None
-                ),
-                "thumbnail_url": (
-                    f"/api/media/{thumbnail_media_id}"
-                    if thumbnail_media_id
-                    else None
-                ),
-            }
-
-    return {
-        "subject": subject,
-        "chapter_key": chapter_key,
-        "chapter": chapter_display,
-        "amivi": content.get("amivi"),
-        "amico": content.get("amico"),
-        "quiz": content.get("quiz"),
-    }
-
-
-# ============================================================
 # QUIZ
 # ============================================================
 
@@ -8626,7 +6644,6 @@ async def quiz_generate(
     num_questions: int = Form(5),
     generate_images: bool = Form(True),
     generate_videos: bool = Form(True),
-    source_project_id: int | None = Form(None),
     file: UploadFile | None = File(None),
     current_user=Depends(get_current_user),
 ):
@@ -8637,64 +6654,6 @@ async def quiz_generate(
 
         source_text = material_text.strip()
         topic_clean = topic.strip()
-
-        # If no topic/material was supplied but an existing sibling
-        # project was given as the source (e.g. "Generate Quiz" from
-        # a chapter hub that already has an AMIVI or AMICO), fall
-        # back to that project's own saved material/title.
-        if not source_text and not topic_clean and source_project_id:
-
-            try:
-                sibling_project = get_project(source_project_id)
-
-                topic_clean = (sibling_project.title or "").strip()
-
-                # For an AMIVI sibling, input_text is only the raw
-                # text/topic the learner originally typed in — it
-                # does not carry the Key Points, slogans and (once
-                # a learner has opened EXPLAIN) explanations AMIVI
-                # actually generated, which is the real subject
-                # context the quiz should be built from. Pull the
-                # live AmiviChunk rows (same "fully up-to-date
-                # content" pattern library_project_detail uses) and
-                # build the quiz material from those instead; fall
-                # back to input_text only if there's nothing there
-                # yet (e.g. AMIVI generation partially failed).
-                amivi_context = ""
-
-                if sibling_project.project_type == "amivi":
-
-                    chunks = list_amivi_chunks_for_project(
-                        source_project_id
-                    )
-
-                    amivi_context = "\n\n".join(
-                        part
-                        for chunk in chunks
-                        for part in [
-                            " — ".join(
-                                filter(
-                                    None,
-                                    [
-                                        chunk.key_point,
-                                        chunk.description or chunk.text,
-                                    ],
-                                )
-                            )
-                        ]
-                        if part
-                    ).strip()
-
-                source_text = (
-                    amivi_context
-                    or (sibling_project.input_text or "").strip()
-                )
-
-                if source_text:
-                    mode = "material"
-
-            except HTTPException:
-                pass
 
         if file is not None:
 
@@ -8759,12 +6718,6 @@ async def quiz_generate(
             topic_clean or "Quiz",
         )
 
-        chapter_subject, chapter_name, chapter_key = resolve_chapter_metadata(
-            source_project_id=source_project_id,
-            llm_subject_category=quiz.get("subject_category"),
-            chapter_display_name=quiz_title,
-        )
-
         project_id = save_project(
             project_type="quiz",
             title=quiz_title,
@@ -8772,31 +6725,16 @@ async def quiz_generate(
             language=language,
             data=quiz,
             user_id=current_user.id,
-            subject=chapter_subject,
-            chapter=chapter_name,
-            chapter_key=chapter_key,
         )
 
-        # -----------------------------------------------------
-        # Generate each question's image + explanation video (in
-        # parallel — these are independent per-question network
-        # calls, same reason AMIVI chunks and AMICO panels run
-        # concurrently instead of one at a time. Run serially,
-        # num_questions x (1 image call + 1 video call) adds up
-        # fast — with the default 5 questions this routinely took
-        # long enough that the platform/proxy in front of this API
-        # dropped the connection before a response ever went out,
-        # which the browser surfaces as a bare "Failed to fetch"
-        # rather than a real error message. Running concurrently
-        # keeps the whole request close to the time of the single
-        # slowest question instead of the sum of all of them.
-        # -----------------------------------------------------
+        processed_questions = []
 
-        questions = quiz.get("questions", [])
-
-        processed_questions = [None] * len(questions)
-
-        def process_question(index, question):
+        for index, question in enumerate(
+            quiz.get(
+                "questions",
+                [],
+            )
+        ):
 
             image_id = None
             video_id = None
@@ -8805,13 +6743,7 @@ async def quiz_generate(
 
                 try:
 
-                    # generate_image_resilient (not the bare
-                    # generate_image) so one question whose prompt
-                    # trips the image model's content-safety system
-                    # gets a safe-fallback retry instead of just
-                    # losing that question's image outright — same
-                    # resilience AMICO/AMIVI panels already get.
-                    image_id = generate_image_resilient(
+                    image_id = generate_image(
                         prompt=question.get(
                             "image_prompt",
                             question.get("q", ""),
@@ -8821,7 +6753,6 @@ async def quiz_generate(
                             f"_q{index}.png"
                         ),
                         project_id=project_id,
-                        fallback_label=question.get("q") or "this question",
                     )
 
                 except Exception as image_exc:
@@ -8858,47 +6789,36 @@ async def quiz_generate(
                         f"{video_exc}"
                     )
 
-            return {
-                "question_id": index,
-                "q": question.get("q", ""),
-                "options": question.get(
-                    "options",
-                    [],
-                ),
-                "correct": question.get(
-                    "correct",
-                    0,
-                ),
-                "explanation": question.get(
-                    "explanation",
-                    "",
-                ),
-                "image_id": image_id,
-                "image_url": (
-                    f"/api/media/{image_id}"
-                    if image_id
-                    else None
-                ),
-                "video_id": video_id,
-                "video_url": (
-                    f"/api/media/{video_id}"
-                    if video_id
-                    else None
-                ),
-            }
-
-        import concurrent.futures
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-
-            futures = {
-                executor.submit(process_question, idx, q): idx
-                for idx, q in enumerate(questions)
-            }
-
-            for future in concurrent.futures.as_completed(futures):
-                idx = futures[future]
-                processed_questions[idx] = future.result()
+            processed_questions.append(
+                {
+                    "question_id": index,
+                    "q": question.get("q", ""),
+                    "options": question.get(
+                        "options",
+                        [],
+                    ),
+                    "correct": question.get(
+                        "correct",
+                        0,
+                    ),
+                    "explanation": question.get(
+                        "explanation",
+                        "",
+                    ),
+                    "image_id": image_id,
+                    "image_url": (
+                        f"/api/media/{image_id}"
+                        if image_id
+                        else None
+                    ),
+                    "video_id": video_id,
+                    "video_url": (
+                        f"/api/media/{video_id}"
+                        if video_id
+                        else None
+                    ),
+                }
+            )
 
         final_quiz = {
             "title": quiz_title,
@@ -8929,8 +6849,144 @@ async def quiz_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
+
+
+# ============================================================
+# FIX QUIZ IMAGES (repair pass for an OLDER saved quiz whose
+# question image accidentally gives the answer away — e.g. a
+# labeled poster/diagram that only makes sense next to the
+# correct option. Regenerates image_prompt + image for every
+# question under an explicit "don't depict the answer" rule, and
+# saves the result as a new Quiz version. Leaves q/options/correct/
+# explanation completely untouched — this only touches images.)
+# ============================================================
+
+@app.post("/api/library/{project_id}/fix_quiz_images")
+def fix_quiz_images(project_id: int, current_user=Depends(get_current_user)):
+
+    require_services()
+
+    project = get_project(project_id)
+
+    if project.project_type != "quiz":
+
+        raise HTTPException(
+            status_code=400,
+            detail="This isn't a quiz project.",
+        )
+
+    if project.user_id is not None and project.user_id != current_user.id:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    quiz_row = latest_quiz_for_project(project_id)
+
+    if not quiz_row or not quiz_row.data:
+
+        raise HTTPException(
+            status_code=404,
+            detail="No saved quiz found for this project.",
+        )
+
+    quiz_data = dict(quiz_row.data)
+    questions = list(quiz_data.get("questions", []))
+
+    if not questions:
+
+        raise HTTPException(
+            status_code=400,
+            detail="This quiz has no questions to fix.",
+        )
+
+    # One batched call for a safe, answer-blind image_prompt per
+    # question — never mention the correct option, only the
+    # question's general subject, so the regenerated illustration
+    # can't be used to guess the answer.
+    try:
+
+        rewrite = call_json_model(
+            TERRA_MODEL,
+            (
+                "For each quiz question below, write a short "
+                "description of a simple, clear educational "
+                "illustration for it. The illustration must be "
+                "neutral and must NOT depict, hint at, or make "
+                "obvious which answer option is correct — base it "
+                "only on the general subject of the question, "
+                "never on any specific option text.\n\n"
+                'Return ONLY JSON: {"image_prompts":["...", ...]} '
+                "with exactly one entry per question, in the same "
+                "order."
+            ),
+            "\n".join(
+                f"{i + 1}. {q.get('q', '')}"
+                for i, q in enumerate(questions)
+            ),
+        )
+
+        safe_prompts = rewrite.get("image_prompts", [])
+
+    except Exception as exc:
+
+        print(f"Quiz image-prompt rewrite failed: {exc}")
+        safe_prompts = []
+
+    updated_questions = []
+
+    for index, question in enumerate(questions):
+
+        question = dict(question)
+
+        safe_prompt = (
+            safe_prompts[index]
+            if index < len(safe_prompts) and safe_prompts[index]
+            else f"A simple, neutral educational illustration about: {question.get('q', '')}"
+        )
+
+        try:
+
+            image_id = generate_image(
+                prompt=safe_prompt,
+                filename=f"quiz_{project_id}_q{index}_fixed.png",
+                project_id=project_id,
+            )
+
+            question["image_id"] = image_id
+            question["image_url"] = f"/api/media/{image_id}"
+
+        except Exception as image_exc:
+
+            print(
+                "Quiz image fix failed for question "
+                f"{index}: {image_exc}"
+            )
+            # Leave this question's existing image alone rather
+            # than wiping it out on a transient failure.
+
+        question["image_prompt"] = safe_prompt
+
+        updated_questions.append(question)
+
+    final_quiz = {
+        **quiz_data,
+        "questions": updated_questions,
+    }
+
+    save_quiz(
+        project_id,
+        quiz_data.get("title", project.title),
+        final_quiz,
+    )
+
+    return {
+        "status": "success",
+        "quiz": final_quiz,
+    }
 
 
 # ============================================================
@@ -9010,182 +7066,7 @@ async def quiz_generate_question_image(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
-        )
-
-
-# ============================================================
-# QUIZ IMAGE REPAIR — regenerates ONLY the images of a saved
-# Library quiz, under the same answer-safety rules used when
-# generating a brand-new quiz. For older quizzes saved before
-# those safety rules existed, whose question images may show
-# a labeled diagram/poster that gives the correct answer away
-# (e.g. a portrait literally captioned with the right name).
-# Does not touch question text, options, or explanations.
-# ============================================================
-
-@app.post("/api/library/{project_id}/fix_quiz_images")
-def fix_quiz_images(project_id: int, current_user=Depends(get_current_user)):
-
-    project = get_project(project_id)
-
-    if project.project_type != "quiz":
-
-        raise HTTPException(
-            status_code=404,
-            detail="Project not found.",
-        )
-
-    # Owner-only, same as every other Library mutation endpoint.
-    if project.user_id is not None and project.user_id != current_user.id:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Project not found.",
-        )
-
-    quiz_row = latest_quiz_for_project(project_id)
-
-    if not quiz_row or not quiz_row.data:
-
-        raise HTTPException(
-            status_code=404,
-            detail="This project has no saved quiz data.",
-        )
-
-    try:
-
-        require_services()
-
-        quiz_data = dict(quiz_row.data or {})
-        questions = list(quiz_data.get("questions") or [])
-
-        if not questions:
-
-            raise HTTPException(
-                status_code=400,
-                detail="This quiz has no questions to fix.",
-            )
-
-        # Reuse the EXACT same answer-safety wording used when a
-        # brand-new quiz is generated (generate_quiz_from_source),
-        # so an old quiz gets re-illustrated under the same rule
-        # instead of a slightly different one drifting out of sync.
-        prompt_instructions = (
-            "For each quiz question below, write a short description "
-            "of a simple, clear illustration setting the scene for "
-            "the question's subject matter in general — NEVER an "
-            "illustration of the correct answer specifically, and "
-            "never one that would be a different, telling picture "
-            "for a wrong answer than for the right one. A student "
-            "looking only at the image, before reading any option, "
-            "must not be able to guess which option is correct from "
-            "it. CRITICAL: the image itself must contain NO text, "
-            "words, labels, captions, titles, or arrows pointing at "
-            "or naming anything — it is a pure, wordless "
-            "illustration, never a labeled diagram, map, or "
-            "portrait with a caption. For example, for 'Which organ "
-            "pumps blood around the body?' use a plain, unlabeled "
-            "illustration of a human body or a classroom "
-            "science-lesson scene — never a diagram of a heart with "
-            "its chambers labeled, since that draws and names the "
-            "correct answer outright. Likewise, for a question "
-            "asking who a famous person is, use a generic, "
-            "unlabeled scene related to their field or era — never "
-            "a labeled portrait naming them.\n\n"
-            "Return ONLY JSON in this structure: "
-            '{"image_prompts": ["...", "...", ...]} '
-            "with exactly one entry per question, in the same order "
-            "as the questions given."
-        )
-
-        questions_text = "\n\n".join(
-            f"Question {index + 1}: {question.get('q', '')}\n"
-            "Options: "
-            + ", ".join(question.get("options") or [])
-            for index, question in enumerate(questions)
-        )
-
-        prompts_result = call_json_model(
-            TERRA_MODEL,
-            prompt_instructions,
-            questions_text,
-        )
-
-        image_prompts = list(
-            (prompts_result or {}).get("image_prompts") or []
-        )
-
-        def regenerate_one(index):
-
-            if index >= len(image_prompts):
-                return index, None
-
-            safe_prompt = image_prompts[index]
-
-            if not safe_prompt:
-                return index, None
-
-            new_image_id = generate_image_resilient(
-                prompt=safe_prompt,
-                filename=f"quiz_fix_{uuid.uuid4().hex[:8]}.png",
-                project_id=project_id,
-                fallback_label=safe_prompt,
-            )
-
-            return index, new_image_id
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-
-            results = list(
-                executor.map(regenerate_one, range(len(questions)))
-            )
-
-        for index, new_image_id in results:
-
-            if not new_image_id:
-                continue
-
-            questions[index]["image_id"] = new_image_id
-            questions[index]["image_url"] = f"/api/media/{new_image_id}"
-
-        quiz_data["questions"] = questions
-
-        db = SessionLocal()
-
-        try:
-
-            row = (
-                db.query(Quiz)
-                .filter(Quiz.id == quiz_row.id)
-                .first()
-            )
-
-            if row:
-
-                row.data = quiz_data
-                db.commit()
-
-        finally:
-            db.close()
-
-        return {
-            "status": "success",
-            "quiz": quiz_data,
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as exc:
-
-        import traceback
-
-        traceback.print_exc()
-
-        raise HTTPException(
-            status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -9230,7 +7111,7 @@ def quiz_wrong_answer_save(
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -9294,7 +7175,7 @@ def quiz_wrong_answer_delete(wrong_answer_id: int):
 
         raise HTTPException(
             status_code=500,
-            detail=friendly_error_detail(exc),
+            detail=str(exc),
         )
 
 
@@ -9305,7 +7186,6 @@ def quiz_wrong_answer_delete(wrong_answer_id: int):
 @app.get("/api/media/{media_id}")
 def media(
     media_id: int,
-    request: Request,
     download: bool = False,
 ):
 
@@ -9319,29 +7199,6 @@ def media(
         else "inline"
     )
 
-    # Every media id is immutable once saved — a "regenerate" always
-    # gets a brand-new id rather than overwriting this one's bytes
-    # (see save_media / the AMIVI/AMICO regenerate endpoints) — so
-    # it's always safe to let browsers (and Render's CDN) cache a
-    # given id forever instead of re-fetching it on every page view.
-    # This previously sent no cache headers at all, meaning every
-    # view of every comic page, avatar, or Microbit image downloaded
-    # the full file again over the network every single time —
-    # almost certainly the biggest driver of the workspace's
-    # bandwidth usage.
-    etag = f'"{media_id}"'
-    cache_control = "public, max-age=31536000, immutable"
-
-    if request.headers.get("if-none-match") == etag:
-
-        return Response(
-            status_code=304,
-            headers={
-                "Cache-Control": cache_control,
-                "ETag": etag,
-            },
-        )
-
     return Response(
         content=asset.data,
         media_type=asset.mime_type,
@@ -9349,9 +7206,7 @@ def media(
             "Content-Disposition": (
                 f'{disposition}; '
                 f'filename="{asset.filename}"'
-            ),
-            "Cache-Control": cache_control,
-            "ETag": etag,
+            )
         },
     )
 
@@ -10274,64 +8129,6 @@ def classroom_detail(class_code: str):
         db.close()
 
 
-@app.get("/api/classrooms/{class_code}/library-projects")
-def classroom_library_projects(class_code: str, member_token: str, type: str):
-    # Lets a teacher pick an AMIVI/AMICO/quiz they already made (e.g. a
-    # saved Bridge Building lesson) when assigning homework, instead of
-    # being forced to re-paste the material and regenerate it from
-    # scratch. Only works once this classroom membership is linked to
-    # the teacher's real account (that link happens automatically, the
-    # moment they register/log into this classroom while also logged
-    # into their VLQ account in the same browser) — otherwise we have
-    # no account to list a Library for, and say so plainly.
-
-    if type not in ("quiz", "amivi", "amico"):
-        raise HTTPException(
-            status_code=400,
-            detail="type must be one of: quiz, amivi, amico.",
-        )
-
-    db = SessionLocal()
-
-    try:
-
-        classroom = get_classroom_or_404(db, class_code)
-        member = get_classroom_member_by_token(db, classroom.id, member_token)
-        require_teacher(member)
-
-        if not member.user_id:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Log into your VLQ account in this browser, then log "
-                    "back into your classroom, to use saved material from "
-                    "your Library here."
-                ),
-            )
-
-        projects = [
-            p
-            for p in list_library_projects(user_id=member.user_id)
-            if p.project_type == type and p.user_id == member.user_id
-        ]
-
-        return {
-            "projects": [
-                {
-                    "id": p.id,
-                    "title": p.title or f"Untitled ({p.project_type})",
-                    "created_at": (
-                        p.created_at.isoformat() if p.created_at else None
-                    ),
-                }
-                for p in projects
-            ]
-        }
-
-    finally:
-        db.close()
-
-
 @app.post("/api/classrooms/{class_code}/assignments")
 def create_assignment(class_code: str, payload: AssignmentCreateRequest):
 
@@ -10340,14 +8137,17 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
     if not title:
         raise HTTPException(status_code=400, detail="Assignment title is required.")
 
-    if not payload.quiz_project_id and not payload.amivi_project_id and not payload.amico_project_id:
+    due_at = parse_due_at(payload.due_at)
 
+    if (
+        not payload.quiz_project_id
+        and not payload.amivi_project_id
+        and not payload.amico_project_id
+    ):
         raise HTTPException(
             status_code=400,
             detail="Add at least a quiz, AMIVI visuals, or an AMICO comic to this homework.",
         )
-
-    due_at = parse_due_at(payload.due_at)
 
     db = SessionLocal()
 
@@ -10357,9 +8157,6 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
         member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
         require_teacher(member)
 
-        # Quiz is optional — a teacher can assign just Visuals and/or a
-        # Comic with no gradable quiz at all. When one IS given, it
-        # still has to point at a real quiz project.
         if payload.quiz_project_id:
 
             quiz_project = (
@@ -11096,7 +8893,7 @@ def classroom_student_login(class_code: str, payload: StudentLoginRequest, curre
 # linked to (see the auto-link at classroom create/join/
 # teacher-login/student-login above). Each entry carries the
 # ClassroomMember's own token, so the frontend can drop straight
-# into the existing token-scoped Classroom endpoints without any
+# into the existing token-scoped Classroom endpoints without any  
 # of them needing to change.
 # ============================================================
 
