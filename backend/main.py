@@ -6555,7 +6555,7 @@ def serialize_library_project(project) -> dict:
     if project.project_type == "amivi":
 
         chunks = list_amivi_chunks_for_project(
-            project_id
+            project.id
         )
 
         data["chunks"] = [
@@ -6612,7 +6612,7 @@ def serialize_library_project(project) -> dict:
     elif project.project_type == "amico":
 
         comic = latest_comic_for_project(
-            project_id
+            project.id
         )
 
         if comic:
@@ -6621,7 +6621,7 @@ def serialize_library_project(project) -> dict:
     elif project.project_type == "quiz":
 
         quiz = latest_quiz_for_project(
-            project_id
+            project.id
         )
 
         if quiz:
@@ -8578,6 +8578,58 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
         return {
             "status": "success",
             "assignment": serialize_assignment(db, assignment, student_count),
+        }
+
+    finally:
+        db.close()
+
+
+# Lets a teacher, while building an assignment, pick an AMIVI/AMICO/
+# quiz they already generated and saved to their Library instead of
+# generating a new one from scratch — "Or use something I already
+# saved" in the Assign Homework form.
+@app.get("/api/classrooms/{class_code}/library-projects")
+def classroom_library_projects(
+    class_code: str,
+    member_token: str,
+    type: str,
+):
+
+    if type not in LIBRARY_PROJECT_TYPES:
+
+        raise HTTPException(
+            status_code=400,
+            detail='type must be "quiz", "amivi", or "amico".',
+        )
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+
+        query = db.query(Project).filter(Project.project_type == type)
+
+        # A teacher sees their own saved projects, plus legacy ones
+        # with no owner (created before accounts existed) — same
+        # visibility rule the main Library uses.
+        if member.user_id is not None:
+            query = query.filter(
+                (Project.user_id == member.user_id) | (Project.user_id.is_(None))
+            )
+
+        projects = query.order_by(Project.id.desc()).all()
+
+        return {
+            "projects": [
+                {
+                    "id": p.id,
+                    "title": p.title or f"Untitled {type}",
+                }
+                for p in projects
+            ]
         }
 
     finally:
