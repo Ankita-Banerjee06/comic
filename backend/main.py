@@ -3576,6 +3576,60 @@ def cover_crop(
     return padded
 
 
+def cover_fill_crop(
+    image,
+    target_width,
+    target_height,
+):
+
+    """
+    Resizes an image to completely FILL a target_width x
+    target_height box (CSS object-fit: cover), cropping away
+    whatever doesn't fit, so it never leaves a white padding bar
+    on any edge — unlike cover_crop above. This is what was
+    actually causing the "white gap" between two side-by-side
+    Photo Story panels even after the gap between the panels
+    themselves was set to zero: each image was being letterboxed
+    to fit inside its cell, and the white letterbox bars from two
+    touching panels lined up right where the panels met.
+
+    Used only for Photo Story panels, which are plain diagram-
+    style illustrations with nothing important pinned to an edge.
+    AMICO's character comic keeps cover_crop's padding instead,
+    since cropping could slice off a baked-in dialogue bubble.
+    """
+
+    src_width, src_height = image.size
+
+    scale = max(
+        target_width / src_width,
+        target_height / src_height,
+    )
+
+    new_width = max(1, round(src_width * scale))
+    new_height = max(1, round(src_height * scale))
+
+    resized = image.resize(
+        (
+            new_width,
+            new_height,
+        ),
+        Image.LANCZOS,
+    )
+
+    left = (new_width - target_width) // 2
+    top = (new_height - target_height) // 2
+
+    return resized.crop(
+        (
+            left,
+            top,
+            left + target_width,
+            top + target_height,
+        )
+    )
+
+
 def split_into_rows(panel_count):
 
     """
@@ -3759,6 +3813,10 @@ def render_amico_page(
 
     outer_padding = frame_thickness + 32
     gap = 23
+    # Panels in the same row sit much closer together than the gap
+    # between rows — just the thin black outline between them,
+    # instead of a visible white gutter down the middle of the page.
+    column_gap = 0
 
     header_height = 207 if comic_title else 0
     footer_height = 185
@@ -3924,7 +3982,7 @@ def render_amico_page(
 
         row_span = (
             content_width
-            - (row_count - 1) * gap
+            - (row_count - 1) * column_gap
         )
 
         row_widths = distribute(
@@ -3956,18 +4014,7 @@ def render_amico_page(
                 ),
             )
 
-            draw.rectangle(
-                (
-                    x,
-                    y,
-                    x + this_width - 1,
-                    y + row_height - 1,
-                ),
-                outline="#111111",
-                width=7,
-            )
-
-            x += this_width + gap
+            x += this_width + column_gap
 
         y += row_height + gap
 
@@ -4203,7 +4250,7 @@ def render_photostory_page(
     # gap between rows — the thin black outline on each panel is
     # the only separation, like a real comic grid, instead of a
     # wide white gutter down the middle of the page.
-    column_gap = 10
+    column_gap = 0
 
     header_height = 220 if story_title else 0
     footer_height = 196
@@ -4211,27 +4258,123 @@ def render_photostory_page(
     if layout == "vertical":
 
         content_width = 2190
-        row_heights = [940] * len(row_plan)
+
+        row_layouts = []
+        row_heights = []
+
+        for row_count in row_plan:
+
+            row_height = 940
+
+            caption_height = max(
+                225,
+                round(row_height * 0.40),
+            )
+
+            image_height = (
+                row_height
+                - caption_height
+                - 10
+            )
+
+            row_span = (
+                content_width
+                - (row_count - 1) * column_gap
+            )
+
+            row_widths = distribute(
+                row_span,
+                row_count,
+            )
+
+            row_layouts.append(
+                (
+                    row_widths,
+                    image_height,
+                    caption_height,
+                    row_height,
+                )
+            )
+
+            row_heights.append(row_height)
 
     else:
 
         page_width = 3400
-        page_height = round(page_width * 297 / 210)
 
         content_width = page_width - outer_padding * 2
 
-        page_content_height = (
-            page_height
-            - outer_padding * 2
-            - header_height
-            - footer_height
+        # Each AMIVI panel image is generated as a 1024x1024 SQUARE
+        # (see generate_image's size="1024x1024"), so every cell's
+        # image area is sized to be square too (width == height).
+        # That makes cover_fill_crop below a perfect, crop-free fit
+        # instead of slicing meaningful baked-in content (like a
+        # banner headline) off the top or bottom of the picture —
+        # which is exactly what happened when the image area was
+        # shorter and wider than the square source. The page's
+        # total height grows to fit whatever that produces, instead
+        # of forcing panels into a fixed A4-shaped sheet.
+
+        # One consistent square size is used for every panel on the
+        # page (based on a full 2-up row), rather than recomputing
+        # it per row — otherwise a trailing lone panel (e.g. the 3rd
+        # of 3) would get stretched to the full page width and come
+        # out far bigger than its neighbours above it.
+
+        standard_width = distribute(
+            content_width - column_gap,
+            2,
+        )[0]
+
+        image_height = standard_width
+
+        caption_height = max(
+            260,
+            round(image_height * 0.32),
         )
 
-        row_heights = distribute(
-            page_content_height
-            - (len(row_plan) - 1) * gap,
-            len(row_plan),
+        row_height = (
+            image_height
+            + caption_height
+            + 10
         )
+
+        row_layouts = []
+        row_heights = []
+
+        for row_count in row_plan:
+
+            if row_count == 2:
+
+                row_span = (
+                    content_width
+                    - (row_count - 1) * column_gap
+                )
+
+                row_widths = distribute(
+                    row_span,
+                    row_count,
+                )
+
+            else:
+
+                # A lone trailing panel keeps the same square size
+                # as every other panel instead of being stretched to
+                # fill the whole row — it's centered in the row
+                # instead of blown up.
+
+                row_widths = [standard_width]
+
+            row_layouts.append(
+                (
+                    row_widths,
+                    image_height,
+                    caption_height,
+                    row_height,
+                )
+            )
+
+            row_heights.append(row_height)
 
     content_height = (
         sum(row_heights)
@@ -4350,30 +4493,22 @@ def render_photostory_page(
 
     for row_index, row_count in enumerate(row_plan):
 
-        row_height = row_heights[row_index]
-
-        caption_height = max(
-            225,
-            round(row_height * 0.40),
+        row_widths, image_height, caption_height, row_height = (
+            row_layouts[row_index]
         )
 
-        image_height = (
-            row_height
-            - caption_height
-            - 10
+        # Centers a row whose panels don't add up to the full
+        # content width (a lone trailing panel) instead of leaving
+        # it pinned to the left edge.
+
+        row_used_width = (
+            sum(row_widths)
+            + (row_count - 1) * column_gap
         )
 
-        row_span = (
-            content_width
-            - (row_count - 1) * column_gap
-        )
-
-        row_widths = distribute(
-            row_span,
-            row_count,
-        )
-
-        x = outer_padding
+        x = outer_padding + (
+            content_width - row_used_width
+        ) // 2
 
         for column in range(row_count):
 
@@ -4387,7 +4522,7 @@ def render_photostory_page(
 
             panel_index += 1
 
-            fitted_image = cover_crop(
+            fitted_image = cover_fill_crop(
                 image,
                 this_width,
                 image_height,
@@ -4399,17 +4534,6 @@ def render_photostory_page(
                     x,
                     y,
                 ),
-            )
-
-            draw.rectangle(
-                (
-                    x,
-                    y,
-                    x + this_width - 1,
-                    y + image_height - 1,
-                ),
-                outline="#111111",
-                width=8,
             )
 
             caption_top = (
@@ -4426,8 +4550,6 @@ def render_photostory_page(
                     caption_top + caption_height - 10,
                 ),
                 fill="#F1F1F4",
-                outline="#111111",
-                width=5,
             )
 
             text_x = x + 40
