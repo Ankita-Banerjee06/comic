@@ -30,6 +30,7 @@ import {
   Loader2,
   LayoutGrid,
   List,
+  Home,
 } from 'lucide-react';
 
 import { useLanguage } from '../contexts/LanguageContext';
@@ -755,14 +756,25 @@ export default function Amivi() {
   return (
     <div className="space-y-8 py-6 px-3 sm:px-5 -mx-3 sm:-mx-5 rounded-3xl bg-gradient-to-br from-blue-50 via-white to-purple-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      <button
-        type="button"
-        onClick={() => navigate(projectId ? '/library' : '/explore')}
-        className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        {projectId ? t('Back to Library') : t('Back')}
-      </button>
+      <div className="flex items-center gap-4 flex-wrap">
+        <button
+          type="button"
+          onClick={() => navigate(projectId ? '/library' : '/explore')}
+          className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {projectId ? t('Back to Library') : t('Back')}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
+        >
+          <Home className="w-4 h-4" />
+          {t('Back to Home')}
+        </button>
+      </div>
 
       {/* ======================================================
           JOURNEY STRIP — the 5-panel "So much information... /

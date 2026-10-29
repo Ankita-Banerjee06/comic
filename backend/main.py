@@ -4199,6 +4199,11 @@ def render_photostory_page(
 
     outer_padding = frame_thickness + 34
     gap = 29
+    # Panels within the same row sit much closer together than the
+    # gap between rows — the thin black outline on each panel is
+    # the only separation, like a real comic grid, instead of a
+    # wide white gutter down the middle of the page.
+    column_gap = 10
 
     header_height = 220 if story_title else 0
     footer_height = 196
@@ -4360,7 +4365,7 @@ def render_photostory_page(
 
         row_span = (
             content_width
-            - (row_count - 1) * gap
+            - (row_count - 1) * column_gap
         )
 
         row_widths = distribute(
@@ -4435,17 +4440,54 @@ def render_photostory_page(
 
             if panel_title:
 
-                draw.text(
-                    (
-                        text_x,
-                        text_y,
-                    ),
-                    panel_title,
-                    fill=color,
+                # Wrapped and clipped exactly like the caption below
+                # it, instead of drawn as one unbroken line — a long
+                # title used to run straight past the panel's right
+                # edge instead of staying inside the box.
+
+                title_line_spacing = 10
+
+                title_bbox = draw.textbbox(
+                    (0, 0),
+                    "Ag",
                     font=panel_title_font,
                 )
 
-                text_y += 100
+                title_line_height = (
+                    title_bbox[3] - title_bbox[1]
+                    + title_line_spacing
+                )
+
+                title_lines = wrap_text(
+                    panel_title,
+                    panel_title_font,
+                    this_width - 80,
+                )
+
+                max_title_lines = 2
+
+                if len(title_lines) > max_title_lines:
+
+                    title_lines = title_lines[:max_title_lines]
+                    title_lines[-1] = (
+                        title_lines[-1].rstrip() + "…"
+                    )
+
+                for line in title_lines:
+
+                    draw.text(
+                        (
+                            text_x,
+                            text_y,
+                        ),
+                        line,
+                        fill=color,
+                        font=panel_title_font,
+                    )
+
+                    text_y += title_line_height
+
+                text_y += 14
 
             # Clip the caption to however many lines actually fit
             # inside the caption box (rather than trusting the
@@ -4510,7 +4552,7 @@ def render_photostory_page(
 
                 caption_y += caption_line_height
 
-            x += this_width + gap
+            x += this_width + column_gap
 
         y += row_height + gap
 
@@ -5184,7 +5226,10 @@ async def amivi_generate_photo_story(
         pages = compose_amico_photostory(
             request.project_id,
             story,
-            panels_per_page=min(8, max(2, len(panels))),
+            # Capped at 4 per page (a clean 2x2 grid) instead of
+            # cramming everything onto one sheet — more panels just
+            # spill onto additional pages.
+            panels_per_page=min(4, max(2, len(panels))),
             layout="horizontal",
         )
 
@@ -7024,6 +7069,7 @@ async def quiz_generate(
     num_questions: int = Form(5),
     generate_images: bool = Form(True),
     generate_videos: bool = Form(True),
+    source_project_id: int | None = Form(None),
     file: UploadFile | None = File(None),
     current_user=Depends(get_current_user),
 ):
@@ -7034,6 +7080,7 @@ async def quiz_generate(
 
         source_text = material_text.strip()
         topic_clean = topic.strip()
+        source_title = ""
 
         if file is not None:
 
@@ -7052,9 +7099,30 @@ async def quiz_generate(
                     else extracted
                 )
 
-        use_material = (
+        # A saved AMIVI/AMICO project picked as the quiz's source
+        # (Library's "Create Quiz" button sends source_project_id
+        # alone, with no typed topic or pasted material) — pull its
+        # material so a quiz can be built from it directly, the same
+        # way AMICO already reuses a source AMIVI project.
+        if (
+            source_project_id
+            and not source_text
+            and not topic_clean
+        ):
+
+            source_project = get_project(source_project_id)
+
+            source_title = source_project.title or ""
+
+            source_text = (
+                source_project.input_text
+                or source_project.title
+                or ""
+            ).strip()
+
+        use_material = bool(source_text) and (
             mode == "material"
-            and bool(source_text)
+            or bool(source_project_id)
         )
 
         if mode == "material" and not source_text:
@@ -7067,7 +7135,11 @@ async def quiz_generate(
                 ),
             )
 
-        if mode != "material" and not topic_clean:
+        if (
+            mode != "material"
+            and not source_project_id
+            and not topic_clean
+        ):
 
             raise HTTPException(
                 status_code=400,
@@ -7095,7 +7167,7 @@ async def quiz_generate(
 
         quiz_title = quiz.get(
             "title",
-            topic_clean or "Quiz",
+            topic_clean or source_title or "Quiz",
         )
 
         project_id = save_project(
@@ -7107,14 +7179,23 @@ async def quiz_generate(
             user_id=current_user.id,
         )
 
-        processed_questions = []
+        # Each question's image (and, if that succeeds, its
+        # narrated video) used to be generated one question at a
+        # time — with videos on by default, a 5-question quiz meant
+        # 5 sequential image calls *plus* 5 sequential video calls,
+        # which is what was making this take minutes. The work for
+        # one question doesn't depend on any other, so it's safe to
+        # run every question's image+video pipeline in parallel
+        # instead, the same way AMICO already parallelizes its
+        # per-panel image generation above.
 
-        for index, question in enumerate(
-            quiz.get(
-                "questions",
-                [],
-            )
-        ):
+        import concurrent.futures
+
+        questions = quiz.get("questions", [])
+
+        processed_questions = [None] * len(questions)
+
+        def process_quiz_question(index, question):
 
             image_id = None
             video_id = None
@@ -7169,36 +7250,48 @@ async def quiz_generate(
                         f"{video_exc}"
                     )
 
-            processed_questions.append(
-                {
-                    "question_id": index,
-                    "q": question.get("q", ""),
-                    "options": question.get(
-                        "options",
-                        [],
-                    ),
-                    "correct": question.get(
-                        "correct",
-                        0,
-                    ),
-                    "explanation": question.get(
-                        "explanation",
-                        "",
-                    ),
-                    "image_id": image_id,
-                    "image_url": (
-                        f"/api/media/{image_id}"
-                        if image_id
-                        else None
-                    ),
-                    "video_id": video_id,
-                    "video_url": (
-                        f"/api/media/{video_id}"
-                        if video_id
-                        else None
-                    ),
-                }
-            )
+            return {
+                "question_id": index,
+                "q": question.get("q", ""),
+                "options": question.get(
+                    "options",
+                    [],
+                ),
+                "correct": question.get(
+                    "correct",
+                    0,
+                ),
+                "explanation": question.get(
+                    "explanation",
+                    "",
+                ),
+                "image_id": image_id,
+                "image_url": (
+                    f"/api/media/{image_id}"
+                    if image_id
+                    else None
+                ),
+                "video_id": video_id,
+                "video_url": (
+                    f"/api/media/{video_id}"
+                    if video_id
+                    else None
+                ),
+            }
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+
+            futures = {
+                executor.submit(
+                    process_quiz_question, idx, q
+                ): idx
+                for idx, q in enumerate(questions)
+            }
+
+            for future in concurrent.futures.as_completed(futures):
+
+                idx = futures[future]
+                processed_questions[idx] = future.result()
 
         final_quiz = {
             "title": quiz_title,

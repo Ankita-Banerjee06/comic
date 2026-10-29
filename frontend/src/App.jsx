@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -55,6 +56,21 @@ function RequireAuth({ children }) {
   return children;
 }
 
+// React Router doesn't reset scroll position on navigation the way a
+// normal multi-page site does — clicking a link from the bottom of a
+// long page (e.g. Landing's CTA banner) used to drop you at that same
+// scroll position on the next page instead of its top. This resets
+// the window to the top on every route change.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
 function RedirectIfAuthed({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
@@ -72,6 +88,7 @@ function App() {
     <LanguageProvider>
       <AuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
         {/* Public Landing Page */}
         <Route element={<LandingLayout />}>

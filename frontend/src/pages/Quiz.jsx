@@ -19,6 +19,7 @@ import {
   ArrowRight,
   ExternalLink,
   Trophy,
+  PlayCircle,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -368,6 +369,10 @@ export default function Quiz() {
   const [finished, setFinished] = useState(false);
   const [wrongQuestions, setWrongQuestions] = useState([]);
   const [isRetake, setIsRetake] = useState(false);
+  // The explanation video stays collapsed behind a "Click here to
+  // see video" prompt instead of auto-playing inline — resets back
+  // to collapsed every time a new question starts.
+  const [videoRevealed, setVideoRevealed] = useState(false);
 
   // --------------------------------------------------------
   // OPEN FROM LIBRARY STATE
@@ -435,6 +440,7 @@ export default function Quiz() {
         setStarted(false);
         setCurrentQuestion(0);
         setSelectedAnswer(null);
+      setVideoRevealed(false);
         setScore(0);
         setFinished(false);
         setWrongQuestions([]);
@@ -527,6 +533,7 @@ export default function Quiz() {
     setStarted(true);
     setCurrentQuestion(0);
     setSelectedAnswer(null);
+      setVideoRevealed(false);
     setScore(0);
     setFinished(false);
     setWrongQuestions([]);
@@ -571,6 +578,7 @@ export default function Quiz() {
       setStarted(false);
       setCurrentQuestion(0);
       setSelectedAnswer(null);
+      setVideoRevealed(false);
       setScore(0);
       setFinished(false);
       setWrongQuestions([]);
@@ -634,6 +642,7 @@ export default function Quiz() {
       setFinished(true);
     } else {
       setSelectedAnswer(null);
+      setVideoRevealed(false);
       setCurrentQuestion((c) => c + 1);
     }
   };
@@ -642,6 +651,7 @@ export default function Quiz() {
     setStarted(true);
     setCurrentQuestion(0);
     setSelectedAnswer(null);
+      setVideoRevealed(false);
     setScore(0);
     setFinished(false);
     setWrongQuestions([]);
@@ -663,6 +673,7 @@ export default function Quiz() {
     setStarted(true);
     setCurrentQuestion(0);
     setSelectedAnswer(null);
+      setVideoRevealed(false);
     setScore(0);
     setFinished(false);
     setWrongQuestions([]);
@@ -1034,28 +1045,6 @@ export default function Quiz() {
           {t('Build a Different Quiz')}
         </button>
 
-        {projectId && (
-          <div className="mt-6 max-w-md">
-            {fixImagesDone ? (
-              <p className="text-sm font-bold text-green-600">
-                ✅ {t('Images fixed! They no longer give the answer away.')}
-              </p>
-            ) : (
-              <button
-                onClick={handleFixImages}
-                disabled={fixingImages}
-                className="text-sm font-bold text-amber-700 bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-2 hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {fixingImages
-                  ? `⏳ ${t('Fixing images…')}`
-                  : `⚠️ ${t("Question image gives away an answer? Fix it")}`}
-              </button>
-            )}
-            {fixImagesError && (
-              <p className="text-sm font-bold text-red-600 mt-2">{fixImagesError}</p>
-            )}
-          </div>
-        )}
       </div>
     );
   }
@@ -1188,8 +1177,8 @@ export default function Quiz() {
         {q.options.map((opt, idx) => {
           let cls = 'bg-white border-2 border-gray-200 text-black hover:border-purple-400 hover:bg-purple-50';
           if (isAnswered) {
-            if (idx === q.correct) cls = 'bg-green-50 border-2 border-green-400 text-green-700';
-            else if (idx === selectedAnswer) cls = 'bg-red-50 border-2 border-red-400 text-red-600';
+            if (idx === q.correct) cls = 'bg-green-500 border-2 border-green-500 text-white';
+            else if (idx === selectedAnswer) cls = 'bg-red-500 border-2 border-red-500 text-white';
             else cls = 'bg-gray-50 border-2 border-gray-200 text-black opacity-60';
           } else if (selectedAnswer === idx) {
             cls = 'bg-purple-50 border-2 border-purple-500 text-purple-700';
@@ -1208,18 +1197,24 @@ export default function Quiz() {
                   style={{
                     backgroundColor:
                       isAnswered && idx === q.correct
-                        ? '#dcfce7'
+                        ? '#ffffff'
                         : isAnswered && idx === selectedAnswer
-                        ? '#fee2e2'
+                        ? '#ffffff'
                         : '#f3e8ff',
+                    color:
+                      isAnswered && idx === q.correct
+                        ? '#16a34a'
+                        : isAnswered && idx === selectedAnswer
+                        ? '#dc2626'
+                        : undefined,
                   }}
                 >
                   {optionLabel(idx)}
                 </span>
                 {opt}
               </span>
-              {isAnswered && idx === q.correct && <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />}
-              {isAnswered && idx === selectedAnswer && idx !== q.correct && <XCircle className="w-6 h-6 text-red-500 shrink-0" />}
+              {isAnswered && idx === q.correct && <CheckCircle2 className="w-6 h-6 text-white shrink-0" />}
+              {isAnswered && idx === selectedAnswer && idx !== q.correct && <XCircle className="w-6 h-6 text-white shrink-0" />}
             </button>
           );
         })}
@@ -1246,15 +1241,30 @@ export default function Quiz() {
 
             {/* Full width of the card, not squeezed next to the 💡
                 icon above, and noticeably taller so it's actually
-                watchable instead of a tiny inline clip. */}
+                watchable instead of a tiny inline clip. Stays
+                collapsed behind a "Click here to see video" prompt
+                until the learner asks for it, instead of
+                auto-playing inline. */}
             {q.video_url && (
-              <video
-                controls
-                className="w-full mt-4 min-h-[280px] sm:min-h-[420px] rounded-2xl border-2 border-blue-200 bg-black"
-                src={mediaUrl(q.video_url)}
-              >
-                {t('Your browser does not support the video element.')}
-              </video>
+              videoRevealed ? (
+                <video
+                  controls
+                  autoPlay
+                  className="w-full mt-4 min-h-[280px] sm:min-h-[420px] rounded-2xl border-2 border-blue-200 bg-black"
+                  src={mediaUrl(q.video_url)}
+                >
+                  {t('Your browser does not support the video element.')}
+                </video>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setVideoRevealed(true)}
+                  className="w-full mt-4 flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-blue-200 bg-white text-blue-700 font-bold text-base sm:text-lg hover:bg-blue-100 transition-colors"
+                >
+                  <PlayCircle className="w-6 h-6" />
+                  {t('Click here to see video')}
+                </button>
+              )
             )}
           </div>
           <div className="flex justify-between items-center flex-wrap gap-3">
