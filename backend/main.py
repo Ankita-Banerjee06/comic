@@ -3818,41 +3818,105 @@ def render_amico_page(
     # instead of a visible white gutter down the middle of the page.
     column_gap = 0
 
-    header_height = 207 if comic_title else 0
+    header_height = 285 if comic_title else 0
     footer_height = 185
 
     if layout == "vertical":
 
         content_width = 2062
-        row_heights = [1102] * len(row_plan)
+
+        row_layouts = []
+        row_heights = []
+
+        for row_count in row_plan:
+
+            row_height = 1102
+
+            row_span = (
+                content_width
+                - (row_count - 1) * column_gap
+            )
+
+            row_widths = distribute(
+                row_span,
+                row_count,
+            )
+
+            row_layouts.append(
+                (
+                    row_widths,
+                    row_height,
+                )
+            )
+
+            row_heights.append(row_height)
 
     else:
 
-        # Fixed A4 portrait proportions (210 x 297 mm) — every
-        # comic page has this same shape no matter the panel
-        # count; panels simply resize row by row to fit inside.
-        # Sized up well past a real A4 sheet, and wider than
-        # before, so the page (and its dialogue) fills more of
-        # the screen and stays sharp when viewed full screen or
-        # zoomed in.
+        # Every AMICO panel image is generated as a 1024x1024
+        # SQUARE (see generate_image's size="1024x1024"). Each
+        # panel's cell is sized square too — instead of being
+        # forced into a tall A4-shaped rectangle — so cover_crop
+        # never needs to pad the art with big white bars above and
+        # below it to make it fit. That padding (not a gap in the
+        # layout itself) is what was showing up as a big blank
+        # space between rows, and before the footer, even though
+        # panels sitting side by side already had zero gap between
+        # them. The page's total height grows to fit the square
+        # panels instead of forcing them into a fixed A4-shaped
+        # sheet.
 
         page_width = 3200
-        page_height = round(page_width * 297 / 210)
 
         content_width = page_width - outer_padding * 2
 
-        page_content_height = (
-            page_height
-            - outer_padding * 2
-            - header_height
-            - footer_height
-        )
+        # One consistent square size is used for every panel on the
+        # page (based on a full 2-up row), rather than recomputing
+        # it per row — otherwise a trailing lone panel would get
+        # stretched to the full page width and come out far bigger
+        # than its neighbours above it.
 
-        row_heights = distribute(
-            page_content_height
-            - (len(row_plan) - 1) * gap,
-            len(row_plan),
-        )
+        standard_width = distribute(
+            content_width - column_gap,
+            2,
+        )[0]
+
+        row_height = standard_width
+
+        row_layouts = []
+        row_heights = []
+
+        for row_count in row_plan:
+
+            if row_count == 2:
+
+                row_span = (
+                    content_width
+                    - (row_count - 1) * column_gap
+                )
+
+                row_widths = distribute(
+                    row_span,
+                    row_count,
+                )
+
+            else:
+
+                # A lone trailing panel keeps the same square size
+                # as every other panel instead of being stretched to
+                # fill the whole row — it's centered in the row
+                # instead of blown up.
+
+                row_widths = [standard_width]
+
+            row_layouts.append(
+                (
+                    row_widths,
+                    row_height,
+                )
+            )
+
+            row_heights.append(row_height)
 
     content_height = (
         sum(row_heights)
@@ -3902,12 +3966,12 @@ def render_amico_page(
     # --------------------------------------------------------
 
     title_font = get_font(
-        92,
+        132,
         bold=True,
     )
 
     subtitle_font = get_font(
-        47,
+        68,
         bold=False,
     )
 
@@ -3930,7 +3994,7 @@ def render_amico_page(
         draw.text(
             (
                 canvas_width // 2,
-                outer_padding + 17,
+                outer_padding + 20,
             ),
             comic_title,
             fill="#111111",
@@ -3955,7 +4019,7 @@ def render_amico_page(
             draw.text(
                 (
                     canvas_width // 2,
-                    outer_padding + 135,
+                    outer_padding + 190,
                 ),
                 header_subtitle,
                 fill="#555555",
@@ -3978,19 +4042,20 @@ def render_amico_page(
 
     for row_index, row_count in enumerate(row_plan):
 
-        row_height = row_heights[row_index]
+        row_widths, row_height = row_layouts[row_index]
 
-        row_span = (
-            content_width
-            - (row_count - 1) * column_gap
+        # Centers a row whose panels don't add up to the full
+        # content width (a lone trailing panel) instead of leaving
+        # it pinned to the left edge.
+
+        row_used_width = (
+            sum(row_widths)
+            + (row_count - 1) * column_gap
         )
 
-        row_widths = distribute(
-            row_span,
-            row_count,
-        )
-
-        x = outer_padding
+        x = outer_padding + (
+            content_width - row_used_width
+        ) // 2
 
         for column in range(row_count):
 
@@ -4252,7 +4317,7 @@ def render_photostory_page(
     # wide white gutter down the middle of the page.
     column_gap = 0
 
-    header_height = 220 if story_title else 0
+    header_height = 300 if story_title else 0
     footer_height = 196
 
     if layout == "vertical":
@@ -4418,12 +4483,12 @@ def render_photostory_page(
     )
 
     title_font = get_font(
-        98,
+        140,
         bold=True,
     )
 
     subtitle_font = get_font(
-        50,
+        72,
         bold=False,
     )
 
@@ -4452,7 +4517,7 @@ def render_photostory_page(
         draw.text(
             (
                 canvas_width // 2,
-                outer_padding + 18,
+                outer_padding + 22,
             ),
             story_title.upper(),
             fill="#111111",
@@ -4465,7 +4530,7 @@ def render_photostory_page(
             draw.text(
                 (
                     canvas_width // 2,
-                    outer_padding + 144,
+                    outer_padding + 200,
                 ),
                 f"Page {page_number} of {total_pages}",
                 fill="#555555",
