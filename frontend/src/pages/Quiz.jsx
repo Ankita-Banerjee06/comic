@@ -1228,9 +1228,13 @@ export default function Quiz() {
               <span className="text-3xl">💡</span>
               <div className="flex-1 min-w-0">
                 <h4 className="text-blue-800 font-bold mb-2 text-lg sm:text-xl">{t('Explanation')}</h4>
-                {q.explain_image_url && (
+                {/* The explanation picture — the same illustration
+                    shown above the question — stays visible here on
+                    its own, separate from the video below, instead
+                    of being replaced by it. */}
+                {q.image_url && (
                   <img
-                    src={q.explain_image_url}
+                    src={q.image_url.startsWith('/quiz-decks/') ? q.image_url : mediaUrl(q.image_url)}
                     alt=""
                     className="max-h-56 w-auto max-w-full rounded-2xl border-2 border-blue-200 mb-3 object-contain"
                   />
@@ -1239,12 +1243,14 @@ export default function Quiz() {
               </div>
             </div>
 
-            {/* Full width of the card, not squeezed next to the 💡
-                icon above, and noticeably taller so it's actually
-                watchable instead of a tiny inline clip. Stays
-                collapsed behind a "Click here to see video" prompt
-                until the learner asks for it, instead of
-                auto-playing inline. */}
+            {/* A separate, clearly-visible video box — full width
+                of the card, not squeezed next to the 💡 icon above,
+                and noticeably taller so it's actually watchable
+                instead of a tiny inline clip. Stays collapsed
+                behind a bold "Click to view Video" prompt until the
+                learner asks for it, instead of auto-playing inline,
+                but is styled to stand out rather than blend in like
+                a plain outline button. */}
             {q.video_url && (
               videoRevealed ? (
                 <video
@@ -1259,10 +1265,10 @@ export default function Quiz() {
                 <button
                   type="button"
                   onClick={() => setVideoRevealed(true)}
-                  className="w-full mt-4 flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-blue-200 bg-white text-blue-700 font-bold text-base sm:text-lg hover:bg-blue-100 transition-colors"
+                  className="w-full mt-4 flex items-center justify-center gap-3 py-5 rounded-2xl border-2 border-indigo-300 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-base sm:text-lg shadow-lg hover:scale-[1.01] hover:shadow-xl transition-all"
                 >
-                  <PlayCircle className="w-6 h-6" />
-                  {t('Click here to see video')}
+                  <PlayCircle className="w-7 h-7" />
+                  {t('Click to view Video')}
                 </button>
               )
             )}

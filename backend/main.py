@@ -2639,9 +2639,11 @@ def generate_quiz_from_source(
     from that material (uploaded / pasted). Otherwise the quiz
     is built from the model's own knowledge of `topic`.
 
-    Each question includes an `image_prompt` describing a simple
-    supporting illustration (e.g. a labeled map or diagram) for
-    the correct answer.
+    Each question includes an `image_prompt` describing a simple,
+    neutral illustration of the question's general subject — never
+    one that depicts, labels, or hints at which option is correct,
+    since that would let a learner guess the answer from the
+    picture alone instead of actually working it out.
     """
 
     num_questions = max(
@@ -2658,7 +2660,15 @@ def generate_quiz_from_source(
             "Create a "
             f"{num_questions}-question multiple-choice quiz "
             "strictly from the supplied educational material. "
-            "Do not invent facts outside the material.\n\n"
+            "Do not invent facts outside the material. Every "
+            "question must test the concepts, events, or facts the "
+            "material actually teaches — never ask about the "
+            "material's own wording, title, formatting, or length "
+            "(e.g. never ask things like \"what is the first word "
+            "of the title\"). If the supplied material is too thin "
+            "to write a genuine comprehension question from, write "
+            "about the subject it names using accurate general "
+            "knowledge instead of asking about the text itself.\n\n"
         )
 
         user_input = source_text
@@ -2683,9 +2693,31 @@ def generate_quiz_from_source(
         "correct (integer index of the right option), "
         "explanation (1-2 short, simple sentences explaining "
         "why the correct answer is right), and "
-        "image_prompt (a short description of a simple, clear "
-        "illustration or labeled map/diagram that supports the "
-        "correct answer).\n\n"
+        "image_prompt (a short description of a simple, clear, "
+        "NEUTRAL illustration that sets the scene for the "
+        "question's general subject only. It must NOT depict, "
+        "label, circle, highlight, or otherwise hint at which "
+        "option is correct — base it only on what the question "
+        "itself is about, never on any specific option's text. A "
+        "learner must not be able to tell the answer just by "
+        "looking at the image. It must also be specific and "
+        "clearly recognizable as belonging to this exact topic or "
+        "material — name the actual characters, setting, objects, "
+        "or era involved wherever the question's subject has them, "
+        "instead of a vague generic scene (e.g. for a Harry Potter "
+        "quiz, describe the wizarding-world setting/characters "
+        "relevant to that question, not an unrelated plain "
+        "storybook on a desk) — so the picture is instantly "
+        "recognizable as being about this topic, not a random "
+        "generic stock illustration.).\n\n"
+
+        "Every question must be directly meaningful and relevant "
+        "to the given topic or material — test real understanding "
+        "of it, not generic trivia or facts unrelated to what's "
+        "actually being taught. Cover a good spread of the "
+        "topic/material instead of repeating the same fact in "
+        "different words, and keep each question's difficulty "
+        "appropriate for someone actually learning this subject.\n\n"
 
         'Return ONLY JSON in this structure: '
         '{"quiz":{"title":"...","questions":[...]}}\n\n'
@@ -3818,7 +3850,11 @@ def render_amico_page(
     # instead of a visible white gutter down the middle of the page.
     column_gap = 0
 
-    header_height = 285 if comic_title else 0
+    # Room for the title plus up to two wrapped lines of subtitle
+    # (objective + "Page N of M") — it used to be sized for one
+    # line only, so a longer objective would run straight off the
+    # edges of the page instead of wrapping.
+    header_height = 420 if comic_title else 0
     footer_height = 185
 
     if layout == "vertical":
@@ -4016,16 +4052,43 @@ def render_amico_page(
 
         if header_subtitle:
 
-            draw.text(
-                (
-                    canvas_width // 2,
-                    outer_padding + 190,
-                ),
-                header_subtitle,
-                fill="#555555",
+            # Wrapped instead of a single unbroken line — a longer
+            # objective (plus the "Page N of M" suffix) used to run
+            # straight past the edges of the page instead of
+            # staying inside it.
+
+            subtitle_bbox = draw.textbbox(
+                (0, 0),
+                "Ag",
                 font=subtitle_font,
-                anchor="ma",
             )
+
+            subtitle_line_height = (
+                subtitle_bbox[3] - subtitle_bbox[1] + 16
+            )
+
+            subtitle_lines = wrap_text(
+                header_subtitle,
+                subtitle_font,
+                content_width - 120,
+            )
+
+            subtitle_y = outer_padding + 190
+
+            for line in subtitle_lines:
+
+                draw.text(
+                    (
+                        canvas_width // 2,
+                        subtitle_y,
+                    ),
+                    line,
+                    fill="#555555",
+                    font=subtitle_font,
+                    anchor="ma",
+                )
+
+                subtitle_y += subtitle_line_height
 
     # --------------------------------------------------------
     # Panel rendering — every row's panels are widened so they
@@ -4077,6 +4140,22 @@ def render_amico_page(
                     x,
                     y,
                 ),
+            )
+
+            # A thin white border around each panel's art so
+            # adjacent panels (sitting edge-to-edge with zero gap
+            # between them) read as separate comic panels instead
+            # of blending straight into one another.
+
+            draw.rectangle(
+                (
+                    x,
+                    y,
+                    x + this_width - 1,
+                    y + row_height - 1,
+                ),
+                outline="#FFFFFF",
+                width=6,
             )
 
             x += this_width + column_gap
@@ -7301,11 +7380,30 @@ async def quiz_generate(
 
             source_title = source_project.title or ""
 
-            source_text = (
-                source_project.input_text
-                or source_project.title
-                or ""
+            real_material = (
+                source_project.input_text or ""
             ).strip()
+
+            if real_material:
+
+                # There's actual saved lesson content on this
+                # project — build the quiz strictly from it, same
+                # as pasted/uploaded material.
+
+                source_text = real_material
+
+            else:
+
+                # No saved lesson text, only a short title (e.g.
+                # "Harry Potter") — nowhere near enough to ground a
+                # "strictly from this material" quiz in. Forcing
+                # that produced degenerate questions like "What is
+                # the first word in the supplied title?" because the
+                # model had nothing real to ask about. Use the title
+                # as a TOPIC instead, so the model draws on its own
+                # real knowledge of the subject.
+
+                topic_clean = source_title
 
         use_material = bool(source_text) and (
             mode == "material"
@@ -7333,12 +7431,24 @@ async def quiz_generate(
                 detail="Please enter a topic for the quiz.",
             )
 
-        guard_learning_input(
-            source_text if use_material else topic_clean,
-            "This quiz material"
-            if use_material
-            else "This quiz topic",
-        )
+        # Only re-run the moderation / "is this educational content"
+        # classifier on input the learner is typing or pasting right
+        # now. Material or a title pulled from an existing saved
+        # project already passed these same checks when that project
+        # was first created — re-checking it here just risks a false
+        # rejection (a bare title like "Harry Potter", with no
+        # surrounding context, can read as ambiguous to the strict
+        # educational-scope classifier), which is what was turning a
+        # normal "Create Quiz" click on an already-approved project
+        # into a 400 error.
+        if not source_project_id:
+
+            guard_learning_input(
+                source_text if use_material else topic_clean,
+                "This quiz material"
+                if use_material
+                else "This quiz topic",
+            )
 
         result = generate_quiz_from_source(
             source_text if use_material else "",
