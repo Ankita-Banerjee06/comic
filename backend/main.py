@@ -1449,6 +1449,7 @@ def save_avatar(
     name,
     description,
     image_id,
+    user_id=None,
 ):
 
     db = SessionLocal()
@@ -1459,6 +1460,7 @@ def save_avatar(
             name=name,
             description=description,
             image_id=image_id,
+            user_id=user_id,
         )
 
         db.add(row)
@@ -1471,7 +1473,11 @@ def save_avatar(
         db.close()
 
 
-def list_avatars():
+def list_avatars(user_id: int):
+
+    # Scoped strictly to this account — an avatar created by one
+    # user must never show up, or be usable, in another user's
+    # "Character Avatar" picker.
 
     db = SessionLocal()
 
@@ -1479,6 +1485,7 @@ def list_avatars():
 
         return (
             db.query(Avatar)
+            .filter(Avatar.user_id == user_id)
             .order_by(Avatar.id.desc())
             .limit(100)
             .all()
@@ -1488,7 +1495,7 @@ def list_avatars():
         db.close()
 
 
-def get_avatar(avatar_id: int):
+def get_avatar(avatar_id: int, user_id: int | None = None):
 
     db = SessionLocal()
 
@@ -1500,7 +1507,14 @@ def get_avatar(avatar_id: int):
             .first()
         )
 
-        if not row:
+        # Reported as a plain "not found" rather than "forbidden" —
+        # same pattern used for projects elsewhere — so a mismatched
+        # avatar_id can't be used to probe whether another account's
+        # avatar exists.
+        if not row or (
+            user_id is not None
+            and row.user_id != user_id
+        ):
 
             raise HTTPException(
                 status_code=404,
@@ -1513,7 +1527,7 @@ def get_avatar(avatar_id: int):
         db.close()
 
 
-def delete_avatar(avatar_id: int):
+def delete_avatar(avatar_id: int, user_id: int):
 
     db = SessionLocal()
 
@@ -1525,7 +1539,7 @@ def delete_avatar(avatar_id: int):
             .first()
         )
 
-        if not row:
+        if not row or row.user_id != user_id:
 
             raise HTTPException(
                 status_code=404,
@@ -5698,7 +5712,8 @@ async def amico_generate(
         if request.avatar_id:
 
             avatar = get_avatar(
-                request.avatar_id
+                request.avatar_id,
+                current_user.id,
             )
 
             character_reference = (
@@ -6574,6 +6589,7 @@ async def avatar_generate(
     file: UploadFile = File(...),
     name: str = Form(""),
     style: str = Form(""),
+    current_user=Depends(get_current_user),
 ):
 
     try:
@@ -6610,6 +6626,7 @@ async def avatar_generate(
             name=name or "My Avatar",
             description=description,
             image_id=image_id,
+            user_id=current_user.id,
         )
 
         return {
@@ -6637,9 +6654,9 @@ async def avatar_generate(
 
 
 @app.get("/api/avatars")
-def avatars_list():
+def avatars_list(current_user=Depends(get_current_user)):
 
-    avatars = list_avatars()
+    avatars = list_avatars(current_user.id)
 
     return {
         "avatars": [
@@ -6665,11 +6682,11 @@ def avatars_list():
 
 
 @app.delete("/api/avatar/{avatar_id}")
-def avatar_delete(avatar_id: int):
+def avatar_delete(avatar_id: int, current_user=Depends(get_current_user)):
 
     try:
 
-        delete_avatar(avatar_id)
+        delete_avatar(avatar_id, current_user.id)
 
         return {
             "status": "success",

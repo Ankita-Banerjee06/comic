@@ -813,6 +813,16 @@ class Avatar(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    # Who created this avatar — without this, every account could
+    # see and use every other account's avatars (and delete them),
+    # since nothing scoped the avatar list or lookups to a user.
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
     name = Column(String(150), nullable=True)
 
     description = Column(Text, nullable=True)

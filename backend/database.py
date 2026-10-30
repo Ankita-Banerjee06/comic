@@ -143,3 +143,14 @@ def _run_lightweight_migrations():
         conn.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS ix_classroom_members_student_code ON classroom_members (student_code)")
         )
+        # Avatars used to have no owner at all, so every account
+        # could see, use, and delete every other account's saved
+        # avatars. Existing rows get user_id = NULL and are now
+        # excluded from everyone's avatar list going forward (see
+        # list_avatars/get_avatar/delete_avatar in main.py) — there's
+        # no way to know after the fact who originally made them, so
+        # the safe choice is to stop showing them to anyone rather
+        # than guess an owner.
+        conn.execute(
+            text("ALTER TABLE avatars ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
+        )
