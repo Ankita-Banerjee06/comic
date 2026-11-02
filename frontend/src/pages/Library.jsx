@@ -591,6 +591,7 @@ function LibraryCard({ item, onPreview, onDelete }) {
           <img
             src={mediaUrl(item.thumbnail_url)}
             alt={item.title}
+            loading="lazy"
             onError={() => setImgFailed(true)}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
@@ -896,6 +897,7 @@ function AmiviPreview({ item, data }) {
                       <img
                         src={mediaUrl(chunk.image_url)}
                         alt={chunk.text || `Chunk ${globalIndex + 1}`}
+                        loading="lazy"
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -1166,6 +1168,7 @@ function QuizPreview({ data }) {
             <img
               src={mediaUrl(q.image_url)}
               alt={q.q}
+              loading="lazy"
               className="w-full max-h-40 object-contain rounded-xl border border-slate-100 mb-3"
             />
           )}

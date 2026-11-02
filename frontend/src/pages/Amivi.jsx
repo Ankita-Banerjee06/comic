@@ -1351,6 +1351,7 @@ export default function Amivi() {
                         <img
                           src={getMediaUrl(chunk.image_url)}
                           alt={chunk.text || `Chunk ${index + 1}`}
+                          loading="lazy"
                           className="w-full object-contain cursor-pointer"
                           style={{
                             aspectRatio: CARD_SHAPE_STYLE[cardShape].aspectRatio,
@@ -1408,6 +1409,14 @@ export default function Amivi() {
                     Download
                   </button>
                 </div>
+              </div>
+            )}
+
+            {generateVideo && !result.video_url && (
+              <div className="w-full mt-6 pt-6 border-t-2 border-indigo-100 flex flex-col items-center justify-center text-center">
+                <p className="text-base font-bold text-amber-600">
+                  {t("The video couldn't be generated this time, but your lesson's text, images and audio are all ready below.")}
+                </p>
               </div>
             )}
 
@@ -1509,6 +1518,7 @@ export default function Amivi() {
                   <img
                     src={getMediaUrl(chunk.image_url)}
                     alt={chunk.text || `Chunk ${index + 1}`}
+                    loading="lazy"
                     className="w-full object-contain cursor-pointer"
                     style={{
                       aspectRatio: CARD_SHAPE_STYLE[cardShape].aspectRatio,
@@ -1725,9 +1735,17 @@ export default function Amivi() {
                   <div key={page.page_number} className="space-y-2">
 
                     <div className="rounded-2xl overflow-hidden border-2 border-purple-100 shadow-sm">
+                      {/* Every page is stacked and rendered here at
+                          once (not one-page-at-a-time like AMICO's
+                          viewer) — loading="lazy" means the browser
+                          only fetches a page's image once it's
+                          actually scrolled near, instead of pulling
+                          down every page's picture the moment this
+                          list mounts. */}
                       <img
                         src={getMediaUrl(page.comic_image_url)}
                         alt={`Photo Story page ${page.page_number}`}
+                        loading="lazy"
                         className="w-full"
                       />
                     </div>

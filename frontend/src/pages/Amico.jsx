@@ -41,8 +41,31 @@ import {
   ScrollText,
   NotebookText,
   Wand2,
+  Flower2,
+  Waves,
+  Trees,
+  Coffee,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+
+// Quick-pick avatars so a Comic Story can start right away without
+// needing an uploaded photo first. Keys must match backend
+// PRESET_AVATARS exactly (backend/main.py).
+const PRESET_AVATARS = [
+  { key: 'amara', name: 'Ms. Amara', gender: 'female', color: '#f472b6' },
+  { key: 'priya', name: 'Ms. Priya', gender: 'female', color: '#fb923c' },
+  { key: 'daniel', name: 'Mr. Daniel', gender: 'male', color: '#60a5fa' },
+  { key: 'arjun', name: 'Mr. Arjun', gender: 'male', color: '#34d399' },
+];
+
+// Quick-pick story backgrounds. Keys must match backend
+// PRESET_BACKGROUNDS exactly (backend/main.py).
+const PRESET_BACKGROUNDS = [
+  { key: 'garden', label: 'Garden', icon: Flower2 },
+  { key: 'lakeside', label: 'Lakeside', icon: Waves },
+  { key: 'jungle', label: 'Jungle', icon: Trees },
+  { key: 'breakfast_table', label: 'Breakfast Table', icon: Coffee },
+];
 
 // "What would you like to create?" — the launcher screen's choices.
 // AMICO is framed as a visual storytelling engine, not just a comic
@@ -128,10 +151,14 @@ export default function Amico() {
   // Avatars
   const [avatars, setAvatars] = useState([]);
   const [selectedAvatarId, setSelectedAvatarId] = useState(null);
+  const [selectedPresetAvatar, setSelectedPresetAvatar] = useState(null);
   const [avatarName, setAvatarName] = useState('');
   const [avatarStyle, setAvatarStyle] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
+
+  // Story background (Comic Story only)
+  const [selectedBackground, setSelectedBackground] = useState(null);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState(null);
@@ -304,6 +331,8 @@ export default function Amico() {
         pages: pagesCount,
         layout,
         avatarId: selectedAvatarId,
+        presetAvatar: selectedPresetAvatar,
+        backgroundSetting: selectedBackground,
       });
 
       setResult(data);
@@ -871,25 +900,63 @@ export default function Amico() {
               <label className="text-base font-bold text-black block mb-2">{t('Character Avatar (optional)')}</label>
               <div className="flex items-center gap-3 overflow-x-auto pb-2">
                 <button
-                  onClick={() => setSelectedAvatarId(null)}
-                  className={`shrink-0 w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-sm font-bold ${selectedAvatarId === null
+                  onClick={() => {
+                    setSelectedAvatarId(null);
+                    setSelectedPresetAvatar(null);
+                  }}
+                  className={`shrink-0 w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-sm font-bold ${selectedAvatarId === null && selectedPresetAvatar === null
                       ? 'border-pink-500 bg-pink-50 text-black'
                       : 'border-gray-200 text-black'
                     }`}
                 >
                   {t('None')}
                 </button>
+                {/* Quick-pick built-in avatars — no photo upload
+                    needed. Shows a real portrait once
+                    generate_comic_story_presets.py has been run and
+                    /vlq-avatar-{key}.png exists in frontend/public/;
+                    until then (or if that file is ever missing) it
+                    falls back to a plain colored initial circle, so
+                    this never shows a broken image. */}
+                {PRESET_AVATARS.map((preset) => (
+                  <button
+                    key={preset.key}
+                    onClick={() => {
+                      setSelectedPresetAvatar(preset.key);
+                      setSelectedAvatarId(null);
+                    }}
+                    title={preset.name}
+                    className={`relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-white font-bold border-2 ${selectedPresetAvatar === preset.key
+                        ? 'border-pink-500 ring-4 ring-pink-200'
+                        : 'border-transparent'
+                      }`}
+                    style={{ backgroundColor: preset.color }}
+                  >
+                    <span className="text-xl leading-none">{preset.name.split(' ')[1]?.[0] || preset.name[0]}</span>
+                    <span className="text-[10px] font-semibold leading-tight mt-0.5 px-1 text-center">{preset.name}</span>
+                    <img
+                      src={`/vlq-avatar-${preset.key}.png`}
+                      alt={preset.name}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  </button>
+                ))}
                 {avatars.map((avatar) => (
                   <div key={avatar.avatar_id} className="relative shrink-0 group">
                     <button
-                      onClick={() => setSelectedAvatarId(avatar.avatar_id)}
+                      onClick={() => {
+                        setSelectedAvatarId(avatar.avatar_id);
+                        setSelectedPresetAvatar(null);
+                      }}
                       className={`w-16 h-16 rounded-2xl overflow-hidden border-2 ${selectedAvatarId === avatar.avatar_id
                           ? 'border-pink-500 ring-4 ring-pink-200'
                           : 'border-gray-200'
                         }`}
                       title={avatar.name}
                     >
-                      <img src={mediaUrl(avatar.image_url)} alt={avatar.name} className="w-full h-full object-cover" />
+                      <img src={mediaUrl(avatar.image_url)} alt={avatar.name} loading="lazy" className="w-full h-full object-cover" />
                     </button>
                     <button
                       onClick={(e) => {
@@ -941,6 +1008,55 @@ export default function Amico() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Story Background */}
+            <div className="mb-6">
+              <label className="text-base font-bold text-black block mb-2">{t('Story Background (optional)')}</label>
+              <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                <button
+                  onClick={() => setSelectedBackground(null)}
+                  className={`shrink-0 px-4 h-16 rounded-2xl border-2 flex items-center justify-center text-sm font-bold ${selectedBackground === null
+                      ? 'border-pink-500 bg-pink-50 text-black'
+                      : 'border-gray-200 text-black'
+                    }`}
+                >
+                  {t('None')}
+                </button>
+                {/* Shows a real scene thumbnail once
+                    generate_comic_story_presets.py has been run and
+                    /vlq-bg-{key}.png exists in frontend/public/;
+                    until then (or if that file is ever missing) it
+                    falls back to a plain line icon, so this never
+                    shows a broken image. The label stays on top of
+                    the picture either way, for contrast a small
+                    dark pill sits behind the text once an image is
+                    showing. */}
+                {PRESET_BACKGROUNDS.map((bg) => {
+                  const BgIcon = bg.icon;
+                  return (
+                    <button
+                      key={bg.key}
+                      onClick={() => setSelectedBackground(bg.key)}
+                      title={t(bg.label)}
+                      className={`relative shrink-0 w-20 h-16 rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-1 border-2 ${selectedBackground === bg.key
+                          ? 'border-pink-500 bg-pink-50 ring-4 ring-pink-200 text-black'
+                          : 'border-gray-200 text-black'
+                        }`}
+                    >
+                      <BgIcon className="w-5 h-5" />
+                      <img
+                        src={`/vlq-bg-${bg.key}.png`}
+                        alt={t(bg.label)}
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover z-10"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                      <span className="relative z-20 text-[10px] font-semibold leading-tight text-center px-1 rounded bg-white/80">{t(bg.label)}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <button
@@ -1094,6 +1210,7 @@ export default function Amico() {
                         <img
                           src={mediaUrl(panel.image_url)}
                           alt={`Panel ${panel.panel_number}`}
+                          loading="lazy"
                           className="w-full h-full object-cover"
                         />
                         <span className="absolute top-1 left-1 bg-black/60 text-white text-sm font-bold px-1.5 py-0.5 rounded-full">

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -13,6 +13,7 @@ import base64
 import math
 import colorsys
 import tempfile
+import random
 import subprocess
 import platform
 import io
@@ -22,6 +23,7 @@ import secrets
 import shutil
 import uuid
 import textwrap
+import time
 
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor
@@ -84,6 +86,83 @@ LUNA_MODEL = "gpt-5.6-luna"
 
 IMAGE_MODEL = "gpt-image-2"
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
+
+# Composed AMICO comic / Photo Story PAGES (the full multi-panel
+# sheet, not the individual 1024x1024 panel art) used to be saved
+# as full-resolution (3200-3400px wide) lossless PNGs — 10-15MB
+# each — even though the UI never displays one wider than
+# max-w-5xl (1024 CSS px, ~2048px accounting for a 2x retina
+# screen). That size mismatch was the single biggest contributor
+# to Render memory pressure: every /api/media/{id} request for one
+# of these pages had to load the full multi-megabyte blob into
+# process memory. Every finished page canvas is now downscaled to
+# this width (still comfortably sharper than it's ever displayed)
+# before being saved — see the end of render_amico_page and
+# render_photostory_page below.
+COMIC_PAGE_MAX_WIDTH = 2200
+
+# ============================================================
+# COMIC STORY — preset avatars and story backgrounds
+# ============================================================
+#
+# Quick-pick options for the AMICO Comic flow so a user can start a
+# story right away without uploading a photo first. Each avatar is
+# a plain text appearance description (exactly what a user-uploaded
+# Avatar's own `description` field already holds — see
+# amico_generate below), so these slot straight into the same
+# character_reference/character_name prompt wiring as a saved
+# Avatar, with no new image generation or database row required.
+# The key is what the frontend sends back as `preset_avatar`.
+
+PRESET_AVATARS = {
+    "amara": {
+        "name": "Ms. Amara",
+        "gender": "female",
+        "description": (
+            "a warm, friendly young woman teacher with curly black "
+            "hair, warm brown skin, glasses, wearing a soft yellow "
+            "cardigan over a white blouse"
+        ),
+    },
+    "priya": {
+        "name": "Ms. Priya",
+        "gender": "female",
+        "description": (
+            "a warm, friendly teacher with long straight dark hair "
+            "tied in a ponytail, light brown skin, wearing a bright "
+            "teal blouse and a simple necklace"
+        ),
+    },
+    "daniel": {
+        "name": "Mr. Daniel",
+        "gender": "male",
+        "description": (
+            "a warm, friendly male teacher with short brown hair, "
+            "light skin, glasses, wearing a navy sweater vest over "
+            "a collared shirt"
+        ),
+    },
+    "arjun": {
+        "name": "Mr. Arjun",
+        "gender": "male",
+        "description": (
+            "a warm, friendly male teacher with short black hair, "
+            "a neat short beard, brown skin, wearing a light green "
+            "collared shirt with sleeves rolled up"
+        ),
+    },
+}
+
+# Each value is spliced directly into the comic's setting
+# instruction (see generate_amico_comic) so every panel's scene is
+# grounded in the chosen place instead of the AI picking one freely.
+
+PRESET_BACKGROUNDS = {
+    "garden": "a bright, colorful outdoor garden with flowers, grass, and sunlight",
+    "lakeside": "a calm lakeside with clear blue water, a grassy bank, and distant hills",
+    "jungle": "a lush green jungle with tall trees, vines, and dappled sunlight",
+    "breakfast_table": "a cozy kitchen breakfast table with morning light, plates, and cups",
+}
 
 
 client = (
@@ -216,6 +295,15 @@ class AmicoRequest(BaseModel):
     # A previously saved Avatar to keep the main character's
     # appearance consistent across panels.
     avatar_id: int | None = None
+
+    # A quick-pick built-in avatar (see PRESET_AVATARS) — an
+    # alternative to avatar_id for a user who hasn't uploaded a
+    # photo of their own. Checked first if both are somehow set.
+    preset_avatar: str | None = None
+
+    # A quick-pick built-in story setting (see PRESET_BACKGROUNDS),
+    # e.g. "garden", "lakeside", "jungle", "breakfast_table".
+    background_setting: str | None = None
 
 
 class AmicoRegeneratePanelRequest(BaseModel):
@@ -2046,6 +2134,7 @@ def generate_amivi_content(
         "- The visual and Key Point should work together as one simple educational explanation.\n"
         "- The FINAL chunk in the 'chunks' array MUST be the 'Complete Visual'. Its image_prompt should combine all previous concepts into one connected educational visual. Its key_point should just be the MAIN TOPIC, and its text should summarize the concepts.\n"
         "- Create a detailed supporting image prompt for each chunk incorporating the 11.7 x 14.7 size requirement.\n"
+        "- CRITICAL: the image_prompt for a chunk must depict the SPECIFIC scenario, objects, and activity named in that SAME chunk's 'text' and 'key_point' — never a generic, loosely-related, or metaphorical 'hands-on learning' scene instead. If the text names a concrete example (a particular object, activity, place, character, or process), the image must show THAT exact example — not a different example that merely illustrates the same general idea. Re-read this chunk's own text before writing its image_prompt and make sure every concrete noun/activity in the text is represented in the image.\n"
         "- CRITICAL: Do NOT include any text, words, labels, or typography in the image_prompt itself. The generated image must be completely text-free. The UI will render the key point text separately.\n"
         "- Create a SECOND supporting image prompt for the same chunk from a different angle.\n"
         "- Flow: Learning Material -> Key Points -> Individual Visual Cards -> Complete Connected Visual.\n"
@@ -2134,6 +2223,7 @@ def generate_amico_comic(
     total_panels=8,
     character_reference="",
     character_name="",
+    background_setting="",
 ):
 
     if character_name and character_reference:
@@ -2205,8 +2295,18 @@ def generate_amico_comic(
 
         + "Keep the story connected across all panels.\n"
         "Characters must remain visually consistent.\n"
-        "The setting should remain consistent unless the story "
-        "requires a meaningful change.\n\n"
+
+        + (
+            "The story's setting/backdrop MUST be "
+            f"{background_setting} — every panel's scene should "
+            "visibly take place in or clearly incorporate this "
+            "setting, unless the story genuinely needs a brief, "
+            "meaningful change.\n\n"
+            if background_setting
+            else
+            "The setting should remain consistent unless the "
+            "story requires a meaningful change.\n\n"
+        )
 
         + character_line
 
@@ -3114,103 +3214,129 @@ def create_amivi_video(
             if not chunk.get("image_id") or not chunk.get("audio_id"):
                 continue
 
-            image_asset = get_media(
-                chunk["image_id"]
-            )
+            # Everything below, for THIS one slide, is wrapped so a
+            # problem specific to this chunk (a missing/corrupt
+            # media row, an audio file moviepy can't decode, a
+            # codec hiccup building its clip) only drops this one
+            # slide from the video — the same "skip it, keep going"
+            # treatment as the missing-image/audio case just above,
+            # applied to every slide, not only the first failure
+            # mode that already had it.
 
-            audio_asset = get_media(
-                chunk["audio_id"]
-            )
+            try:
 
-            image_file = tempfile.NamedTemporaryFile(
-                suffix=".png",
-                delete=False,
-            )
-
-            image_file.write(
-                image_asset.data
-            )
-
-            image_file.close()
-
-            # Add text overlay to the image so it shows up in the video
-            text_to_draw = chunk.get("key_point") or chunk.get("text")
-            if text_to_draw:
-                try:
-                    with Image.open(image_file.name) as img:
-                        img = img.convert("RGB")
-                        draw = ImageDraw.Draw(img)
-                        width, height = img.size
-                        font_size = max(24, int(width * 0.06))
-                        try:
-                            font = ImageFont.truetype("arialbd.ttf", font_size)
-                        except IOError:
-                            font = ImageFont.load_default()
-                        
-                        char_width = draw.textlength("A", font=font) if hasattr(draw, 'textlength') else 15
-                        max_chars = int((width * 0.9) / (char_width or 10))
-                        max_chars = max(15, max_chars)
-                        lines = textwrap.wrap(text_to_draw, width=max_chars)
-                        
-                        line_height = draw.textbbox((0,0), "A", font=font)[3] if hasattr(draw, 'textbbox') else font_size
-                        line_spacing = int(line_height * 0.2)
-                        total_text_height = (line_height * len(lines)) + (line_spacing * (len(lines) - 1))
-                        
-                        current_y = height - total_text_height - int(height * 0.05)
-                        stroke_width = max(2, int(font_size * 0.05))
-                        
-                        for line in lines:
-                            line_w = draw.textlength(line, font=font) if hasattr(draw, 'textlength') else len(line)*char_width
-                            x = (width - line_w) / 2
-                            draw.text((x, current_y), line, font=font, fill="white", stroke_width=stroke_width, stroke_fill="black")
-                            current_y += line_height + line_spacing
-                        
-                        img.save(image_file.name)
-                except Exception as e:
-                    print("Error overlaying text on video image:", e)
-
-            audio_file = tempfile.NamedTemporaryFile(
-                suffix=".wav",
-                delete=False,
-            )
-
-            audio_file.write(
-                audio_asset.data
-            )
-
-            audio_file.close()
-
-            temp_paths.extend(
-                [
-                    image_file.name,
-                    audio_file.name,
-                ]
-            )
-
-            audio_clip = AudioFileClip(
-                audio_file.name
-            )
-
-            duration = audio_clip.duration
-
-            image_clip = (
-                ImageClip(
-                    image_file.name
+                image_asset = get_media(
+                    chunk["image_id"]
                 )
-                .set_duration(
-                    duration
-                )
-            )
 
-            video_clip = (
-                image_clip.set_audio(
-                    audio_clip
+                audio_asset = get_media(
+                    chunk["audio_id"]
                 )
-            )
 
-            clips.append(
-                video_clip
-            )
+                image_file = tempfile.NamedTemporaryFile(
+                    suffix=".png",
+                    delete=False,
+                )
+
+                image_file.write(
+                    image_asset.data
+                )
+
+                image_file.close()
+
+                # Tracked for cleanup immediately, so this temp
+                # file still gets removed even if a later step in
+                # this same slide fails below.
+                temp_paths.append(image_file.name)
+
+                # Add text overlay to the image so it shows up in the video
+                text_to_draw = chunk.get("key_point") or chunk.get("text")
+                if text_to_draw:
+                    try:
+                        with Image.open(image_file.name) as img:
+                            img = img.convert("RGB")
+                            draw = ImageDraw.Draw(img)
+                            width, height = img.size
+                            font_size = max(24, int(width * 0.06))
+                            try:
+                                font = ImageFont.truetype("arialbd.ttf", font_size)
+                            except IOError:
+                                font = ImageFont.load_default()
+
+                            char_width = draw.textlength("A", font=font) if hasattr(draw, 'textlength') else 15
+                            max_chars = int((width * 0.9) / (char_width or 10))
+                            max_chars = max(15, max_chars)
+                            lines = textwrap.wrap(text_to_draw, width=max_chars)
+
+                            line_height = draw.textbbox((0,0), "A", font=font)[3] if hasattr(draw, 'textbbox') else font_size
+                            line_spacing = int(line_height * 0.2)
+                            total_text_height = (line_height * len(lines)) + (line_spacing * (len(lines) - 1))
+
+                            current_y = height - total_text_height - int(height * 0.05)
+                            stroke_width = max(2, int(font_size * 0.05))
+
+                            for line in lines:
+                                line_w = draw.textlength(line, font=font) if hasattr(draw, 'textlength') else len(line)*char_width
+                                x = (width - line_w) / 2
+                                draw.text((x, current_y), line, font=font, fill="white", stroke_width=stroke_width, stroke_fill="black")
+                                current_y += line_height + line_spacing
+
+                            img.save(image_file.name)
+                    except Exception as e:
+                        print("Error overlaying text on video image:", e)
+
+                audio_file = tempfile.NamedTemporaryFile(
+                    suffix=".wav",
+                    delete=False,
+                )
+
+                audio_file.write(
+                    audio_asset.data
+                )
+
+                audio_file.close()
+
+                temp_paths.append(audio_file.name)
+
+                audio_clip = AudioFileClip(
+                    audio_file.name
+                )
+
+                duration = audio_clip.duration
+
+                image_clip = (
+                    ImageClip(
+                        image_file.name
+                    )
+                    .set_duration(
+                        duration
+                    )
+                )
+
+                video_clip = (
+                    image_clip.set_audio(
+                        audio_clip
+                    )
+                )
+
+                clips.append(
+                    video_clip
+                )
+
+            except Exception as slide_exc:
+
+                # This one slide couldn't be turned into a video
+                # clip (bad media row, a format moviepy choked on,
+                # anything) — skip it and keep building the video
+                # from the remaining slides instead of losing the
+                # whole thing over one bad chunk.
+
+                print(
+                    f"Skipping one AMIVI video slide "
+                    f"(chunk {chunk.get('chunk_id')}): {slide_exc}"
+                )
+
+                continue
 
         if not clips:
 
@@ -4211,15 +4337,37 @@ def render_amico_page(
     )
 
     # --------------------------------------------------------
-    # Convert to PNG bytes
+    # Downscale to COMIC_PAGE_MAX_WIDTH (still sharper than the
+    # page is ever displayed at) and encode as WebP instead of
+    # PNG — PNG is lossless and barely compresses this kind of
+    # illustrated/photographic art, which is why these pages were
+    # landing at 10-15MB each. A high-quality lossy WebP looks
+    # visually identical at normal viewing/zoom sizes, including
+    # the baked-in dialogue text, at a fraction of the size.
     # --------------------------------------------------------
+
+    if canvas_width > COMIC_PAGE_MAX_WIDTH:
+
+        scale = COMIC_PAGE_MAX_WIDTH / canvas_width
+
+        canvas = canvas.resize(
+            (
+                COMIC_PAGE_MAX_WIDTH,
+                max(
+                    1,
+                    round(canvas_height * scale),
+                ),
+            ),
+            Image.LANCZOS,
+        )
 
     output_buffer = io.BytesIO()
 
     canvas.save(
         output_buffer,
-        format="PNG",
-        optimize=True,
+        format="WEBP",
+        quality=88,
+        method=6,
     )
 
     output_buffer.seek(0)
@@ -4301,9 +4449,9 @@ def compose_amico_comic(
             data=page_bytes,
             filename=(
                 f"amico_comic_{project_id}"
-                f"_page_{page_index + 1}.png"
+                f"_page_{page_index + 1}.webp"
             ),
-            mime_type="image/png",
+            mime_type="image/webp",
             asset_type="image",
             project_id=project_id,
         )
@@ -4410,7 +4558,6 @@ def render_photostory_page(
     # wide white gutter down the middle of the page.
     column_gap = 0
 
-    header_height = 300 if story_title else 0
     footer_height = 196
 
     if layout == "vertical":
@@ -4534,6 +4681,76 @@ def render_photostory_page(
 
             row_heights.append(row_height)
 
+    # --------------------------------------------------------
+    # Title — wrapped so a long lesson/topic name can no longer
+    # run straight past the edges of the page the way a single
+    # unbroken line used to. header_height now grows to fit
+    # however many lines the title actually needs (plus the
+    # "Page N of M" line below it), instead of a fixed budget
+    # that only ever allowed room for one line.
+    # --------------------------------------------------------
+
+    title_font = get_font(
+        140,
+        bold=True,
+    )
+
+    subtitle_font = get_font(
+        72,
+        bold=False,
+    )
+
+    story_title_lines = (
+        wrap_text(
+            story_title.upper(),
+            title_font,
+            content_width - 160,
+        )
+        if story_title
+        else []
+    )
+
+    max_title_lines = 2
+
+    if len(story_title_lines) > max_title_lines:
+
+        story_title_lines = story_title_lines[:max_title_lines]
+
+        story_title_lines[-1] = (
+            story_title_lines[-1].rstrip() + "…"
+        )
+
+    title_line_height = 0
+
+    if story_title_lines:
+
+        _measure_img = Image.new("RGB", (10, 10))
+        _measure_draw = ImageDraw.Draw(_measure_img)
+
+        _title_bbox = _measure_draw.textbbox(
+            (0, 0),
+            "Ag",
+            font=title_font,
+        )
+
+        title_line_height = (
+            _title_bbox[3] - _title_bbox[1] + 14
+        )
+
+    header_height = 300 if story_title else 0
+
+    if len(story_title_lines) > 1:
+
+        # The fixed 300px budget above only ever assumed a single
+        # title line — each extra wrapped line needs that much
+        # more room so it doesn't collide with the "Page N of M"
+        # line or the panels starting right below the header.
+
+        header_height += (
+            title_line_height
+            * (len(story_title_lines) - 1)
+        )
+
     content_height = (
         sum(row_heights)
         + (len(row_heights) - 1) * gap
@@ -4575,15 +4792,10 @@ def render_photostory_page(
         fill="#FFFFFF",
     )
 
-    title_font = get_font(
-        140,
-        bold=True,
-    )
-
-    subtitle_font = get_font(
-        72,
-        bold=False,
-    )
+    # title_font and subtitle_font were already loaded above (next
+    # to the story_title_lines wrapping) since header_height needed
+    # to know how many lines the title takes before the canvas
+    # itself could be sized.
 
     panel_title_font = get_font(
         78,
@@ -4605,25 +4817,31 @@ def render_photostory_page(
         bold=True,
     )
 
-    if story_title:
+    if story_title_lines:
 
-        draw.text(
-            (
-                canvas_width // 2,
-                outer_padding + 22,
-            ),
-            story_title.upper(),
-            fill="#111111",
-            font=title_font,
-            anchor="ma",
-        )
+        title_y = outer_padding + 22
+
+        for line in story_title_lines:
+
+            draw.text(
+                (
+                    canvas_width // 2,
+                    title_y,
+                ),
+                line,
+                fill="#111111",
+                font=title_font,
+                anchor="ma",
+            )
+
+            title_y += title_line_height
 
         if total_pages > 1:
 
             draw.text(
                 (
                     canvas_width // 2,
-                    outer_padding + 200,
+                    title_y + 18,
                 ),
                 f"Page {page_number} of {total_pages}",
                 fill="#555555",
@@ -4861,12 +5079,31 @@ def render_photostory_page(
         frame_radius,
     )
 
+    # Same downscale + WebP treatment as render_amico_page above —
+    # see COMIC_PAGE_MAX_WIDTH's definition for why.
+
+    if canvas_width > COMIC_PAGE_MAX_WIDTH:
+
+        scale = COMIC_PAGE_MAX_WIDTH / canvas_width
+
+        canvas = canvas.resize(
+            (
+                COMIC_PAGE_MAX_WIDTH,
+                max(
+                    1,
+                    round(canvas_height * scale),
+                ),
+            ),
+            Image.LANCZOS,
+        )
+
     output_buffer = io.BytesIO()
 
     canvas.save(
         output_buffer,
-        format="PNG",
-        optimize=True,
+        format="WEBP",
+        quality=88,
+        method=6,
     )
 
     output_buffer.seek(0)
@@ -4934,9 +5171,9 @@ def compose_amico_photostory(
             data=page_bytes,
             filename=(
                 f"amico_photostory_{project_id}"
-                f"_page_{page_index + 1}.png"
+                f"_page_{page_index + 1}.webp"
             ),
-            mime_type="image/png",
+            mime_type="image/webp",
             asset_type="image",
             project_id=project_id,
         )
@@ -5264,6 +5501,16 @@ async def amivi_generate(
         # -----------------------------------------------------
         # Optional video
         # -----------------------------------------------------
+        #
+        # "Video" is an optional add-on on top of the real result
+        # (the text/image/audio chunks, already fully processed
+        # above). Stitching an MP4 with moviepy is slow and has
+        # more ways to fail (ffmpeg hiccups, a transient OOM, a
+        # corrupt intermediate frame) than everything before it,
+        # so a problem here must never take the whole generation
+        # down with it — the user still gets their lesson, just
+        # without a video, exactly like a single bad chunk image
+        # doesn't take down the rest of the chunks above.
 
         video_id = None
 
@@ -5272,11 +5519,23 @@ async def amivi_generate(
             and processed_chunks
         ):
 
-            video_id = create_amivi_video(
-                processed_chunks,
-                f"amivi_{project_id}.mp4",
-                project_id,
-            )
+            try:
+
+                video_id = create_amivi_video(
+                    processed_chunks,
+                    f"amivi_{project_id}.mp4",
+                    project_id,
+                )
+
+            except Exception as video_exc:
+
+                print(
+                    f"AMIVI video generation failed for project "
+                    f"{project_id}, continuing without video: "
+                    f"{video_exc}"
+                )
+
+                video_id = None
 
         # -----------------------------------------------------
         # Record the Library thumbnail (first chunk's image)
@@ -5703,13 +5962,23 @@ async def amico_generate(
         )
 
         # -----------------------------------------------------
-        # Resolve a saved avatar for character consistency
+        # Resolve a saved avatar for character consistency — a
+        # built-in preset avatar takes priority over a saved one
+        # if somehow both are set, since picking a preset is a
+        # deliberate, explicit choice made on this same screen.
         # -----------------------------------------------------
 
         character_reference = ""
         character_name = ""
 
-        if request.avatar_id:
+        if request.preset_avatar and request.preset_avatar in PRESET_AVATARS:
+
+            preset = PRESET_AVATARS[request.preset_avatar]
+
+            character_reference = preset["description"]
+            character_name = preset["name"]
+
+        elif request.avatar_id:
 
             avatar = get_avatar(
                 request.avatar_id,
@@ -5728,6 +5997,17 @@ async def amico_generate(
 
                 character_name = avatar.name
 
+        # A built-in story setting (Garden / Lakeside / Jungle /
+        # Breakfast table) — unrecognized or missing values are
+        # simply ignored, leaving the AI free to choose its own.
+
+        background_setting = (
+            PRESET_BACKGROUNDS.get(
+                request.background_setting or "",
+                "",
+            )
+        )
+
         # -----------------------------------------------------
         # Terra creates the panel structure
         # -----------------------------------------------------
@@ -5738,6 +6018,7 @@ async def amico_generate(
             total_panels,
             character_reference,
             character_name,
+            background_setting,
         )
 
         # -----------------------------------------------------
@@ -7564,17 +7845,47 @@ async def quiz_generate(
                         f"{video_exc}"
                     )
 
+            # The AI tends to list the right answer first — left
+            # alone, "correct" lands on option A almost every time.
+            # Shuffle each question's own options (and carry the
+            # correct index along with them) so the right answer
+            # ends up at a random position — A, B, C, or D — instead
+            # of being predictable from one question to the next.
+
+            shuffled_options = question.get(
+                "options",
+                [],
+            )
+
+            shuffled_correct = question.get(
+                "correct",
+                0,
+            )
+
+            try:
+                shuffled_correct = int(shuffled_correct)
+            except (TypeError, ValueError):
+                shuffled_correct = 0
+
+            if (
+                shuffled_options
+                and 0 <= shuffled_correct < len(shuffled_options)
+            ):
+
+                order = list(range(len(shuffled_options)))
+                random.shuffle(order)
+
+                shuffled_options = [
+                    shuffled_options[i] for i in order
+                ]
+
+                shuffled_correct = order.index(shuffled_correct)
+
             return {
                 "question_id": index,
                 "q": question.get("q", ""),
-                "options": question.get(
-                    "options",
-                    [],
-                ),
-                "correct": question.get(
-                    "correct",
-                    0,
-                ),
+                "options": shuffled_options,
+                "correct": shuffled_correct,
                 "explanation": question.get(
                     "explanation",
                     "",
@@ -7972,9 +8283,12 @@ def quiz_wrong_answer_delete(wrong_answer_id: int):
 
 @app.get("/api/media/{media_id}")
 def media(
+    request: Request,
     media_id: int,
     download: bool = False,
 ):
+
+    start_time = time.monotonic()
 
     asset = get_media(
         media_id
@@ -7986,6 +8300,45 @@ def media(
         else "inline"
     )
 
+    # Media rows are write-once — nothing ever updates asset.data
+    # for an existing id, a new generation always gets a brand new
+    # row — so the id itself is a perfectly stable ETag. Combined
+    # with the long Cache-Control below, this is what actually
+    # stops "repeated requests for the same media_id" (visible in
+    # Render's logs) from re-allocating and re-sending the full
+    # multi-megabyte body every single time the same comic/photo
+    # story page is viewed again: the browser serves it from its
+    # own cache instead of asking the server at all once it's
+    # fetched once, and even a conditional re-check from the
+    # browser gets a tiny 304 instead of the full body.
+    etag = f'"{media_id}"'
+
+    if_none_match = request.headers.get("if-none-match")
+
+    if if_none_match and etag in if_none_match:
+
+        return Response(
+            status_code=304,
+            headers={
+                "Cache-Control": "public, max-age=31536000, immutable",
+                "ETag": etag,
+            },
+        )
+
+    duration_ms = round(
+        (time.monotonic() - start_time) * 1000,
+        1,
+    )
+
+    # Deliberately logs only the id, type, size and timing — never
+    # the binary content or anything identifying who requested it.
+    print(
+        f"GET /api/media/{media_id} "
+        f"type={asset.asset_type} "
+        f"bytes={len(asset.data)} "
+        f"db_ms={duration_ms}"
+    )
+
     return Response(
         content=asset.data,
         media_type=asset.mime_type,
@@ -7993,7 +8346,9 @@ def media(
             "Content-Disposition": (
                 f'{disposition}; '
                 f'filename="{asset.filename}"'
-            )
+            ),
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "ETag": etag,
         },
     )
 

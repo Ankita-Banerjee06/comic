@@ -445,6 +445,8 @@ export async function generateAmico({
   pages = 1,
   layout = 'horizontal',
   avatarId = null,
+  presetAvatar = null,
+  backgroundSetting = null,
 } = {}) {
   const response = await fetch(
     `${API_URL}/api/amico/generate`,
@@ -462,6 +464,8 @@ export async function generateAmico({
         pages,
         layout,
         avatar_id: avatarId,
+        preset_avatar: presetAvatar,
+        background_setting: backgroundSetting,
       }),
     }
   );

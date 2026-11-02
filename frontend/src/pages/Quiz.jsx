@@ -1033,7 +1033,7 @@ export default function Quiz() {
         <div className="flex flex-wrap gap-4 justify-center mb-8">
           <button
             onClick={() => setStarted(true)}
-            className="px-6 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl text-xl sm:text-3xl hover:scale-105 transition-transform shadow-[0_12px_30px_rgba(124,58,237,0.4)]"
+            className="px-8 sm:px-14 py-5 sm:py-7 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl text-2xl sm:text-4xl hover:scale-105 transition-transform shadow-[0_12px_30px_rgba(124,58,237,0.4)]"
           >
             🚀 {t('Start Quiz')}!
           </button>
@@ -1057,45 +1057,57 @@ export default function Quiz() {
     const percentage = Math.round((score / quiz.questions.length) * 100);
 
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in zoom-in-95 duration-500 py-12">
-        <div className="text-7xl sm:text-8xl mb-8 animate-float">
-          {percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '💪'}
-        </div>
-        <h1 className="text-4xl sm:text-6xl font-bold text-purple-700 mb-4">
-          {percentage >= 80 ? 'Amazing! 🎉' : percentage >= 60 ? 'Well Done! ⭐' : 'Keep Going! 💪'}
-        </h1>
-        <div className="bg-white rounded-2xl border border-purple-200 shadow-sm p-6 sm:p-8 mb-8 max-w-sm w-full">
-          <div className={`text-6xl sm:text-7xl font-bold mb-2 ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-orange-600'}`}>
-            {score}/{quiz.questions.length}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 animate-in fade-in zoom-in-95 duration-500">
+
+        <div className="text-center mb-10">
+          <div className="text-7xl sm:text-8xl mb-6 animate-float">
+            {percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '💪'}
           </div>
-          <div className="text-black font-bold text-xl sm:text-2xl">{percentage}% {t('Score')}</div>
-          <div className="w-full h-4 bg-gray-100 rounded-full mt-4 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-1000 ${percentage >= 80 ? 'bg-green-500' : percentage >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
+          <h1 className="text-4xl sm:text-6xl font-bold text-purple-700">
+            {percentage >= 80 ? 'Amazing! 🎉' : percentage >= 60 ? 'Well Done! ⭐' : 'Keep Going! 💪'}
+          </h1>
         </div>
 
-        {/* MISSED QUESTIONS REVIEW */}
-        {wrongQuestions.length > 0 && (
-          <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-6 mb-8 max-w-xl w-full text-left">
-            <h3 className="text-xl font-bold text-red-600 mb-4 flex items-center gap-2">
-              <XCircle size={20} />
-              {t('Questions to Review')} ({wrongQuestions.length})
-            </h3>
-            <div className="space-y-3">
-              {wrongQuestions.map((wq, i) => (
-                <div key={i} className="bg-red-50 rounded-2xl p-4">
-                  <p className="font-bold text-black">{wq.q}</p>
-                  <p className="text-green-700 font-semibold text-base mt-1">
-                    ✅ {wq.options[wq.correct]}
-                  </p>
-                </div>
-              ))}
+        {/* On a wide screen the score sits beside the review list
+            instead of both being squeezed into one narrow centered
+            column with empty page on either side. With nothing to
+            review, the score card is just centered on its own. */}
+        <div className={`grid gap-8 mb-10 ${wrongQuestions.length > 0 ? 'lg:grid-cols-[420px_1fr] items-start' : 'justify-items-center'}`}>
+
+          <div className="bg-white rounded-2xl border-2 border-white shadow-md p-8 sm:p-10 w-full max-w-md mx-auto text-center">
+            <div className={`text-7xl sm:text-8xl font-bold mb-2 ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-orange-600'}`}>
+              {score}/{quiz.questions.length}
+            </div>
+            <div className="text-black font-bold text-2xl sm:text-3xl">{percentage}% {t('Score')}</div>
+            <div className="w-full h-4 bg-gray-100 rounded-full mt-4 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ${percentage >= 80 ? 'bg-green-500' : percentage >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
+                style={{ width: `${percentage}%` }}
+              />
             </div>
           </div>
-        )}
+
+          {/* MISSED QUESTIONS REVIEW */}
+          {wrongQuestions.length > 0 && (
+            <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-6 sm:p-8 w-full text-left">
+              <h3 className="text-xl font-bold text-red-600 mb-4 flex items-center gap-2">
+                <XCircle size={20} />
+                {t('Questions to Review')} ({wrongQuestions.length})
+              </h3>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {wrongQuestions.map((wq, i) => (
+                  <div key={i} className="bg-red-50 rounded-2xl p-4">
+                    <p className="font-bold text-black">{wq.q}</p>
+                    <p className="text-green-700 font-semibold text-base mt-1">
+                      ✅ {wq.options[wq.correct]}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>
 
         <div className="flex flex-wrap gap-3 sm:gap-4 justify-center">
           {wrongQuestions.length > 0 && (
@@ -1158,7 +1170,7 @@ export default function Quiz() {
       </div>
 
       {/* Question card */}
-      <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-5 sm:p-8 mb-6">
+      <div className="bg-white rounded-2xl border-2 border-white shadow-md p-5 sm:p-8 mb-6">
         <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-black leading-tight mb-5">
           {q.q}
         </h3>
@@ -1172,8 +1184,10 @@ export default function Quiz() {
         )}
       </div>
 
-      {/* Options */}
-      <div className="space-y-4 mb-6">
+      {/* Answer options — wrapped in its own bordered box, matching
+          the Question/Explanation/Video boxes around it, instead of
+          the option buttons just sitting loose on the page. */}
+      <div className="bg-white rounded-2xl border-2 border-white shadow-md p-4 sm:p-6 mb-6 space-y-4">
         {q.options.map((opt, idx) => {
           let cls = 'bg-white border-2 border-gray-200 text-black hover:border-purple-400 hover:bg-purple-50';
           if (isAnswered) {
@@ -1223,7 +1237,8 @@ export default function Quiz() {
       {/* Explanation + Video + Next */}
       {isAnswered && (
         <div className="animate-in fade-in slide-in-from-bottom-4 space-y-4">
-          <div className="p-4 sm:p-6 bg-blue-50 rounded-3xl border-2 border-blue-200">
+          {/* Explanation — its own box, thin white border */}
+          <div className="p-4 sm:p-6 bg-blue-50 rounded-3xl border-2 border-white shadow-md">
             <div className="flex items-start space-x-3">
               <span className="text-3xl">💡</span>
               <div className="flex-1 min-w-0">
@@ -1242,21 +1257,20 @@ export default function Quiz() {
                 <p className="text-blue-700 font-semibold leading-relaxed">{q.explanation}</p>
               </div>
             </div>
+          </div>
 
-            {/* A separate, clearly-visible video box — full width
-                of the card, not squeezed next to the 💡 icon above,
-                and noticeably taller so it's actually watchable
-                instead of a tiny inline clip. Stays collapsed
-                behind a bold "Click to view Video" prompt until the
-                learner asks for it, instead of auto-playing inline,
-                but is styled to stand out rather than blend in like
-                a plain outline button. */}
-            {q.video_url && (
-              videoRevealed ? (
+          {/* Video — its own sibling box with a thin white border,
+              not nested inside the Explanation box above, so the
+              two read as two clearly separate cards. Stays collapsed
+              behind a bold "Click to view Video" prompt until the
+              learner asks for it, instead of auto-playing inline. */}
+          {q.video_url && (
+            <div className="p-4 sm:p-6 bg-blue-50 rounded-3xl border-2 border-white shadow-md">
+              {videoRevealed ? (
                 <video
                   controls
                   autoPlay
-                  className="w-full mt-4 min-h-[280px] sm:min-h-[420px] rounded-2xl border-2 border-blue-200 bg-black"
+                  className="w-full min-h-[280px] sm:min-h-[420px] rounded-2xl border-2 border-blue-200 bg-black"
                   src={mediaUrl(q.video_url)}
                 >
                   {t('Your browser does not support the video element.')}
@@ -1265,14 +1279,15 @@ export default function Quiz() {
                 <button
                   type="button"
                   onClick={() => setVideoRevealed(true)}
-                  className="w-full mt-4 flex items-center justify-center gap-3 py-5 rounded-2xl border-2 border-indigo-300 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-base sm:text-lg shadow-lg hover:scale-[1.01] hover:shadow-xl transition-all"
+                  className="w-full flex items-center justify-center gap-3 py-5 rounded-2xl border-2 border-indigo-300 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-base sm:text-lg shadow-lg hover:scale-[1.01] hover:shadow-xl transition-all"
                 >
                   <PlayCircle className="w-7 h-7" />
                   {t('Click to view Video')}
                 </button>
-              )
-            )}
-          </div>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-between items-center flex-wrap gap-3">
             <span className={`font-bold px-4 py-2 rounded-2xl text-base sm:text-lg ${selectedAnswer === q.correct ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
               {selectedAnswer === q.correct ? '✅ ' + t('Correct Answer') : '❌ ' + t('Wrong Answer')}
