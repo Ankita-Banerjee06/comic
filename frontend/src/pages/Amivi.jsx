@@ -8,7 +8,7 @@ import {
   regenerateAmiviImage,
   editAmiviChunk,
   generateAmiviCompleteVisual,
-  generateAmiviPhotoStory,
+  generateAmiviVideo,
   getLibraryProject,
   getAssignmentProject,
   API_URL,
@@ -89,11 +89,6 @@ export default function Amivi() {
   const [textInput, setTextInput] = useState('');
   const [error, setError] = useState(null);
 
-  // Defaults to off — a teacher presenting live during an MVP demo
-  // shouldn't have video generation (slower, another point of
-  // failure) running unless they deliberately opt in. Mirrors the
-  // backend's AmiviRequest.generate_video default.
-  const [generateVideo, setGenerateVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
 
   // UPLOADS box, option 2: paste a website URL (e.g. a Wikipedia
@@ -149,8 +144,8 @@ export default function Amivi() {
   // for each chunk's inline "check yourself" question.
   const [mcqAnswers, setMcqAnswers] = useState({});
 
-  const [isGeneratingPhotoStory, setIsGeneratingPhotoStory] = useState(false);
-  const [photoStoryError, setPhotoStoryError] = useState(null);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoError, setVideoError] = useState(null);
 
   // Microbit pages — 6 cards per page (3 per row x 2 rows), shared by
   // Box 1 and Box 2 so a teacher moves through the same Microbits
@@ -525,7 +520,7 @@ export default function Amivi() {
       const data = await generateAmivi(
         text,
         language,
-        generateVideo,
+        false,
         url || null
       );
 
@@ -580,27 +575,31 @@ export default function Amivi() {
   };
 
   // ============================================================
-  // PHOTO STORY (combine every chunk's image into one poster)
+  // VIDEO (build the narrated lesson video on demand, from the
+  // already-generated chunks — Photo Story's old slot on this page;
+  // Photo Story itself now lives in AMICO, sourced from an AMIVI
+  // lesson there)
   // ============================================================
 
-  const handleGeneratePhotoStory = async () => {
+  const handleGenerateVideo = async () => {
     if (!result?.project_id) return;
 
-    setIsGeneratingPhotoStory(true);
-    setPhotoStoryError(null);
+    setIsGeneratingVideo(true);
+    setVideoError(null);
 
     try {
-      const data = await generateAmiviPhotoStory(result.project_id);
+      const data = await generateAmiviVideo(result.project_id);
 
       setResult(prev => ({
         ...prev,
-        photo_story_pages: data.pages,
+        video_id: data.video_id,
+        video_url: data.video_url,
       }));
     } catch (err) {
-      console.error('Photo Story generation error:', err);
-      setPhotoStoryError(err?.message || 'Failed to generate Photo Story.');
+      console.error('Video generation error:', err);
+      setVideoError(err?.message || 'Failed to generate the video.');
     } finally {
-      setIsGeneratingPhotoStory(false);
+      setIsGeneratingVideo(false);
     }
   };
 
@@ -877,32 +876,6 @@ export default function Amivi() {
 
           {!isProcessing && !result && (
             <>
-              {/* VIDEO (OPTIONAL) */}
-
-              <div className="flex items-center gap-3 mb-4 bg-white border-2 border-slate-200 rounded-xl px-4 py-3">
-
-                <input
-                  id="generate-video"
-                  type="checkbox"
-                  checked={generateVideo}
-                  onChange={(e) =>
-                    setGenerateVideo(
-                      e.target.checked
-                    )
-                  }
-                  className="w-5 h-5 accent-amber-600"
-                />
-
-                <label
-                  htmlFor="generate-video"
-                  className="font-bold text-black flex items-center gap-2 cursor-pointer text-lg"
-                >
-                  <Video className="w-5 h-5 text-amber-500" />
-                  Video <span className="text-black font-semibold">(Optional)</span>
-                </label>
-
-              </div>
-
               <button
                 onClick={handleGenerate}
                 disabled={
@@ -1412,14 +1385,6 @@ export default function Amivi() {
               </div>
             )}
 
-            {generateVideo && !result.video_url && (
-              <div className="w-full mt-6 pt-6 border-t-2 border-indigo-100 flex flex-col items-center justify-center text-center">
-                <p className="text-base font-bold text-amber-600">
-                  {t("The video couldn't be generated this time, but your lesson's text, images and audio are all ready below.")}
-                </p>
-              </div>
-            )}
-
           </div>
         ) : (
           <div className={microbitGridClass}>
@@ -1691,7 +1656,7 @@ export default function Amivi() {
 
 
 
-          {/* PHOTO STORY */}
+          {/* VIDEO */}
 
           <div className="bg-gradient-to-br from-purple-50/60 via-white to-white rounded-2xl border border-purple-100 border-t-4 border-t-purple-300 shadow-sm p-5 sm:p-7">
 
@@ -1699,79 +1664,37 @@ export default function Amivi() {
 
               <div>
                 <h3 className="text-3xl font-bold text-black flex items-center gap-2">
-                  📖 {t('Photo Story')}
+                  🎬 {t('Video')}
                 </h3>
                 <p className="text-lg text-black font-semibold mt-1">
-                  {t('Combine every chunk into one poster-style sheet you can print or share.')}
+                  {t('Turn this lesson into one narrated video, built from its chunks.')}
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={handleGeneratePhotoStory}
-                disabled={isGeneratingPhotoStory || !result?.project_id}
+                onClick={handleGenerateVideo}
+                disabled={isGeneratingVideo || !result?.project_id}
                 className="px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center gap-2 transition-all"
               >
-                <Sparkles className={`w-5 h-5 ${isGeneratingPhotoStory ? 'animate-pulse' : ''}`} />
-                {isGeneratingPhotoStory
+                <Video className={`w-5 h-5 ${isGeneratingVideo ? 'animate-pulse' : ''}`} />
+                {isGeneratingVideo
                   ? t('Generating...')
-                  : (result?.photo_story_pages?.length
-                      ? t('Regenerate Photo Story')
-                      : t('Generate Photo Story'))}
+                  : (result?.video_url
+                      ? t('Regenerate Video')
+                      : t('Generate Video'))}
               </button>
 
             </div>
 
-            {photoStoryError && (
-              <p className="text-red-500 font-bold mb-4">{photoStoryError}</p>
+            {videoError && (
+              <p className="text-red-500 font-bold mb-4">{videoError}</p>
             )}
 
-            {(result?.photo_story_pages || []).length > 0 && (
-
-              <div className="space-y-6">
-
-                {result.photo_story_pages.map((page) => (
-
-                  <div key={page.page_number} className="space-y-2">
-
-                    <div className="rounded-2xl overflow-hidden border-2 border-purple-100 shadow-sm">
-                      {/* Every page is stacked and rendered here at
-                          once (not one-page-at-a-time like AMICO's
-                          viewer) — loading="lazy" means the browser
-                          only fetches a page's image once it's
-                          actually scrolled near, instead of pulling
-                          down every page's picture the moment this
-                          list mounts. */}
-                      <img
-                        src={getMediaUrl(page.comic_image_url)}
-                        alt={`Photo Story page ${page.page_number}`}
-                        loading="lazy"
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDownload(
-                            getMediaUrl(page.comic_image_url),
-                            `amivi-photo-story-page-${page.page_number}.png`
-                          )
-                        }
-                        className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-black font-bold rounded-xl flex items-center gap-2 transition-colors text-base"
-                      >
-                        <Download size={16} />
-                        {t('Download Page')} {page.page_number}
-                      </button>
-                    </div>
-
-                  </div>
-
-                ))}
-
-              </div>
-
+            {!result?.video_url && !isGeneratingVideo && !videoError && (
+              <p className="text-base text-black/60 font-semibold">
+                {t('Not generated yet — click Generate Video above. It uses the images and narration already on this lesson, so it only takes a moment.')}
+              </p>
             )}
 
           </div>

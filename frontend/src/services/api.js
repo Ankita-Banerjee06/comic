@@ -255,9 +255,14 @@ export async function generateAmiviCompleteVisual(
   return response.json();
 }
 
-export async function generateAmiviPhotoStory(projectId) {
+// Builds one narrated video for an already-generated AMIVI lesson,
+// on demand — the "Video" card on the AMIVI result page (Photo
+// Story's old slot there; Photo Story itself now lives in AMICO).
+// Uses the images and narration audio already saved on the
+// lesson's chunks, so this never re-runs any AI generation.
+export async function generateAmiviVideo(projectId) {
   const response = await fetch(
-    `${API_URL}/api/amivi/generate_photo_story`,
+    `${API_URL}/api/amivi/generate_video`,
     {
       method: 'POST',
       headers: {
@@ -266,6 +271,35 @@ export async function generateAmiviPhotoStory(projectId) {
       },
       body: JSON.stringify({
         project_id: projectId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      errorText || 'Failed to generate the video.'
+    );
+  }
+
+  return response.json();
+}
+
+// AMICO Photo Story, sourced from an already-generated AMIVI
+// lesson instead of an uploaded photo — reuses that lesson's own
+// chunk images (no new image generation), composed into the same
+// diagram-story sheet layout as the photo-upload path.
+export async function generateAmicoPhotoStoryFromAmivi(amiviProjectId) {
+  const response = await fetch(
+    `${API_URL}/api/amico/photostory/from_amivi`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(),
+      },
+      body: JSON.stringify({
+        project_id: amiviProjectId,
       }),
     }
   );
@@ -876,7 +910,7 @@ async function parseClassroomError(response, fallback) {
   return new Error(err.detail || fallback);
 }
 
-export async function createClassroom({ name, subject = '', description = '', displayName }) {
+export async function createClassroom({ name, subject = '', description = '', displayName, gradeLevel = '', topic = '' }) {
   const response = await fetch(`${API_URL}/api/classrooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -885,9 +919,19 @@ export async function createClassroom({ name, subject = '', description = '', di
       subject,
       description,
       display_name: displayName,
+      grade_level: gradeLevel,
+      topic,
     }),
   });
   if (!response.ok) throw await parseClassroomError(response, 'Failed to create classroom.');
+  return response.json();
+}
+
+export async function getTeacherWorkspaceSummary() {
+  const response = await fetch(`${API_URL}/api/me/teacher-workspace/summary`, {
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load your Teacher Workspace summary.');
   return response.json();
 }
 
@@ -918,7 +962,7 @@ export async function getMyClassrooms() {
   return response.json();
 }
 
-export async function createAssignment(classCode, { memberToken, title, instructions = '', quizProjectId, amiviProjectId = null, amicoProjectId = null, dueAt = null }) {
+export async function createAssignment(classCode, { memberToken, title, instructions = '', quizProjectId, amiviProjectId = null, amicoProjectId = null, lessonId = null, attachments = [], dueAt = null }) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -929,6 +973,8 @@ export async function createAssignment(classCode, { memberToken, title, instruct
       quiz_project_id: quizProjectId,
       amivi_project_id: amiviProjectId,
       amico_project_id: amicoProjectId,
+      lesson_id: lessonId,
+      attachments,
       due_at: dueAt,
     }),
   });
@@ -1064,5 +1110,112 @@ export async function studentLogin(classCode, { studentCode }) {
     body: JSON.stringify({ student_code: studentCode }),
   });
   if (!response.ok) throw await parseClassroomError(response, "That class code or login code isn't recognized.");
+  return response.json();
+}
+
+// ============================================================
+// TEACHER WORKSPACE — Teaching Materials, Manual Quiz Builder,
+// Students/roster. See backend main.py's matching section for the
+// full auth/reuse rationale.
+// ============================================================
+
+// A generic file upload shared by lesson/material/assignment
+// attachments and manual-quiz question images — returns a
+// media_asset_id + url the caller attaches wherever it needs one.
+export async function uploadClassroomMedia(classCode, { memberToken, file }) {
+  const formData = new FormData();
+  formData.append('member_token', memberToken);
+  formData.append('file', file);
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/media/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to upload that file.');
+  return response.json();
+}
+
+export async function createMaterial(classCode, { memberToken, title, description = '', attachments = [] }) {
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/materials`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ member_token: memberToken, title, description, attachments }),
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to save that material.');
+  return response.json();
+}
+
+export async function listMaterials(classCode, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/materials?member_token=${encodeURIComponent(memberToken)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load teaching materials.');
+  return response.json();
+}
+
+export async function deleteMaterial(classCode, materialId, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/materials/${materialId}?member_token=${encodeURIComponent(memberToken)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to delete that material.');
+  return response.json();
+}
+
+export async function createManualQuiz(classCode, { memberToken, title, description = '', durationMinutes = null, status = 'draft', questions = [] }) {
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/quizzes/manual`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      member_token: memberToken,
+      title,
+      description,
+      duration_minutes: durationMinutes,
+      status,
+      questions,
+    }),
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to save that quiz.');
+  return response.json();
+}
+
+export async function updateManualQuiz(classCode, projectId, { memberToken, title, description, durationMinutes, status, questions }) {
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/quizzes/manual/${projectId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      member_token: memberToken,
+      title,
+      description,
+      duration_minutes: durationMinutes,
+      status,
+      questions,
+    }),
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to save that quiz.');
+  return response.json();
+}
+
+export async function listManualQuizzes(classCode, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/quizzes/manual?member_token=${encodeURIComponent(memberToken)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load your quizzes.');
+  return response.json();
+}
+
+export async function deleteManualQuiz(classCode, projectId, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/quizzes/manual/${projectId}?member_token=${encodeURIComponent(memberToken)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to delete that quiz.');
+  return response.json();
+}
+
+export async function getClassroomStudents(classCode, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/students?member_token=${encodeURIComponent(memberToken)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load students.');
   return response.json();
 }

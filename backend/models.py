@@ -116,6 +116,25 @@ class Project(Base):
     chapter = Column(String(255), nullable=True)
     chapter_key = Column(String(255), nullable=True, index=True)
 
+    # Purely informational label distinguishing a Teacher Workspace
+    # manually-authored quiz ("manual") from the normal AI-generated
+    # path. Null for every project created before this existed and
+    # for every AI-generated project going forward — only the manual
+    # Quiz Builder ever sets this to "manual". Nothing in the AI
+    # generation pipeline reads or requires it.
+    created_via = Column(String(20), nullable=True)
+
+    # Which classroom a Teacher Workspace manual quiz was built in
+    # (so the class's own Quiz Builder tab can list just its own
+    # quizzes). Null for every AI-generated project — those stay a
+    # personal Library, not tied to any one classroom.
+    classroom_id = Column(
+        Integer,
+        ForeignKey("classrooms.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Stores structured AMIVI/AMICO/Quiz JSON data.
     data = Column(JSON, nullable=True)
 
@@ -565,6 +584,13 @@ class Classroom(Base):
     subject = Column(String(150), nullable=True)
     description = Column(Text, nullable=True)
 
+    # Teacher Workspace's "Create New Class" form (grade/standard +
+    # chapter-or-topic) — both nullable so every classroom created
+    # before this feature existed is untouched and just shows these
+    # as unset.
+    grade_level = Column(String(50), nullable=True)
+    topic = Column(String(255), nullable=True)
+
     class_code = Column(
         String(12),
         unique=True,
@@ -728,6 +754,20 @@ class Assignment(Base):
         nullable=True,
     )
 
+    # Teacher Workspace additions: a manually-written Lesson can be
+    # assigned too (alongside, or instead of, the AI-content
+    # pointers above), and plain files can be attached directly
+    # without needing any Project at all. attachments is a list of
+    # {media_asset_id, filename, mime_type} — same shape as
+    # Lesson.attachments / TeachingMaterial.attachments.
+    lesson_id = Column(
+        Integer,
+        ForeignKey("lessons.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    attachments = Column(JSON, nullable=True)
+
     due_at = Column(DateTime, nullable=True)
 
     created_at = Column(
@@ -838,3 +878,106 @@ class Avatar(Base):
         nullable=False,
         default=datetime.utcnow,
     )
+
+
+class Lesson(Base):
+    """
+    A manually-authored lesson inside a teacher's Classroom — part
+    of Teacher Workspace, entirely independent of the AI generation
+    modules (AMIVI/AMICO/Quiz). Unlike Assignment, a Lesson isn't
+    something a student "submits" — it's just published (or not)
+    for the class to read.
+    """
+
+    __tablename__ = "lessons"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    classroom_id = Column(
+        Integer,
+        ForeignKey("classrooms.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    title = Column(String(255), nullable=False)
+    topic = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+
+    # Rich-text lesson body as HTML (headings, bullet points, etc.
+    # — produced by the lesson editor's rich-text component).
+    content = Column(Text, nullable=True)
+
+    # "draft" | "published" — only published lessons are ever
+    # returned to a student-role request.
+    status = Column(String(20), nullable=False, default="draft")
+
+    # Images / PDFs / PPT / DOC uploads and reference notes, each
+    # stored as a MediaAsset (same table every other image/audio/
+    # video in the app uses) and referenced here as a list of
+    # {media_asset_id, filename, mime_type}. Never duplicated —
+    # just pointers, same philosophy as Assignment's project
+    # pointers above.
+    attachments = Column(JSON, nullable=True)
+
+    created_by_member_id = Column(
+        Integer,
+        ForeignKey("classroom_members.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    classroom = relationship("Classroom")
+
+
+class TeachingMaterial(Base):
+    """
+    A standalone learning resource a teacher uploads/organizes —
+    Teacher Workspace's "Teaching Materials" section. Not tied to
+    a single lesson; classroom_id is nullable so a teacher can keep
+    a personal, unfiled resource library as well as per-class ones.
+    """
+
+    __tablename__ = "teaching_materials"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    classroom_id = Column(
+        Integer,
+        ForeignKey("classrooms.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Same {media_asset_id, filename, mime_type} shape as
+    # Lesson.attachments.
+    attachments = Column(JSON, nullable=True)
+
+    created_by_member_id = Column(
+        Integer,
+        ForeignKey("classroom_members.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+
+    classroom = relationship("Classroom")

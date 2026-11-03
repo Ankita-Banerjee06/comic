@@ -58,6 +58,8 @@ def create_tables():
         ClassroomMember,
         Assignment,
         AssignmentSubmission,
+        Lesson,
+        TeachingMaterial,
     )
 
     Base.metadata.create_all(bind=engine)
@@ -153,4 +155,29 @@ def _run_lightweight_migrations():
         # than guess an owner.
         conn.execute(
             text("ALTER TABLE avatars ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
+        )
+        # Teacher Workspace: Grade/Standard and Chapter-or-Topic on a
+        # classroom, plain file attachments + an optional Lesson
+        # pointer on an assignment (alongside the existing AI-content
+        # pointers), and a label distinguishing a teacher-authored
+        # quiz from an AI-generated one (both still live in the same
+        # projects/quizzes tables — see models.Lesson/TeachingMaterial
+        # docstrings and TEACHER_WORKSPACE_PLAN.md).
+        conn.execute(
+            text("ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS grade_level VARCHAR(50)")
+        )
+        conn.execute(
+            text("ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS topic VARCHAR(255)")
+        )
+        conn.execute(
+            text("ALTER TABLE assignments ADD COLUMN IF NOT EXISTS attachments JSON")
+        )
+        conn.execute(
+            text("ALTER TABLE assignments ADD COLUMN IF NOT EXISTS lesson_id INTEGER REFERENCES lessons(id) ON DELETE SET NULL")
+        )
+        conn.execute(
+            text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_via VARCHAR(20)")
+        )
+        conn.execute(
+            text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS classroom_id INTEGER REFERENCES classrooms(id) ON DELETE SET NULL")
         )

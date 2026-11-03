@@ -271,6 +271,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-rose-50',
       iconColor: 'text-rose-600',
       accentColor: 'text-rose-600',
+      image: '/dashboard-help.png',
     },
   ];
 
@@ -285,6 +286,16 @@ function StudentDashboard({ user }) {
 
 function TeacherDashboard({ user }) {
   const tiles = [
+    {
+      to: '/teacher-workspace',
+      icon: School,
+      title: 'Teacher Workspace',
+      description: 'Build your own classes, lessons, quizzes, and assignments — no AI generation needed.',
+      tint: 'bg-teal-50',
+      iconColor: 'text-teal-600',
+      accentColor: 'text-teal-600',
+      image: '/dashboard-teacher-workspace.png',
+    },
     {
       to: '/classroom',
       icon: ClipboardList,
@@ -333,6 +344,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-teal-50',
       iconColor: 'text-teal-600',
       accentColor: 'text-teal-600',
+      image: '/dashboard-student-progress.png',
     },
     {
       to: '/collaborate',
@@ -352,6 +364,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-rose-50',
       iconColor: 'text-rose-600',
       accentColor: 'text-rose-600',
+      image: '/dashboard-help.png',
     },
   ];
 

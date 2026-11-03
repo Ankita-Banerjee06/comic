@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { Menu, X, User, Globe, ChevronDown, GraduationCap, Video, LogOut, Home, Compass, CreditCard, Lightbulb, Info, Sparkles, Repeat } from 'lucide-react';
+import { Menu, X, User, Globe, ChevronDown, GraduationCap, Video, LogOut, Home, Compass, CreditCard, Lightbulb, Info, Sparkles, Repeat, LayoutDashboard } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage, SUPPORTED_LANGUAGES } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 
+// Only rendered once signed in (see the early-return below for the
+// signed-out header), so it's safe for this to include the actual
+// app home — unlike "Home" below, which always points at the public
+// Landing page even for a signed-in visitor.
 const navLinks = [
+  { name: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard },
   { name: 'Home',          path: '/',               icon: Home },
   { name: 'Introduction',  path: '/introduction',  icon: Info },
   { name: 'Explore',       path: '/explore',       icon: Compass },

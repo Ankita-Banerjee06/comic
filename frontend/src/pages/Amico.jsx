@@ -12,6 +12,7 @@ import {
   listAvatars,
   deleteAvatar,
   generateAmicoPhotoStory,
+  generateAmicoPhotoStoryFromAmivi,
   listProjects,
   getLibraryProject,
   getAssignmentProject,
@@ -182,7 +183,11 @@ export default function Amico() {
   const [recomposing, setRecomposing] = useState(false);
   const [recomposeError, setRecomposeError] = useState(null);
 
-  // Photo Story mode
+  // Photo Story mode — source is either an uploaded photo, or an
+  // already-generated AMIVI lesson (moved here from a button that
+  // used to live on the AMIVI page itself; see
+  // generateAmicoPhotoStoryFromAmivi in services/api.js).
+  const [psSource, setPsSource] = useState('photo'); // 'photo' | 'amivi'
   const [psFile, setPsFile] = useState(null);
   const [psPreviewUrl, setPsPreviewUrl] = useState('');
   const [psPanelCount, setPsPanelCount] = useState(6);
@@ -219,12 +224,16 @@ export default function Amico() {
   }, [incomingSourceProjectId]);
 
   useEffect(() => {
-    if (source === 'amivi' && amiviProjects.length === 0) {
+    const needsAmiviList =
+      (mode === 'comic' && source === 'amivi') ||
+      (mode === 'photostory' && psSource === 'amivi');
+
+    if (needsAmiviList && amiviProjects.length === 0) {
       listProjects('amivi')
         .then((data) => setAmiviProjects(data.projects || []))
         .catch(() => { });
     }
-  }, [source, amiviProjects.length]);
+  }, [mode, source, psSource, amiviProjects.length]);
 
   useEffect(() => {
     // Fires regardless of whether amiviProjects (THIS account's own
@@ -368,18 +377,20 @@ export default function Amico() {
     setPsPreviewUrl(URL.createObjectURL(file));
   };
 
+  const canGeneratePhotoStory =
+    psSource === 'photo' ? !!psFile : !!selectedProjectId;
+
   const handleGeneratePhotoStory = async () => {
-    if (!psFile) return;
+    if (!canGeneratePhotoStory) return;
 
     setPsProcessing(true);
     setPsError(null);
 
     try {
-      const data = await generateAmicoPhotoStory(
-        psFile,
-        language,
-        psPanelCount
-      );
+      const data =
+        psSource === 'amivi'
+          ? await generateAmicoPhotoStoryFromAmivi(Number(selectedProjectId))
+          : await generateAmicoPhotoStory(psFile, language, psPanelCount);
 
       setPsResult(data);
       setPsCurrentPageIndex(0);
@@ -395,6 +406,7 @@ export default function Amico() {
     setPsFile(null);
     setPsPreviewUrl('');
     setPsError(null);
+    setSelectedProjectId('');
   };
 
   // Returns to the AMICO launcher ("What would you like to
@@ -914,16 +926,19 @@ export default function Amico() {
               </div>
             </div>
 
-            {/* Avatars */}
+            {/* Avatars — tiles are 4x their original 64px size
+                (256px), with the name in its own space below the
+                picture instead of overlaid on top of it, per the
+                size/legibility request this was built to. */}
             <div className="mb-6">
               <label className="text-base font-bold text-black block mb-2">{t('Character Avatar (optional)')}</label>
-              <div className="flex items-center gap-3 overflow-x-auto pb-2">
+              <div className="flex items-start gap-4 overflow-x-auto pb-2">
                 <button
                   onClick={() => {
                     setSelectedAvatarId(null);
                     setSelectedPresetAvatar(null);
                   }}
-                  className={`shrink-0 w-16 h-16 rounded-2xl border-2 flex items-center justify-center text-sm font-bold ${selectedAvatarId === null && selectedPresetAvatar === null
+                  className={`shrink-0 w-64 h-64 rounded-2xl border-2 flex items-center justify-center text-lg font-bold ${selectedAvatarId === null && selectedPresetAvatar === null
                       ? 'border-pink-500 bg-pink-50 text-black'
                       : 'border-gray-200 text-black'
                     }`}
@@ -944,57 +959,62 @@ export default function Amico() {
                       setSelectedPresetAvatar(preset.key);
                       setSelectedAvatarId(null);
                     }}
-                    title={preset.name}
-                    className={`relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-white font-bold border-2 ${selectedPresetAvatar === preset.key
-                        ? 'border-pink-500 ring-4 ring-pink-200'
+                    className={`shrink-0 w-64 flex flex-col items-center gap-2 rounded-2xl border-2 p-2 ${selectedPresetAvatar === preset.key
+                        ? 'border-pink-500 bg-pink-50 ring-4 ring-pink-200'
                         : 'border-transparent'
                       }`}
-                    style={{ backgroundColor: preset.color }}
                   >
-                    <span className="text-xl leading-none">{preset.name.split(' ')[1]?.[0] || preset.name[0]}</span>
-                    <span className="text-[10px] font-semibold leading-tight mt-0.5 px-1 text-center">{preset.name}</span>
-                    <img
-                      src={`/vlq-avatar-${preset.key}.png`}
-                      alt={preset.name}
-                      loading="lazy"
-                      className="absolute inset-0 w-full h-full object-cover"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
+                    <span
+                      className="relative w-full h-64 rounded-xl overflow-hidden flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: preset.color }}
+                    >
+                      <span className="text-5xl leading-none">{preset.name.split(' ')[1]?.[0] || preset.name[0]}</span>
+                      <img
+                        src={`/vlq-avatar-${preset.key}.png`}
+                        alt={preset.name}
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    </span>
+                    {/* Name space, below the picture */}
+                    <span className="text-sm font-semibold text-black text-center leading-tight">{preset.name}</span>
                   </button>
                 ))}
                 {avatars.map((avatar) => (
-                  <div key={avatar.avatar_id} className="relative shrink-0 group">
+                  <div key={avatar.avatar_id} className="relative shrink-0 group flex flex-col items-center gap-2 w-64">
                     <button
                       onClick={() => {
                         setSelectedAvatarId(avatar.avatar_id);
                         setSelectedPresetAvatar(null);
                       }}
-                      className={`w-16 h-16 rounded-2xl overflow-hidden border-2 ${selectedAvatarId === avatar.avatar_id
+                      className={`w-64 h-64 rounded-2xl overflow-hidden border-2 ${selectedAvatarId === avatar.avatar_id
                           ? 'border-pink-500 ring-4 ring-pink-200'
                           : 'border-gray-200'
                         }`}
-                      title={avatar.name}
                     >
                       <img src={mediaUrl(avatar.image_url)} alt={avatar.name} loading="lazy" className="w-full h-full object-cover" />
                     </button>
+                    {/* Name space, below the picture */}
+                    <span className="text-sm font-semibold text-black text-center leading-tight px-1">{avatar.name || t('Untitled avatar')}</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteAvatar(avatar);
                       }}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                      className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
                       title={t('Delete avatar')}
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}
                 <button
                   onClick={() => setShowAvatarUpload((v) => !v)}
-                  className="shrink-0 w-16 h-16 rounded-2xl border-2 border-dashed border-pink-300 text-pink-400 flex items-center justify-center hover:bg-pink-50"
+                  className="shrink-0 w-64 h-64 rounded-2xl border-2 border-dashed border-pink-300 text-pink-400 flex items-center justify-center hover:bg-pink-50"
                   title={t('Add a new avatar')}
                 >
-                  <Plus className="w-6 h-6" />
+                  <Plus className="w-10 h-10" />
                 </button>
               </div>
 
@@ -1029,13 +1049,15 @@ export default function Amico() {
               )}
             </div>
 
-            {/* Story Background */}
+            {/* Story Background — tiles are 4x their original size
+                (80x64 -> 320x256), with the label in its own space
+                below the picture instead of overlaid on top of it. */}
             <div className="mb-6">
               <label className="text-base font-bold text-black block mb-2">{t('Story Background (optional)')}</label>
-              <div className="flex items-center gap-3 overflow-x-auto pb-2">
+              <div className="flex items-start gap-4 overflow-x-auto pb-2">
                 <button
                   onClick={() => setSelectedBackground(null)}
-                  className={`shrink-0 px-4 h-16 rounded-2xl border-2 flex items-center justify-center text-sm font-bold ${selectedBackground === null
+                  className={`shrink-0 w-80 h-64 rounded-2xl border-2 flex items-center justify-center text-lg font-bold ${selectedBackground === null
                       ? 'border-pink-500 bg-pink-50 text-black'
                       : 'border-gray-200 text-black'
                     }`}
@@ -1047,31 +1069,32 @@ export default function Amico() {
                     /vlq-bg-{key}.png exists in frontend/public/;
                     until then (or if that file is ever missing) it
                     falls back to a plain line icon, so this never
-                    shows a broken image. The label stays on top of
-                    the picture either way, for contrast a small
-                    dark pill sits behind the text once an image is
-                    showing. */}
+                    shows a broken image. The label now has its own
+                    space below the picture, rather than sitting as
+                    an overlay pill on top of it. */}
                 {PRESET_BACKGROUNDS.map((bg) => {
                   const BgIcon = bg.icon;
                   return (
                     <button
                       key={bg.key}
                       onClick={() => setSelectedBackground(bg.key)}
-                      title={t(bg.label)}
-                      className={`relative shrink-0 w-20 h-16 rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-1 border-2 ${selectedBackground === bg.key
+                      className={`shrink-0 w-80 flex flex-col items-center gap-2 rounded-2xl border-2 p-2 ${selectedBackground === bg.key
                           ? 'border-pink-500 bg-pink-50 ring-4 ring-pink-200 text-black'
                           : 'border-gray-200 text-black'
                         }`}
                     >
-                      <BgIcon className="w-5 h-5" />
-                      <img
-                        src={`/vlq-bg-${bg.key}.png`}
-                        alt={t(bg.label)}
-                        loading="lazy"
-                        className="absolute inset-0 w-full h-full object-cover z-10"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                      />
-                      <span className="relative z-20 text-[10px] font-semibold leading-tight text-center px-1 rounded bg-white/80">{t(bg.label)}</span>
+                      <span className="relative w-full h-64 rounded-xl overflow-hidden flex items-center justify-center bg-gray-50">
+                        <BgIcon className="w-10 h-10" />
+                        <img
+                          src={`/vlq-bg-${bg.key}.png`}
+                          alt={t(bg.label)}
+                          loading="lazy"
+                          className="absolute inset-0 w-full h-full object-cover z-10"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      </span>
+                      {/* Name space, below the picture */}
+                      <span className="text-sm font-semibold leading-tight text-center px-1">{t(bg.label)}</span>
                     </button>
                   );
                 })}
@@ -1285,51 +1308,103 @@ export default function Amico() {
       {mode === 'photostory' && !psProcessing && !psResult && (
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-8 flex flex-col">
-            <h2 className="text-2xl font-bold text-black mb-2">📷 {t('Upload a Photo')}</h2>
-            <p className="text-black font-bold mb-6">
-              {t('Upload one photo and AMICO will turn it into a labeled diagram story — no characters, just clear step-by-step visuals, like a real science poster.')}
-            </p>
-
-            {psPreviewUrl ? (
-              <div className="relative w-full mb-6">
-                <img
-                  src={psPreviewUrl}
-                  alt="Uploaded photo"
-                  className="w-full max-h-80 object-contain rounded-2xl border-2 border-pink-200 bg-pink-50"
-                />
-                <button
-                  onClick={() => {
-                    setPsFile(null);
-                    setPsPreviewUrl('');
-                  }}
-                  className="absolute top-3 right-3 p-2 rounded-full bg-white/90 text-black hover:text-black shadow"
-                  title={t('Remove photo')}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="mb-6">
-                <FileUpload accept="image/*" label={t('Upload a photo')} onUpload={handlePhotoStoryUpload} />
-              </div>
-            )}
-
-            <div className="mb-6">
-              <label className="text-base font-bold text-black block mb-1">{t('Number of stages')}</label>
-              <select
-                value={psPanelCount}
-                onChange={(e) => setPsPanelCount(Number(e.target.value))}
-                className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-bold text-black focus:outline-none"
+            {/* Source tabs */}
+            <div className="flex gap-2 mb-6">
+              <button
+                onClick={() => setPsSource('photo')}
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${psSource === 'photo'
+                    ? 'bg-pink-500 text-white shadow-lg'
+                    : 'bg-pink-50 text-black border-2 border-pink-200 hover:bg-pink-100'
+                  }`}
               >
-                {[4, 5, 6, 7, 8].map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
+                📷 {t('Upload a Photo')}
+              </button>
+              <button
+                onClick={() => setPsSource('amivi')}
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all ${psSource === 'amivi'
+                    ? 'bg-pink-500 text-white shadow-lg'
+                    : 'bg-pink-50 text-black border-2 border-pink-200 hover:bg-pink-100'
+                  }`}
+              >
+                🎨 {t('From an AMIVI Lesson')}
+              </button>
             </div>
+
+            {psSource === 'photo' ? (
+              <>
+                <h2 className="text-2xl font-bold text-black mb-2">📷 {t('Upload a Photo')}</h2>
+                <p className="text-black font-bold mb-6">
+                  {t('Upload one photo and AMICO will turn it into a labeled diagram story — no characters, just clear step-by-step visuals, like a real science poster.')}
+                </p>
+
+                {psPreviewUrl ? (
+                  <div className="relative w-full mb-6">
+                    <img
+                      src={psPreviewUrl}
+                      alt="Uploaded photo"
+                      className="w-full max-h-80 object-contain rounded-2xl border-2 border-pink-200 bg-pink-50"
+                    />
+                    <button
+                      onClick={() => {
+                        setPsFile(null);
+                        setPsPreviewUrl('');
+                      }}
+                      className="absolute top-3 right-3 p-2 rounded-full bg-white/90 text-black hover:text-black shadow"
+                      title={t('Remove photo')}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mb-6">
+                    <FileUpload accept="image/*" label={t('Upload a photo')} onUpload={handlePhotoStoryUpload} />
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <label className="text-base font-bold text-black block mb-1">{t('Number of stages')}</label>
+                  <select
+                    value={psPanelCount}
+                    onChange={(e) => setPsPanelCount(Number(e.target.value))}
+                    className="w-full p-3 bg-pink-50 border-2 border-pink-200 rounded-xl font-bold text-black focus:outline-none"
+                  >
+                    {[4, 5, 6, 7, 8].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-black mb-2">🎨 {t('Select an AMIVI Lesson')}</h2>
+                <p className="text-black font-bold mb-6">
+                  {t("Turn an already-generated AMIVI lesson into a Photo Story sheet, using its own images — no new upload needed.")}
+                </p>
+
+                {amiviProjects.length === 0 ? (
+                  <p className="text-black font-semibold bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-6">
+                    {t('No AMIVI lessons found yet. Create one in AMIVI Studio first.')}
+                  </p>
+                ) : (
+                  <select
+                    value={selectedProjectId}
+                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                    className="w-full p-4 bg-pink-50 border-2 border-pink-200 rounded-2xl text-black font-bold mb-6 focus:ring-4 focus:ring-pink-300 focus:border-pink-400 focus:outline-none"
+                  >
+                    <option value="">{t('Select an AMIVI Learning Package...')}</option>
+                    {amiviProjectOptions.map((project) => (
+                      <option key={project.project_id} value={project.project_id}>
+                        {project.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </>
+            )}
 
             <button
               onClick={handleGeneratePhotoStory}
-              disabled={!psFile}
+              disabled={!canGeneratePhotoStory}
               className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all text-lg sm:text-xl hover:scale-105 hover:shadow-[0_10px_25px_rgba(236,72,153,0.4)] flex items-center justify-center gap-3 shadow-lg"
             >
               <Camera className="w-6 h-6" />

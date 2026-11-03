@@ -28,6 +28,8 @@ import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 import Collaborate from './pages/Collaborate';
 import Classroom from './pages/Classroom';
+import TeacherWorkspace from './pages/TeacherWorkspace';
+import ClassWorkspace from './pages/ClassWorkspace';
 import Courses from './pages/Courses';
 import Tutorials from './pages/Tutorials';
 import CoreEcosystems from './pages/CoreEcosystems';
@@ -126,6 +128,8 @@ function App() {
           <Route path="/collaborative" element={<Collaborate />} />
           <Route path="/collaborate" element={<Collaborate />} />
           <Route path="/classroom" element={<Classroom />} />
+          <Route path="/teacher-workspace" element={<TeacherWorkspace />} />
+          <Route path="/teacher-workspace/class/:classCode" element={<ClassWorkspace />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/tutorials" element={<Tutorials />} />
           <Route path="/help" element={<Help />} />

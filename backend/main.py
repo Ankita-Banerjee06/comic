@@ -63,6 +63,8 @@ from models import (
     ClassroomMember,
     Assignment,
     AssignmentSubmission,
+    Lesson,
+    TeachingMaterial,
 )
 
 
@@ -267,8 +269,13 @@ class AmiviEditChunkRequest(BaseModel):
     language: str = "en"
 
 
-class AmiviPhotoStoryRequest(BaseModel):
+class AmiviVideoRequest(BaseModel):
     project_id: int
+
+
+class AmicoPhotoStoryFromAmiviRequest(BaseModel):
+    project_id: int
+    language: str = "en"
 
 
 class AmiviCompleteVisualRequest(BaseModel):
@@ -398,11 +405,22 @@ class ClassroomCreateRequest(BaseModel):
     subject: str = ""
     description: str = ""
     display_name: str
+    # Optional — Teacher Workspace's "Create New Class" form asks
+    # for these; the older plain Classroom page's form doesn't send
+    # them at all, which is fine, they just stay unset.
+    grade_level: str = ""
+    topic: str = ""
 
 
 class ClassroomJoinRequest(BaseModel):
     class_code: str
     display_name: str
+
+
+class AttachmentRef(BaseModel):
+    media_asset_id: int
+    filename: str = ""
+    mime_type: str = ""
 
 
 class AssignmentCreateRequest(BaseModel):
@@ -415,6 +433,10 @@ class AssignmentCreateRequest(BaseModel):
     quiz_project_id: int | None = None
     amivi_project_id: int | None = None
     amico_project_id: int | None = None
+    # Teacher Workspace additions — a manually-written Lesson, and/or
+    # plain files, with no AI content at all.
+    lesson_id: int | None = None
+    attachments: list[AttachmentRef] = []
     due_at: str | None = None  # ISO 8601, optional
 
 
@@ -461,6 +483,76 @@ class StudentCodeRequest(BaseModel):
 
 class StudentLoginRequest(BaseModel):
     student_code: str
+
+
+# ------------------------------------------------------------
+# TEACHER WORKSPACE — manually-authored classes content, fully
+# independent of AMIVI/AMICO/Quiz Generator. Every write here uses
+# the same member_token + require_teacher() pattern as the rest of
+# the Classroom endpoints above, not the platform-wide Bearer auth.
+# ------------------------------------------------------------
+
+class ClassroomUpdateRequest(BaseModel):
+    member_token: str
+    name: str | None = None
+    subject: str | None = None
+    grade_level: str | None = None
+    topic: str | None = None
+    description: str | None = None
+
+
+class LessonCreateRequest(BaseModel):
+    member_token: str
+    title: str
+    topic: str = ""
+    description: str = ""
+    content: str = ""
+    status: str = "draft"  # "draft" | "published"
+    attachments: list[AttachmentRef] = []
+
+
+class LessonUpdateRequest(BaseModel):
+    member_token: str
+    title: str | None = None
+    topic: str | None = None
+    description: str | None = None
+    content: str | None = None
+    status: str | None = None
+    attachments: list[AttachmentRef] | None = None
+
+
+class MaterialCreateRequest(BaseModel):
+    member_token: str
+    title: str
+    description: str = ""
+    attachments: list[AttachmentRef] = []
+
+
+class ManualQuizQuestion(BaseModel):
+    question: str
+    options: list[str]
+    correct: int
+    explanation: str = ""
+    image_media_id: int | None = None
+    marks: int = 1
+
+
+class ManualQuizCreateRequest(BaseModel):
+    member_token: str
+    title: str
+    description: str = ""
+    duration_minutes: int | None = None
+    status: str = "draft"  # "draft" | "published"
+    questions: list[ManualQuizQuestion] = []
+
+
+class ManualQuizUpdateRequest(BaseModel):
+    member_token: str
+    title: str | None = None
+    description: str | None = None
+    duration_minutes: int | None = None
+    status: str | None = None
+    questions: list[ManualQuizQuestion] | None = None
 
 
 # ============================================================
@@ -5706,11 +5798,22 @@ async def amivi_edit_chunk(
 # the two outputs are the same "labeled diagram poster" format.)
 # ============================================================
 
-@app.post("/api/amivi/generate_photo_story")
-async def amivi_generate_photo_story(
-    request: AmiviPhotoStoryRequest,
+@app.post("/api/amivi/generate_video")
+async def amivi_generate_video(
+    request: AmiviVideoRequest,
     current_user=Depends(get_current_user),
 ):
+    """
+    Builds the narrated lesson video on demand, after the lesson
+    already exists — Photo Story's old slot on the AMIVI result
+    page (Photo Story itself now lives in AMICO, sourced from an
+    AMIVI lesson there; see amico_photostory_from_amivi below).
+    Every chunk's image and narration audio were already generated
+    when the lesson itself was built (see process_amivi_chunk in
+    amivi_generate), so this never re-runs any AI generation — it
+    only stitches the already-saved media into an MP4, the same way
+    amivi_generate's own inline video step always did.
+    """
 
     try:
 
@@ -5729,57 +5832,51 @@ async def amivi_generate_photo_story(
             request.project_id
         )
 
-        panels = [
+        chunk_dicts = [
             {
                 "image_id": chunk.image_id,
-                "title": (
-                    chunk.slogan
-                    or chunk.key_point
-                    or f"Chunk {chunk.chunk_number}"
-                ),
-                "caption": (
-                    chunk.description
-                    or chunk.text
-                    or ""
-                ),
+                "audio_id": chunk.audio_id,
+                "key_point": chunk.key_point,
+                "text": chunk.text,
             }
             for chunk in chunks
-            if chunk.image_id
         ]
 
-        if not panels:
+        if not any(
+            c["image_id"] and c["audio_id"]
+            for c in chunk_dicts
+        ):
 
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "No chunk images are available yet "
-                    "to build a Photo Story."
+                    "No chunk has both an image and narration "
+                    "audio yet, so a video can't be built."
                 ),
             )
 
-        story = {
-            "title": project.title or "AMIVI Visual Learning",
-            "panels": panels,
-        }
-
-        pages = compose_amico_photostory(
+        video_id = create_amivi_video(
+            chunk_dicts,
+            f"amivi_{request.project_id}.mp4",
             request.project_id,
-            story,
-            # Capped at 4 per page (a clean 2x2 grid) instead of
-            # cramming everything onto one sheet — more panels just
-            # spill onto additional pages.
-            panels_per_page=min(4, max(2, len(panels))),
-            layout="horizontal",
         )
+
+        if not video_id:
+
+            raise HTTPException(
+                status_code=500,
+                detail="The video couldn't be built this time — please try again.",
+            )
 
         update_project_data(
             request.project_id,
-            {"photo_story_pages": pages},
+            {"video_id": video_id},
         )
 
         return {
             "status": "success",
-            "pages": pages,
+            "video_id": video_id,
+            "video_url": f"/api/media/{video_id}",
         }
 
     except HTTPException:
@@ -6844,6 +6941,145 @@ async def amico_photostory_generate(
                 "",
             ),
             "panels": processed_panels,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+@app.post("/api/amico/photostory/from_amivi")
+async def amico_photostory_from_amivi(
+    request: AmicoPhotoStoryFromAmiviRequest,
+    current_user=Depends(get_current_user),
+):
+    """
+    AMICO's Photo Story, built from an already-generated AMIVI
+    lesson instead of an uploaded photo — Photo Story's new home
+    for what used to be a separate button on the AMIVI page itself
+    (see amivi_generate_video above, which took its old slot
+    there). Reuses the lesson's own chunk images directly (no new
+    AI image generation at all), composed through the exact same
+    compose_amico_photostory() sheet layout as the photo-upload
+    path, so both sources end up as the same kind of AMICO project.
+    """
+
+    try:
+
+        require_services()
+
+        source_project = get_project(request.project_id)
+
+        if source_project.project_type != "amivi":
+
+            raise HTTPException(
+                status_code=404,
+                detail="AMIVI lesson not found.",
+            )
+
+        chunks = list_amivi_chunks_for_project(
+            request.project_id
+        )
+
+        panels = [
+            {
+                "panel_number": index + 1,
+                "image_id": chunk.image_id,
+                "image_url": (
+                    f"/api/media/{chunk.image_id}"
+                    if chunk.image_id
+                    else None
+                ),
+                "title": (
+                    chunk.slogan
+                    or chunk.key_point
+                    or f"Chunk {chunk.chunk_number}"
+                ),
+                "caption": (
+                    chunk.description
+                    or chunk.text
+                    or ""
+                ),
+            }
+            for index, chunk in enumerate(chunks)
+            if chunk.image_id
+        ]
+
+        if not panels:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No chunk images are available yet on that "
+                    "lesson to build a Photo Story."
+                ),
+            )
+
+        title = source_project.title or "AMIVI Visual Learning"
+
+        story = {
+            "title": title,
+            "panels": panels,
+            # Capped at 4 per page (a clean 2x2 grid) instead of
+            # cramming everything onto one sheet — more panels just
+            # spill onto additional pages.
+            "panels_per_page": min(4, max(2, len(panels))),
+            "layout": "horizontal",
+        }
+
+        project_id = save_project(
+            project_type="amico_photostory",
+            title=title,
+            input_text=None,
+            language=request.language,
+            data=story,
+            user_id=current_user.id,
+        )
+
+        pages = compose_amico_photostory(
+            project_id=project_id,
+            story=story,
+            panels_per_page=story["panels_per_page"],
+            layout="horizontal",
+        )
+
+        story["pages"] = pages
+
+        comic_id = save_comic(
+            project_id,
+            title,
+            story,
+        )
+
+        first_page = pages[0] if pages else None
+
+        return {
+            "status": "success",
+            "project_id": project_id,
+            "comic_id": comic_id,
+            "pages": pages,
+            "comic_image_id": (
+                first_page["comic_image_id"]
+                if first_page
+                else None
+            ),
+            "comic_image_url": (
+                first_page["comic_image_url"]
+                if first_page
+                else None
+            ),
+            "title": title,
+            "panels": panels,
         }
 
     except HTTPException:
@@ -8964,6 +9200,8 @@ def serialize_assignment(db, assignment, student_count: int) -> dict:
         "quiz_project_id": assignment.quiz_project_id,
         "amivi_project_id": assignment.amivi_project_id,
         "amico_project_id": assignment.amico_project_id,
+        "lesson_id": assignment.lesson_id,
+        "attachments": assignment.attachments or [],
         "due_at": (
             assignment.due_at.isoformat()
             if assignment.due_at
@@ -8976,6 +9214,98 @@ def serialize_assignment(db, assignment, student_count: int) -> dict:
         ),
         "submitted_count": len(submitted_member_ids),
         "student_count": student_count,
+    }
+
+
+def serialize_lesson(lesson) -> dict:
+
+    return {
+        "id": lesson.id,
+        "classroom_id": lesson.classroom_id,
+        "title": lesson.title,
+        "topic": lesson.topic,
+        "description": lesson.description,
+        "content": lesson.content,
+        "status": lesson.status,
+        "attachments": lesson.attachments or [],
+        "created_at": lesson.created_at.isoformat() if lesson.created_at else None,
+        "updated_at": lesson.updated_at.isoformat() if lesson.updated_at else None,
+    }
+
+
+def serialize_material(material) -> dict:
+
+    return {
+        "id": material.id,
+        "classroom_id": material.classroom_id,
+        "title": material.title,
+        "description": material.description,
+        "attachments": material.attachments or [],
+        "created_at": material.created_at.isoformat() if material.created_at else None,
+    }
+
+
+def build_manual_quiz_data(title, description, duration_minutes, status, questions) -> dict:
+    """
+    Builds a Quiz/Project.data dict for a Teacher Workspace manual
+    quiz in the exact shape process_quiz_question() produces for an
+    AI-generated one (see quiz_generate above): question_id, q,
+    options, correct, explanation, image_id/image_url, video_id/
+    video_url — plus one extra "marks" key. video_id/video_url are
+    always None here; manual quizzes never get an AI explainer
+    video. Matching the AI shape exactly is what lets a manual quiz
+    flow through the existing, unmodified classroom assignment-
+    taking pipeline (serialize_library_project / assignment_project_
+    view / Quiz.jsx) with no new student-facing UI at all.
+    """
+
+    processed_questions = []
+
+    for index, q in enumerate(questions):
+
+        q_text = (q.question or "").strip()
+        options = list(q.options or [])
+
+        if not q_text:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Question {index + 1} needs question text.",
+            )
+
+        if len(options) < 2:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Question {index + 1} needs at least 2 options.",
+            )
+
+        if not (0 <= q.correct < len(options)):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Question {index + 1}'s correct answer is out of range.",
+            )
+
+        processed_questions.append({
+            "question_id": index,
+            "q": q_text,
+            "options": options,
+            "correct": q.correct,
+            "explanation": (q.explanation or "").strip(),
+            "marks": q.marks if q.marks and q.marks > 0 else 1,
+            "image_id": q.image_media_id,
+            "image_url": (
+                f"/api/media/{q.image_media_id}" if q.image_media_id else None
+            ),
+            "video_id": None,
+            "video_url": None,
+        })
+
+    return {
+        "title": title,
+        "description": description or "",
+        "duration_minutes": duration_minutes,
+        "status": status,
+        "source": "manual",
+        "questions": processed_questions,
     }
 
 
@@ -9111,6 +9441,8 @@ def create_classroom(payload: ClassroomCreateRequest, current_user=Depends(get_c
             name=name,
             subject=payload.subject.strip() or None,
             description=payload.description.strip() or None,
+            grade_level=payload.grade_level.strip() or None,
+            topic=payload.topic.strip() or None,
             class_code=class_code,
             teacher_code=teacher_code,
             teacher_name=display_name,
@@ -9145,6 +9477,8 @@ def create_classroom(payload: ClassroomCreateRequest, current_user=Depends(get_c
                 "name": classroom.name,
                 "subject": classroom.subject,
                 "description": classroom.description,
+                "grade_level": classroom.grade_level,
+                "topic": classroom.topic,
                 "class_code": classroom.class_code,
                 "teacher_name": classroom.teacher_name,
                 "created_at": classroom.created_at.isoformat(),
@@ -9254,6 +9588,8 @@ def classroom_detail(class_code: str):
             "name": classroom.name,
             "subject": classroom.subject,
             "description": classroom.description,
+            "grade_level": classroom.grade_level,
+            "topic": classroom.topic,
             "class_code": classroom.class_code,
             "teacher_name": classroom.teacher_name,
             "created_at": (
@@ -9285,10 +9621,15 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
         not payload.quiz_project_id
         and not payload.amivi_project_id
         and not payload.amico_project_id
+        and not payload.lesson_id
+        and not payload.attachments
     ):
         raise HTTPException(
             status_code=400,
-            detail="Add at least a quiz, AMIVI visuals, or an AMICO comic to this homework.",
+            detail=(
+                "Add at least a quiz, AMIVI visuals, an AMICO comic, a "
+                "lesson, or a file attachment to this homework."
+            ),
         )
 
     db = SessionLocal()
@@ -9314,6 +9655,21 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
                     detail="quiz_project_id must point at an existing quiz project.",
                 )
 
+        if payload.lesson_id:
+
+            lesson = (
+                db.query(Lesson)
+                .filter(Lesson.id == payload.lesson_id, Lesson.classroom_id == classroom.id)
+                .first()
+            )
+
+            if not lesson:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail="lesson_id must point at an existing lesson in this class.",
+                )
+
         assignment = Assignment(
             classroom_id=classroom.id,
             title=title,
@@ -9321,6 +9677,8 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
             quiz_project_id=payload.quiz_project_id,
             amivi_project_id=payload.amivi_project_id,
             amico_project_id=payload.amico_project_id,
+            lesson_id=payload.lesson_id,
+            attachments=[a.dict() for a in payload.attachments] or None,
             due_at=due_at,
         )
 
@@ -9341,6 +9699,463 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
             "status": "success",
             "assignment": serialize_assignment(db, assignment, student_count),
         }
+
+    finally:
+        db.close()
+
+
+# ============================================================
+# TEACHER WORKSPACE — Teaching Materials, Manual Quiz Builder,
+# Students/roster
+#
+# Everything here reuses the existing classroom membership/auth
+# pattern (member_token -> get_classroom_member_by_token ->
+# require_teacher, same as create_assignment above), the existing
+# MediaAsset/save_media/GET /api/media/{id} storage for every file
+# upload, and — for manual quizzes — the existing Project/Quiz
+# tables with the exact same data shape the AI quiz pipeline
+# produces, tagged created_via="manual" and scoped to this one
+# classroom via Project.classroom_id. See TEACHER_WORKSPACE_PLAN.md.
+# ============================================================
+
+MAX_CLASSROOM_UPLOAD_BYTES = 25 * 1024 * 1024
+
+
+@app.post("/api/classrooms/{class_code}/media/upload")
+async def classroom_media_upload(
+    class_code: str,
+    member_token: str = Form(...),
+    file: UploadFile = File(...),
+):
+    """
+    Generic teacher-scoped file upload for Teacher Workspace —
+    lesson/material/assignment attachments and quiz question
+    images all go through this one endpoint and the existing
+    MediaAsset table, rather than separate storage per feature.
+    """
+
+    data = await file.read()
+
+    if len(data) > MAX_CLASSROOM_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="Files must be 25MB or smaller.",
+        )
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+    finally:
+        db.close()
+
+    mime_type = file.content_type or "application/octet-stream"
+
+    if mime_type.startswith("image/"):
+        asset_type = "image"
+    elif mime_type.startswith("video/"):
+        asset_type = "video"
+    elif mime_type.startswith("audio/"):
+        asset_type = "audio"
+    else:
+        asset_type = "document"
+
+    media_asset_id = save_media(
+        data=data,
+        filename=file.filename or "upload",
+        mime_type=mime_type,
+        asset_type=asset_type,
+        project_id=None,
+    )
+
+    return {
+        "status": "success",
+        "media_asset_id": media_asset_id,
+        "filename": file.filename or "upload",
+        "mime_type": mime_type,
+        "url": f"/api/media/{media_asset_id}",
+    }
+
+
+# ---- Teaching Materials -------------------------------------
+
+@app.post("/api/classrooms/{class_code}/materials")
+def create_material(class_code: str, payload: MaterialCreateRequest):
+
+    title = payload.title.strip()
+
+    if not title:
+        raise HTTPException(status_code=400, detail="Material title is required.")
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        material = TeachingMaterial(
+            classroom_id=classroom.id,
+            title=title,
+            description=payload.description.strip() or None,
+            attachments=[a.dict() for a in payload.attachments] or None,
+            created_by_member_id=member.id,
+        )
+
+        db.add(material)
+        db.commit()
+        db.refresh(material)
+
+        return {"status": "success", "material": serialize_material(material)}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/materials")
+def list_materials(class_code: str, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        # Open to any classroom member — teacher or student — same
+        # as a published Lesson; materials carry no answer-key-style
+        # content that needs hiding.
+        get_classroom_member_by_token(db, classroom.id, member_token)
+
+        materials = (
+            db.query(TeachingMaterial)
+            .filter(TeachingMaterial.classroom_id == classroom.id)
+            .order_by(TeachingMaterial.created_at.desc())
+            .all()
+        )
+
+        return {"materials": [serialize_material(m) for m in materials]}
+
+    finally:
+        db.close()
+
+
+@app.delete("/api/classrooms/{class_code}/materials/{material_id}")
+def delete_material(class_code: str, material_id: int, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+
+        material = (
+            db.query(TeachingMaterial)
+            .filter(
+                TeachingMaterial.id == material_id,
+                TeachingMaterial.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not material:
+            raise HTTPException(status_code=404, detail="Material not found.")
+
+        db.delete(material)
+        db.commit()
+
+        return {"status": "success"}
+
+    finally:
+        db.close()
+
+
+# ---- Manual Quiz Builder -------------------------------------
+
+@app.post("/api/classrooms/{class_code}/quizzes/manual")
+def create_manual_quiz(class_code: str, payload: ManualQuizCreateRequest):
+
+    title = payload.title.strip()
+
+    if not title:
+        raise HTTPException(status_code=400, detail="Quiz title is required.")
+
+    if not payload.questions:
+        raise HTTPException(status_code=400, detail="Add at least one question.")
+
+    quiz_data = build_manual_quiz_data(
+        title=title,
+        description=payload.description.strip(),
+        duration_minutes=payload.duration_minutes,
+        status=payload.status,
+        questions=payload.questions,
+    )
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        project = Project(
+            user_id=member.user_id,
+            project_type="quiz",
+            title=title,
+            data=quiz_data,
+            created_via="manual",
+            classroom_id=classroom.id,
+        )
+
+        db.add(project)
+        db.commit()
+        db.refresh(project)
+
+        save_quiz(project.id, title, quiz_data)
+
+        return {"status": "success", "project_id": project.id, "quiz": quiz_data}
+
+    finally:
+        db.close()
+
+
+@app.put("/api/classrooms/{class_code}/quizzes/manual/{project_id}")
+def update_manual_quiz(class_code: str, project_id: int, payload: ManualQuizUpdateRequest):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        project = (
+            db.query(Project)
+            .filter(
+                Project.id == project_id,
+                Project.classroom_id == classroom.id,
+                Project.project_type == "quiz",
+                Project.created_via == "manual",
+            )
+            .first()
+        )
+
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail="Manual quiz not found in this class.",
+            )
+
+        if payload.questions is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Send the full list of questions when saving a quiz edit.",
+            )
+
+        existing = dict(project.data or {})
+
+        title = (
+            payload.title.strip()
+            if payload.title is not None
+            else (project.title or "")
+        ) or (project.title or "Untitled Quiz")
+
+        description = (
+            payload.description
+            if payload.description is not None
+            else existing.get("description", "")
+        )
+
+        duration_minutes = (
+            payload.duration_minutes
+            if payload.duration_minutes is not None
+            else existing.get("duration_minutes")
+        )
+
+        status = (
+            payload.status
+            if payload.status is not None
+            else existing.get("status", "draft")
+        )
+
+        quiz_data = build_manual_quiz_data(
+            title=title,
+            description=description,
+            duration_minutes=duration_minutes,
+            status=status,
+            questions=payload.questions,
+        )
+
+        project.title = title
+        project.data = quiz_data
+
+        db.add(project)
+        db.commit()
+
+        # Append-only versioning — same convention as
+        # latest_quiz_for_project()/latest_comic_for_project() used
+        # everywhere else in the app: the newest Quiz row for this
+        # project id wins, nothing is overwritten in place.
+        save_quiz(project.id, title, quiz_data)
+
+        return {"status": "success", "project_id": project.id, "quiz": quiz_data}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/quizzes/manual")
+def list_manual_quizzes(class_code: str, member_token: str):
+    """
+    Teacher-only — a manual quiz's data carries its correct answers
+    in plain sight (same as the AI quiz pipeline always has, see
+    serialize_library_project), so this list must never be reachable
+    by a student. Students see a quiz only through the existing
+    per-assignment assignment_project_view endpoint.
+    """
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+
+        projects = (
+            db.query(Project)
+            .filter(
+                Project.classroom_id == classroom.id,
+                Project.project_type == "quiz",
+                Project.created_via == "manual",
+            )
+            .order_by(Project.created_at.desc())
+            .all()
+        )
+
+        return {
+            "quizzes": [
+                {
+                    "project_id": p.id,
+                    "title": p.title,
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "data": dict(p.data or {}),
+                }
+                for p in projects
+            ]
+        }
+
+    finally:
+        db.close()
+
+
+@app.delete("/api/classrooms/{class_code}/quizzes/manual/{project_id}")
+def delete_manual_quiz(class_code: str, project_id: int, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+
+        project = (
+            db.query(Project)
+            .filter(
+                Project.id == project_id,
+                Project.classroom_id == classroom.id,
+                Project.project_type == "quiz",
+                Project.created_via == "manual",
+            )
+            .first()
+        )
+
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail="Manual quiz not found in this class.",
+            )
+
+        # An assignment may already point at this quiz —
+        # Assignment.quiz_project_id is ON DELETE SET NULL, so
+        # deleting the quiz just clears that pointer rather than
+        # failing or cascading into the assignment itself.
+        db.delete(project)
+        db.commit()
+
+        return {"status": "success"}
+
+    finally:
+        db.close()
+
+
+# ---- Students / roster ---------------------------------------
+
+@app.get("/api/classrooms/{class_code}/students")
+def classroom_students(class_code: str, member_token: str):
+    """
+    Teacher's roster view: every enrolled student plus, per
+    student, how many of this class's assignments they've
+    completed (submitted at least once) and their average quiz
+    score across all attempts — built from the existing
+    ClassroomMember/Assignment/AssignmentSubmission tables, no new
+    tracking table needed.
+    """
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+
+        students = (
+            db.query(ClassroomMember)
+            .filter(
+                ClassroomMember.classroom_id == classroom.id,
+                ClassroomMember.role == "student",
+            )
+            .order_by(ClassroomMember.joined_at.asc())
+            .all()
+        )
+
+        total_assignments = (
+            db.query(Assignment)
+            .filter(Assignment.classroom_id == classroom.id)
+            .count()
+        )
+
+        roster = []
+
+        for student in students:
+
+            submissions = (
+                db.query(AssignmentSubmission)
+                .filter(AssignmentSubmission.member_id == student.id)
+                .all()
+            )
+
+            completed_assignment_ids = {s.assignment_id for s in submissions}
+
+            scored = [s for s in submissions if s.total]
+
+            average_score_percent = (
+                round(
+                    sum(s.score / s.total for s in scored) / len(scored) * 100,
+                    1,
+                )
+                if scored
+                else None
+            )
+
+            roster.append({
+                **serialize_classroom_member(student),
+                "assignments_completed": len(completed_assignment_ids),
+                "assignments_total": total_assignments,
+                "quiz_attempts": len(submissions),
+                "average_score_percent": average_score_percent,
+            })
+
+        return {"students": roster}
 
     finally:
         db.close()
@@ -10143,6 +10958,8 @@ def my_classrooms(current_user=Depends(get_current_user)):
                     "class_code": classroom.class_code,
                     "name": classroom.name,
                     "subject": classroom.subject,
+                    "grade_level": classroom.grade_level,
+                    "topic": classroom.topic,
                     "role": member.role,
                     "member_id": member.id,
                     "member_token": member.token,
@@ -10153,6 +10970,108 @@ def my_classrooms(current_user=Depends(get_current_user)):
             )
 
         return {"classrooms": classrooms}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/me/teacher-workspace/summary")
+def teacher_workspace_summary(current_user=Depends(get_current_user)):
+    """
+    The four summary cards on the Teacher Workspace dashboard, in
+    one round trip instead of the frontend stitching them together
+    from several calls. Scoped entirely to classrooms where this
+    account is the teacher — a teacher viewing a class they joined
+    as a student (if that ever happens) never inflates these counts.
+    """
+
+    db = SessionLocal()
+
+    try:
+
+        teacher_classroom_ids = [
+            row[0]
+            for row in (
+                db.query(ClassroomMember.classroom_id)
+                .filter(
+                    ClassroomMember.user_id == current_user.id,
+                    ClassroomMember.role == "teacher",
+                )
+                .all()
+            )
+        ]
+
+        total_classes = len(teacher_classroom_ids)
+        total_students = 0
+        pending_assignments = 0
+
+        if teacher_classroom_ids:
+
+            total_students = (
+                db.query(ClassroomMember)
+                .filter(
+                    ClassroomMember.classroom_id.in_(teacher_classroom_ids),
+                    ClassroomMember.role == "student",
+                )
+                .count()
+            )
+
+            student_counts_by_classroom = {
+                cid: (
+                    db.query(ClassroomMember)
+                    .filter(
+                        ClassroomMember.classroom_id == cid,
+                        ClassroomMember.role == "student",
+                    )
+                    .count()
+                )
+                for cid in teacher_classroom_ids
+            }
+
+            assignments = (
+                db.query(Assignment)
+                .filter(Assignment.classroom_id.in_(teacher_classroom_ids))
+                .all()
+            )
+
+            # "Pending" = at least one enrolled student hasn't
+            # submitted yet. A class with no students yet never
+            # counts an assignment as pending.
+            for assignment in assignments:
+
+                class_student_count = student_counts_by_classroom.get(
+                    assignment.classroom_id, 0
+                )
+
+                if class_student_count == 0:
+                    continue
+
+                submitted_count = (
+                    db.query(AssignmentSubmission.member_id)
+                    .filter(AssignmentSubmission.assignment_id == assignment.id)
+                    .distinct()
+                    .count()
+                )
+
+                if submitted_count < class_student_count:
+                    pending_assignments += 1
+
+        total_quizzes = (
+            db.query(Project)
+            .filter(
+                Project.user_id == current_user.id,
+                Project.project_type == "quiz",
+                Project.created_via == "manual",
+            )
+            .count()
+        )
+
+        return {
+            "total_classes": total_classes,
+            "total_students": total_students,
+            "total_quizzes": total_quizzes,
+            "pending_assignments": pending_assignments,
+        }
 
     finally:
         db.close()
