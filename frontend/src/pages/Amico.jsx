@@ -88,6 +88,7 @@ const CREATION_TYPES = [
     gradient: 'from-violet-600 to-fuchsia-600',
     iconColor: '#7c3aed',
     available: true,
+    image: 'vlq-create-comic.png',
   },
   {
     key: 'photostory',
@@ -97,6 +98,7 @@ const CREATION_TYPES = [
     gradient: 'from-rose-500 to-pink-600',
     iconColor: '#db2777',
     available: true,
+    image: 'vlq-create-photostory.png',
   },
   {
     key: 'biography',
@@ -106,6 +108,7 @@ const CREATION_TYPES = [
     gradient: 'from-amber-500 to-orange-600',
     iconColor: '#c2410c',
     available: false,
+    image: 'vlq-create-biography.png',
   },
   {
     key: 'diary',
@@ -115,6 +118,7 @@ const CREATION_TYPES = [
     gradient: 'from-sky-500 to-blue-600',
     iconColor: '#1d4ed8',
     available: false,
+    image: 'vlq-create-diary.png',
   },
   {
     key: 'myownstory',
@@ -124,6 +128,7 @@ const CREATION_TYPES = [
     gradient: 'from-emerald-500 to-teal-600',
     iconColor: '#0d9488',
     available: false,
+    image: 'vlq-create-myownstory.png',
   },
 ];
 
@@ -724,16 +729,30 @@ export default function Amico() {
                       : 'opacity-70 cursor-not-allowed'
                     }`}
                 >
+                  {/* Decorative illustration, cropped from the approved
+                      mockup and soft-edge-faded so it blends into this
+                      card's own gradient regardless of exact hue —
+                      purely decorative, so a missing/broken file just
+                      disappears and leaves the plain gradient card. */}
+                  {type.image && (
+                    <img
+                      src={`/${type.image}`}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute right-[-6%] bottom-[-6%] w-[60%] sm:w-[58%] h-[88%] object-contain object-right-bottom pointer-events-none select-none"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  )}
                   {!type.available && (
-                    <span className="absolute top-4 right-4 text-xs font-bold uppercase tracking-wide bg-black/25 px-2.5 py-1 rounded-full">
+                    <span className="absolute top-4 right-4 z-10 text-xs font-bold uppercase tracking-wide bg-black/25 px-2.5 py-1 rounded-full">
                       {t('Coming soon')}
                     </span>
                   )}
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white shadow-md flex items-center justify-center mb-4 sm:mb-5">
+                  <div className="relative z-10 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white shadow-md flex items-center justify-center mb-4 sm:mb-5">
                     <Icon className="w-9 h-9 sm:w-11 sm:h-11" style={{ color: type.iconColor }} strokeWidth={2} />
                   </div>
-                  <p className="font-extrabold text-xl sm:text-2xl mb-1">{t(type.label)}</p>
-                  <p className="text-base sm:text-lg text-white/85 font-medium">{t(type.subtitle)}</p>
+                  <p className="relative z-10 font-extrabold text-xl sm:text-2xl mb-1">{t(type.label)}</p>
+                  <p className="relative z-10 text-base sm:text-lg text-white/85 font-medium max-w-[65%] sm:max-w-[60%]">{t(type.subtitle)}</p>
                 </button>
               );
             })}
