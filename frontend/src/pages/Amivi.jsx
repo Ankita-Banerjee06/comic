@@ -871,7 +871,7 @@ export default function Amivi() {
             placeholder={t(
               'Paste your educational text here... AMIVI will break it into the key points the subject naturally calls for, each with its own picture.'
             )}
-            className={`w-full flex-1 min-h-[220px] p-5 bg-blue-50/60 border border-blue-200 rounded-2xl text-black font-medium resize-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none mb-5 text-xl transition-all ${(isProcessing || !!result) ? 'opacity-60 cursor-not-allowed' : ''}`}
+            className={`w-full flex-1 min-h-[220px] p-5 bg-blue-50/60 border border-blue-200 rounded-2xl text-black font-medium resize-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:outline-none mb-5 text-xl transition-all ${(isProcessing || !!result) ? 'bg-blue-100/70 cursor-not-allowed' : ''}`}
           />
 
           {!isProcessing && !result && (
@@ -1363,7 +1363,6 @@ export default function Amivi() {
 
             {result.video_url && (
               <div className="w-full mt-6 pt-6 border-t-2 border-indigo-100 flex flex-col items-center justify-center text-center">
-                <p className="text-lg font-bold text-black mb-3">This is the link of the video:</p>
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <a
                     href={getMediaUrl(result.video_url)}
@@ -1372,7 +1371,7 @@ export default function Amivi() {
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
                   >
                     <Video size={18} />
-                    Watch Video
+                    {t('Click here to see the video')}
                   </a>
                   <button
                     onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
@@ -1586,12 +1585,23 @@ export default function Amivi() {
           )}
 
           {completeVisualUrl ? (
-            <div className="rounded-2xl overflow-hidden border-2 border-purple-200 shadow-sm">
-              <img
-                src={getMediaUrl(completeVisualUrl)}
-                alt={t('Complete Visual')}
-                className="w-full object-contain bg-white"
-              />
+            <div className="flex flex-col items-center gap-5">
+              <div className="rounded-2xl overflow-hidden border-2 border-purple-200 shadow-sm w-full">
+                <img
+                  src={getMediaUrl(completeVisualUrl)}
+                  alt={t('Complete Visual')}
+                  className="w-full object-contain bg-white"
+                />
+              </div>
+              <a
+                href={getMediaUrl(completeVisualUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl transition-colors shadow-lg"
+              >
+                <Sparkles size={18} />
+                {t('Click here to see the complete visual')}
+              </a>
             </div>
           ) : (
             <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/40 py-10 flex flex-col items-center justify-center text-center gap-1">

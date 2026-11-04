@@ -83,9 +83,14 @@ export default function Navbar() {
   if (!isAuthenticated) {
     return (
       <header className="sticky top-0 z-50 bg-slate-950 border-b border-white/10 shadow-lg">
-        <div className="w-full px-6 lg:px-12 flex items-center justify-between" style={{ height: 116 }}>
+        <div className="w-full px-6 lg:px-12 flex items-center justify-between" style={{ height: 124 }}>
           <Link to="/" className="flex items-center flex-shrink-0 py-2">
-            <img src="/vlq-logo-navbar.png" alt="VLQ — Learn at the Speed of Sight" className="h-[98px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.png'; }} />
+            {/* Logo artwork's tagline ("Learn at the Speed of Sight")
+                was enlarged on a taller canvas while the VLQ mark's own
+                pixel size stayed the same — so the rendered height here
+                is scaled up by the same ratio (105 = 98 * newCanvasH/oldCanvasH)
+                to keep the mark's on-screen size (and position) unchanged. */}
+            <img src="/vlq-logo-navbar.png" alt="VLQ — Learn at the Speed of Sight" className="h-[105px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.png'; }} />
           </Link>
 
           {/* Desktop actions */}
@@ -138,10 +143,11 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-slate-950 border-b border-white/10 shadow-lg">
-      <div className="w-full px-6 lg:px-12 flex items-center gap-4" style={{ height: 116 }}>
+      <div className="w-full px-6 lg:px-12 flex items-center gap-4" style={{ height: 124 }}>
 
         <Link to="/" className="flex items-center flex-shrink-0 py-2">
-          <img src="/vlq-logo-navbar.png" alt="VLQ — Learn at the Speed of Sight" className="h-[98px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.png'; }} />
+          {/* See matching comment in the signed-out header above re: sizing. */}
+          <img src="/vlq-logo-navbar.png" alt="VLQ — Learn at the Speed of Sight" className="h-[105px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.png'; }} />
         </Link>
 
         {/* Desktop Nav */}

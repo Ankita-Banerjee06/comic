@@ -44,6 +44,8 @@ import requests
 import yt_dlp
 import bcrypt
 
+from bs4 import BeautifulSoup
+
 from database import SessionLocal, engine, create_tables
 
 from models import (
@@ -151,6 +153,45 @@ PRESET_AVATARS = {
             "a warm, friendly male teacher with short black hair, "
             "a neat short beard, brown skin, wearing a light green "
             "collared shirt with sleeves rolled up"
+        ),
+    },
+    "ananya": {
+        "name": "Ananya",
+        "gender": "female",
+        "description": (
+            "a cheerful young girl student with long wavy dark "
+            "hair, a pink bow clip, light brown skin, wearing a "
+            "white school shirt with a blue tie and a pink backpack"
+        ),
+    },
+    "rohan": {
+        "name": "Rohan",
+        "gender": "male",
+        "description": (
+            "a cheerful young boy student with short curly dark "
+            "hair, light brown skin, wearing a white school shirt "
+            "with a blue tie and a navy backpack"
+        ),
+    },
+    "mitali": {
+        "name": "Mitali",
+        "gender": "female",
+        "description": (
+            "a cheerful young girl student with dark hair in two "
+            "braids, round glasses, light brown skin, wearing a "
+            "white school shirt with a blue tie and a backpack"
+        ),
+    },
+    "study_team": {
+        "name": "Study Team",
+        "gender": "group",
+        "description": (
+            "a group of three cheerful young students — a girl "
+            "with long wavy dark hair and a pink bow, a boy with "
+            "short curly dark hair, and a girl with dark hair in "
+            "braids and round glasses — all in white school shirts "
+            "with blue ties, standing together with arms around "
+            "each other"
         ),
     },
 }
@@ -1795,6 +1836,165 @@ def extract_text_from_file(
 
 
 # ============================================================
+# WEBSITE URL EXTRACTION (AMIVI "paste a website URL" option —
+# pulls the readable article text out of a webpage, the same way
+# extract_text_from_file does for an uploaded document)
+# ============================================================
+
+def extract_text_from_url(url: str) -> str:
+
+    if not url or not url.strip():
+
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a URL.",
+        )
+
+    url = url.strip()
+
+    if not re.match(r"^https?://", url, re.IGNORECASE):
+
+        url = f"https://{url}"
+
+    try:
+
+        response = requests.get(
+            url,
+            timeout=15,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (compatible; VLQ-AMIVI/1.0; "
+                    "+https://vlq.app)"
+                ),
+            },
+            # A page could be huge (or not actually a text page at
+            # all) — cap how much we'll read instead of buffering
+            # an unbounded response.
+            stream=True,
+        )
+
+        response.raise_for_status()
+
+        content_type = (
+            response.headers.get("content-type", "")
+        ).lower()
+
+        if "html" not in content_type and "text" not in content_type:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "That URL doesn't look like a readable "
+                    "webpage (not an HTML/text page)."
+                ),
+            )
+
+        max_bytes = 5 * 1024 * 1024  # 5 MB cap
+
+        raw = b""
+
+        for chunk in response.iter_content(
+            chunk_size=65536
+        ):
+
+            raw += chunk
+
+            if len(raw) >= max_bytes:
+                break
+
+    except HTTPException:
+        raise
+
+    except requests.exceptions.RequestException as exc:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Couldn't fetch that URL — it may be "
+                "unreachable, blocking automated requests, or "
+                f"the link may be incorrect. ({exc})"
+            ),
+        )
+
+    soup = BeautifulSoup(
+        raw,
+        "html.parser",
+    )
+
+    for tag in soup(
+        [
+            "script",
+            "style",
+            "nav",
+            "header",
+            "footer",
+            "aside",
+            "noscript",
+            "form",
+            "svg",
+        ]
+    ):
+
+        tag.decompose()
+
+    # Prefer the page's main content container when there clearly
+    # is one, so navigation/sidebar clutter around it (that isn't
+    # already caught by the tag strip above) doesn't dilute the
+    # actual article text.
+    main_container = (
+        soup.find("article")
+        or soup.find("main")
+        or soup.find(
+            id=re.compile(r"content", re.IGNORECASE)
+        )
+        or soup.body
+        or soup
+    )
+
+    text = main_container.get_text(
+        separator="\n",
+    )
+
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip()
+    ]
+
+    cleaned = "\n".join(lines)
+
+    cleaned = re.sub(
+        r"\n{3,}",
+        "\n\n",
+        cleaned,
+    )
+
+    # Keep this in line with the other "too thin to be real
+    # material" guards elsewhere in AMIVI/Quiz generation instead
+    # of silently handing the model an almost-empty page.
+    if len(cleaned) < 200:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Couldn't find enough readable text on that "
+                "page to build a lesson from."
+            ),
+        )
+
+    # A very long page is trimmed rather than rejected — the
+    # downstream AMIVI/quiz generation prompts already work from
+    # as much material as is given them.
+    max_chars = 20000
+
+    if len(cleaned) > max_chars:
+
+        cleaned = cleaned[:max_chars]
+
+    return cleaned
+
+
+# ============================================================
 # VIDEO URL EXTRACTION
 # ============================================================
 
@@ -2316,9 +2516,42 @@ def generate_amico_comic(
     character_reference="",
     character_name="",
     background_setting="",
+    character_group=None,
 ):
 
-    if character_name and character_reference:
+    if character_group:
+
+        # An ensemble cast (e.g. the "Study Team" preset, which is
+        # three named friends photographed together, not one
+        # person) — all of them must appear TOGETHER in every
+        # panel, each keeping their own exact name and appearance,
+        # instead of the single "one main character" framing below
+        # (which doesn't fit a group and was producing comics that
+        # ignored the chosen avatar entirely).
+
+        member_lines = "\n".join(
+            f"- \"{member['name']}\": {member['description']}"
+            for member in character_group
+        )
+
+        names_list = ", ".join(
+            f"\"{member['name']}\""
+            for member in character_group
+        )
+
+        character_line = (
+            "This comic's main characters are a fixed group of "
+            f"{len(character_group)} friends who appear TOGETHER "
+            "in every single panel — never show just one of them "
+            f"alone and never leave one out. Use their EXACT names "
+            f"({names_list}) in the dialogue and characters list "
+            "(never invent different names for them, and never "
+            "invent extra characters instead of them), and each "
+            "one's appearance MUST match exactly in every panel:\n"
+            f"{member_lines}\n\n"
+        )
+
+    elif character_name and character_reference:
 
         character_line = (
             "The main character's name MUST be exactly "
@@ -2895,7 +3128,8 @@ def generate_quiz_from_source(
 
         + "Each question must contain: "
         "q (the question), "
-        "options (3 or 4 short answer choices), "
+        "options (EXACTLY 4 short answer choices — never 3, "
+        "never 5 — one correct and three plausible but wrong), "
         "correct (integer index of the right option), "
         "explanation (1-2 short, simple sentences explaining "
         "why the correct answer is right), and "
@@ -2933,11 +3167,154 @@ def generate_quiz_from_source(
         )
     )
 
-    return call_json_model(
-        TERRA_MODEL,
-        prompt,
-        user_input,
-    )
+    # The model doesn't always follow "exactly 4 options" on the
+    # first try, which is what let 3-option questions reach the
+    # learner despite the instruction above asking for 4. Retry a
+    # couple of times (LLM output is non-deterministic, so a
+    # re-roll usually self-corrects), and if it still isn't
+    # compliant, fix the remaining questions in place rather than
+    # shipping a quiz with the wrong option count.
+    result = None
+
+    for _attempt in range(3):
+
+        result = call_json_model(
+            TERRA_MODEL,
+            prompt,
+            user_input,
+        )
+
+        candidate_quiz = result.get("quiz", result)
+
+        candidate_questions = candidate_quiz.get(
+            "questions", []
+        )
+
+        if candidate_questions and all(
+            len(question.get("options") or []) == 4
+            for question in candidate_questions
+        ):
+
+            return result
+
+    quiz = result.get("quiz", result)
+
+    for question in quiz.get("questions", []):
+
+        _ensure_four_quiz_options(question, language)
+
+    return result
+
+
+def _ensure_four_quiz_options(question, language="en"):
+    """
+    Guarantees `question["options"]` has exactly 4 entries and
+    `question["correct"]` still points at the right one, as a
+    last-resort fix-up for whatever generate_quiz_from_source's
+    retries didn't already resolve. Existing options are never
+    reordered or removed, so a valid `correct` index keeps
+    pointing at the same answer text throughout.
+    """
+
+    options = list(question.get("options") or [])
+    correct = question.get("correct", 0)
+
+    if not (0 <= correct < len(options)):
+        correct = 0
+
+    if len(options) == 4:
+        question["options"] = options
+        question["correct"] = correct
+        return
+
+    if len(options) > 4:
+
+        correct_text = (
+            options[correct] if options else ""
+        )
+
+        trimmed = options[:4]
+
+        if correct_text and correct_text not in trimmed:
+            trimmed[-1] = correct_text
+
+        question["options"] = trimmed
+        question["correct"] = (
+            trimmed.index(correct_text)
+            if correct_text in trimmed
+            else 0
+        )
+        return
+
+    # Fewer than 4 — ask the model for just enough additional
+    # plausible-but-wrong options to fill the remaining slots,
+    # without touching the existing ones (so `correct`'s position
+    # among them never shifts).
+    missing = 4 - len(options)
+
+    new_options = []
+
+    try:
+
+        fix_prompt = (
+            "You are given one multiple-choice quiz question that "
+            "currently has too few answer options. Add EXACTLY "
+            f"{missing} new, plausible-but-WRONG answer option(s) "
+            "so the question has 4 options in total. Do not change, "
+            "reorder, or remove any of the existing options, and do "
+            "not reveal which one is correct. Match the style and "
+            "length of the existing options.\n\n"
+            'Return ONLY JSON: {"new_options":["...", ...]}\n\n'
+            + get_language_instruction(language)
+        )
+
+        fix_input = json.dumps({
+            "question": question.get("q", ""),
+            "existing_options": options,
+            "correct_option_text": (
+                options[correct] if options else ""
+            ),
+        })
+
+        fix_result = call_json_model(
+            TERRA_MODEL,
+            fix_prompt,
+            fix_input,
+        )
+
+        new_options = list(
+            fix_result.get("new_options", []) or []
+        )
+
+    except Exception as fix_exc:
+
+        print(
+            "Quiz option fix-up failed, falling back to "
+            f"generic distractors: {fix_exc}"
+        )
+
+    combined = options + new_options
+
+    # The fix-up call failing (or returning too few) is the only
+    # way this still falls short — pad with generic distractors as
+    # an absolute last resort so the UI never renders fewer than 4
+    # options.
+    generic_fillers = [
+        "None of the above",
+        "Not enough information",
+        "All of the above",
+    ]
+
+    for filler in generic_fillers:
+
+        if len(combined) >= 4:
+            break
+
+        if filler not in combined:
+            combined.append(filler)
+
+    question["options"] = combined[:4]
+    question["correct"] = correct
 
 
 # ============================================================
@@ -5282,6 +5659,95 @@ def compose_amico_photostory(
 
 
 # ============================================================
+# AMIVI UPLOADS — "1. Upload a document" / "2. Paste a website
+# URL", both on the AMIVI create screen. Each just fills in the
+# lesson's text material automatically; actual lesson generation
+# still happens through /api/amivi/generate below once the
+# teacher reviews/edits the extracted text and clicks Generate.
+# ============================================================
+
+class AmiviExtractUrlRequest(BaseModel):
+    url: str
+    language: str = "en"
+
+
+@app.post("/api/amivi/extract")
+async def amivi_extract_file(
+    file: UploadFile = File(...),
+):
+
+    try:
+
+        file_bytes = await file.read()
+
+        if not file_bytes:
+
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded file is empty.",
+            )
+
+        text = extract_text_from_file(
+            file_bytes,
+            file.filename or "upload.txt",
+        )
+
+        if not text or not text.strip():
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Couldn't find any readable text in that "
+                    "file."
+                ),
+            )
+
+        return {"text": text}
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+@app.post("/api/amivi/extract_url")
+async def amivi_extract_url(
+    request: AmiviExtractUrlRequest,
+):
+
+    try:
+
+        text = extract_text_from_url(
+            request.url
+        )
+
+        return {"text": text}
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+
+# ============================================================
 # AMIVI GENERATE
 # ============================================================
 
@@ -6067,8 +6533,28 @@ async def amico_generate(
 
         character_reference = ""
         character_name = ""
+        character_group = None
 
-        if request.preset_avatar and request.preset_avatar in PRESET_AVATARS:
+        if request.preset_avatar == "study_team":
+
+            # A group avatar — "Study Team" is Ananya, Rohan and
+            # Mitali photographed together, not a single person —
+            # so it needs the ensemble-cast path in
+            # generate_amico_comic instead of the single
+            # character_name/character_reference fields below.
+            # Passing it through as a normal single "character"
+            # (one "main character" named "Study Team" whose
+            # appearance description was actually three different
+            # people) was confusing the model into ignoring the
+            # chosen avatar and inventing its own characters.
+
+            character_group = [
+                PRESET_AVATARS[key]
+                for key in ("ananya", "rohan", "mitali")
+                if key in PRESET_AVATARS
+            ]
+
+        elif request.preset_avatar and request.preset_avatar in PRESET_AVATARS:
 
             preset = PRESET_AVATARS[request.preset_avatar]
 
@@ -6116,6 +6602,7 @@ async def amico_generate(
             character_reference,
             character_name,
             background_setting,
+            character_group,
         )
 
         # -----------------------------------------------------
@@ -7914,9 +8401,71 @@ async def quiz_generate(
 
             source_title = source_project.title or ""
 
-            real_material = (
-                source_project.input_text or ""
-            ).strip()
+            real_material = ""
+
+            # For an AMIVI lesson, ground the quiz strictly in the
+            # Microbits (AmiviChunk rows) the student actually saw
+            # on screen — not the raw pasted/uploaded source
+            # document. The raw input_text can be far larger than,
+            # and different from, what AMIVI actually turned into
+            # visible Microbits, so a quiz built from it could ask
+            # about details the student never saw. Building from
+            # the Microbits' own key_point/slogan/description means
+            # every question is answerable from material the
+            # student has actually been shown.
+            if source_project.project_type == "amivi":
+
+                microbit_chunks = list_amivi_chunks_for_project(
+                    source_project_id
+                )
+
+                microbit_blocks = []
+
+                for chunk in microbit_chunks:
+
+                    headline = (
+                        chunk.key_point or chunk.text or ""
+                    ).strip()
+
+                    block_lines = (
+                        [headline] if headline else []
+                    )
+
+                    if chunk.slogan and chunk.slogan.strip():
+
+                        block_lines.append(
+                            chunk.slogan.strip()
+                        )
+
+                    if (
+                        chunk.description
+                        and chunk.description.strip()
+                    ):
+
+                        block_lines.append(
+                            chunk.description.strip()
+                        )
+
+                    if block_lines:
+
+                        microbit_blocks.append(
+                            "\n".join(block_lines)
+                        )
+
+                real_material = "\n\n".join(
+                    microbit_blocks
+                ).strip()
+
+            if not real_material:
+
+                # Not an AMIVI project (e.g. AMICO), or an AMIVI
+                # project with no generated Microbits yet — fall
+                # back to whatever raw lesson text was saved on the
+                # project, same as before.
+
+                real_material = (
+                    source_project.input_text or ""
+                ).strip()
 
             if real_material:
 
@@ -8575,17 +9124,82 @@ def media(
         f"db_ms={duration_ms}"
     )
 
+    data = asset.data
+    total_length = len(data)
+
+    base_headers = {
+        "Content-Disposition": (
+            f'{disposition}; '
+            f'filename="{asset.filename}"'
+        ),
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": etag,
+        # Without this, the browser's <video> element has no way
+        # to know it CAN ask for a byte range at all, which is
+        # what was making narrated/explanation videos fail or
+        # refuse to play — Chrome and Safari both expect to be
+        # able to range-request video (and large audio) instead of
+        # always receiving the entire file in one response.
+        "Accept-Ranges": "bytes",
+    }
+
+    range_header = request.headers.get("range")
+
+    if range_header and range_header.startswith("bytes="):
+
+        try:
+
+            range_spec = range_header.removeprefix(
+                "bytes="
+            ).split(",")[0].strip()
+
+            start_str, _, end_str = range_spec.partition("-")
+
+            range_start = (
+                int(start_str) if start_str else 0
+            )
+
+            range_end = (
+                int(end_str)
+                if end_str
+                else total_length - 1
+            )
+
+            range_end = min(
+                range_end,
+                total_length - 1,
+            )
+
+            if (
+                0 <= range_start <= range_end < total_length
+            ):
+
+                chunk = data[range_start:range_end + 1]
+
+                return Response(
+                    content=chunk,
+                    status_code=206,
+                    media_type=asset.mime_type,
+                    headers={
+                        **base_headers,
+                        "Content-Range": (
+                            f"bytes {range_start}-{range_end}"
+                            f"/{total_length}"
+                        ),
+                        "Content-Length": str(len(chunk)),
+                    },
+                )
+
+        except (ValueError, IndexError):
+
+            # Malformed Range header — fall through and serve the
+            # full file instead of erroring out.
+            pass
+
     return Response(
-        content=asset.data,
+        content=data,
         media_type=asset.mime_type,
-        headers={
-            "Content-Disposition": (
-                f'{disposition}; '
-                f'filename="{asset.filename}"'
-            ),
-            "Cache-Control": "public, max-age=31536000, immutable",
-            "ETag": etag,
-        },
+        headers=base_headers,
     )
 
 

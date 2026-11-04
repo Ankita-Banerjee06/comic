@@ -53,11 +53,18 @@ import { useLanguage } from '../contexts/LanguageContext';
 // needing an uploaded photo first. Keys must match backend
 // PRESET_AVATARS exactly (backend/main.py).
 const PRESET_AVATARS = [
-  { key: 'amara', name: 'Ms. Amara', gender: 'female', color: '#f472b6' },
-  { key: 'priya', name: 'Ms. Priya', gender: 'female', color: '#fb923c' },
-  { key: 'daniel', name: 'Mr. Daniel', gender: 'male', color: '#60a5fa' },
-  { key: 'arjun', name: 'Mr. Arjun', gender: 'male', color: '#34d399' },
+  { key: 'amara', name: 'Ms. Amara', gender: 'female', color: '#f472b6', category: 'teacher' },
+  { key: 'priya', name: 'Ms. Priya', gender: 'female', color: '#fb923c', category: 'teacher' },
+  { key: 'daniel', name: 'Mr. Daniel', gender: 'male', color: '#60a5fa', category: 'teacher' },
+  { key: 'arjun', name: 'Mr. Arjun', gender: 'male', color: '#34d399', category: 'teacher' },
+  { key: 'ananya', name: 'Ananya', gender: 'female', color: '#ec4899', category: 'student' },
+  { key: 'rohan', name: 'Rohan', gender: 'male', color: '#f59e0b', category: 'student' },
+  { key: 'mitali', name: 'Mitali', gender: 'female', color: '#3b82f6', category: 'student' },
+  { key: 'study_team', name: 'Study Team', gender: 'group', color: '#22c55e', category: 'student' },
 ];
+
+const PRESET_TEACHER_AVATARS = PRESET_AVATARS.filter((a) => a.category === 'teacher');
+const PRESET_STUDENT_AVATARS = PRESET_AVATARS.filter((a) => a.category === 'student');
 
 // Quick-pick story backgrounds. Keys must match backend
 // PRESET_BACKGROUNDS exactly (backend/main.py).
@@ -780,7 +787,7 @@ export default function Amico() {
 
 
       {mode === 'comic' && !isProcessing && !result && (
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="max-w-3xl lg:max-w-[1600px] mx-auto space-y-6">
           <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-8 flex flex-col">
             {/* Source tabs */}
             <div className="flex gap-2 mb-6">
@@ -932,7 +939,8 @@ export default function Amico() {
                 size/legibility request this was built to. */}
             <div className="mb-6">
               <label className="text-base font-bold text-black block mb-2">{t('Character Avatar (optional)')}</label>
-              <div className="flex items-start gap-4 overflow-x-auto pb-2">
+
+              <div className="flex flex-wrap items-start gap-4 mb-5">
                 <button
                   onClick={() => {
                     setSelectedAvatarId(null);
@@ -945,14 +953,54 @@ export default function Amico() {
                 >
                   {t('None')}
                 </button>
-                {/* Quick-pick built-in avatars — no photo upload
-                    needed. Shows a real portrait once
-                    generate_comic_story_presets.py has been run and
-                    /vlq-avatar-{key}.png exists in frontend/public/;
-                    until then (or if that file is ever missing) it
-                    falls back to a plain colored initial circle, so
-                    this never shows a broken image. */}
-                {PRESET_AVATARS.map((preset) => (
+              </div>
+
+              {/* Quick-pick built-in avatars — no photo upload
+                  needed, split into Teachers and Students so the
+                  two kinds of character are easy to tell apart.
+                  Shows a real portrait once
+                  generate_comic_story_presets.py has been run and
+                  /vlq-avatar-{key}.png exists in frontend/public/;
+                  until then (or if that file is ever missing) it
+                  falls back to a plain colored initial circle, so
+                  this never shows a broken image. */}
+
+              <p className="text-sm font-extrabold uppercase tracking-wide text-black mb-2">{t('Teachers')}</p>
+              <div className="flex flex-wrap items-start gap-4 mb-5">
+                {PRESET_TEACHER_AVATARS.map((preset) => (
+                  <button
+                    key={preset.key}
+                    onClick={() => {
+                      setSelectedPresetAvatar(preset.key);
+                      setSelectedAvatarId(null);
+                    }}
+                    className={`shrink-0 w-64 flex flex-col items-center gap-2 rounded-2xl border-2 p-2 ${selectedPresetAvatar === preset.key
+                        ? 'border-pink-500 bg-pink-50 ring-4 ring-pink-200'
+                        : 'border-transparent'
+                      }`}
+                  >
+                    <span
+                      className="relative w-full h-64 rounded-xl overflow-hidden flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: preset.color }}
+                    >
+                      <span className="text-5xl leading-none">{preset.name.split(' ')[1]?.[0] || preset.name[0]}</span>
+                      <img
+                        src={`/vlq-avatar-${preset.key}.png`}
+                        alt={preset.name}
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    </span>
+                    {/* Name space, below the picture */}
+                    <span className="text-sm font-semibold text-black text-center leading-tight">{preset.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-sm font-extrabold uppercase tracking-wide text-black mb-2">{t('Students')}</p>
+              <div className="flex flex-wrap items-start gap-4">
+                {PRESET_STUDENT_AVATARS.map((preset) => (
                   <button
                     key={preset.key}
                     onClick={() => {
@@ -1054,7 +1102,7 @@ export default function Amico() {
                 below the picture instead of overlaid on top of it. */}
             <div className="mb-6">
               <label className="text-base font-bold text-black block mb-2">{t('Story Background (optional)')}</label>
-              <div className="flex items-start gap-4 overflow-x-auto pb-2">
+              <div className="flex flex-wrap items-start gap-4">
                 <button
                   onClick={() => setSelectedBackground(null)}
                   className={`shrink-0 w-80 h-64 rounded-2xl border-2 flex items-center justify-center text-lg font-bold ${selectedBackground === null

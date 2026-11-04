@@ -1149,7 +1149,7 @@ export default function Quiz() {
   // ============================================================
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 animate-in fade-in slide-in-from-right-8 duration-500">
+    <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-8 py-8 animate-in fade-in slide-in-from-right-8 duration-500">
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
         <div className="bg-purple-100 text-purple-700 rounded-2xl px-3 sm:px-5 py-2 sm:py-2.5 font-bold text-base sm:text-xl">
@@ -1170,24 +1170,33 @@ export default function Quiz() {
       </div>
 
       {/* Question card */}
-      <div className="bg-white rounded-2xl border-2 border-white shadow-md p-5 sm:p-8 mb-6">
-        <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-black leading-tight mb-5">
+      <div className="bg-white rounded-2xl border-2 border-white shadow-md p-5 sm:p-8 lg:p-10 mb-6">
+        <h3 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-black leading-tight mb-5">
           {q.q}
         </h3>
 
         {q.image_url && (
+          // The source images are roughly square, so a `w-full` box
+          // in this wide card was being height-capped and left
+          // sitting small in the middle of a lot of empty white
+          // space. Letting width come from the image itself
+          // (`w-auto`, centered) with a tall height cap makes the
+          // picture itself grow to fill the card instead.
           <img
             src={q.image_url.startsWith('/quiz-decks/') ? q.image_url : mediaUrl(q.image_url)}
             alt={q.q}
-            className="w-full max-h-80 object-contain rounded-2xl border-2 border-purple-50"
+            className="mx-auto w-auto max-w-full max-h-[420px] sm:max-h-[560px] lg:max-h-[720px] xl:max-h-[820px] object-contain rounded-2xl border-2 border-purple-50"
           />
         )}
       </div>
 
       {/* Answer options — wrapped in its own bordered box, matching
           the Question/Explanation/Video boxes around it, instead of
-          the option buttons just sitting loose on the page. */}
-      <div className="bg-white rounded-2xl border-2 border-white shadow-md p-4 sm:p-6 mb-6 space-y-4">
+          the option buttons just sitting loose on the page. Laid out
+          as a grid (up to 4 across on wide screens) so the full
+          width of the panel is used, instead of one narrow
+          full-width button per row. */}
+      <div className="bg-white rounded-2xl border-2 border-white shadow-md p-4 sm:p-6 lg:p-8 mb-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {q.options.map((opt, idx) => {
           let cls = 'bg-white border-2 border-gray-200 text-black hover:border-purple-400 hover:bg-purple-50';
           if (isAnswered) {
@@ -1203,7 +1212,7 @@ export default function Quiz() {
               key={idx}
               disabled={isAnswered}
               onClick={() => handleSelect(idx)}
-              className={`w-full text-left px-4 sm:px-6 py-3 sm:py-4 rounded-3xl transition-all duration-200 flex justify-between items-center gap-3 ${cls} font-bold text-lg sm:text-xl shadow-sm hover:shadow-md`}
+              className={`w-full h-full text-left px-4 sm:px-6 py-4 sm:py-6 rounded-3xl transition-all duration-200 flex justify-between items-center gap-3 ${cls} font-bold text-lg sm:text-xl lg:text-2xl shadow-sm hover:shadow-md`}
             >
               <span className="flex items-center gap-3 sm:gap-4 min-w-0">
                 <span
