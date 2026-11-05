@@ -3758,11 +3758,18 @@ def create_amivi_video(
                             img = img.convert("RGB")
                             draw = ImageDraw.Draw(img)
                             width, height = img.size
-                            font_size = max(24, int(width * 0.06))
-                            try:
-                                font = ImageFont.truetype("arialbd.ttf", font_size)
-                            except IOError:
-                                font = ImageFont.load_default()
+                            # Bumped up from the old max(24, width*0.06) —
+                            # that read small on a real video frame.
+                            # Also switched from a bare "arialbd.ttf"
+                            # lookup (which silently fell back to
+                            # PIL's tiny, fixed-size default font if
+                            # that exact filename wasn't on the
+                            # system's font search path — quietly
+                            # ignoring font_size entirely) to
+                            # get_font(), which actually searches the
+                            # real Windows/Linux font paths first.
+                            font_size = max(40, int(width * 0.09))
+                            font = get_font(font_size, bold=True)
 
                             char_width = draw.textlength("A", font=font) if hasattr(draw, 'textlength') else 15
                             max_chars = int((width * 0.9) / (char_width or 10))
