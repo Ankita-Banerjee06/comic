@@ -18,6 +18,7 @@ import {
   BookOpen,
   Clock,
   Copy,
+  LogOut,
 } from 'lucide-react';
 import {
   getClassroom,
@@ -32,6 +33,7 @@ import {
   createAssignment,
   getClassroomStudents,
   uploadClassroomMedia,
+  leaveClassroom,
   mediaUrl,
 } from '../services/api';
 
@@ -70,6 +72,39 @@ function EmptyState({ icon: Icon, title, subtitle, action }) {
       <p className="font-bold text-black mb-1">{title}</p>
       {subtitle && <p className="text-sm text-black/60 font-medium mb-4">{subtitle}</p>}
       {action}
+    </div>
+  );
+}
+
+// A teacher leaving a class here just removes THEIR OWN membership
+// row (the same /api/classrooms/{code}/leave endpoint the old
+// Classroom page's "Leave" button already uses) — the class itself,
+// its students, materials, and assignments are untouched, so another
+// teacher with access (or this teacher rejoining with the class code)
+// still finds everything exactly as it was.
+function LeaveClassConfirmModal({ className, busy, onCancel, onConfirm }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60" onClick={() => (!busy ? onCancel() : null)} />
+      <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm p-6">
+        <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mb-4">
+          <LogOut className="w-6 h-6 text-amber-500" />
+        </div>
+        <h3 className="text-lg font-extrabold text-black mb-1.5">Leave {className || 'this classroom'}?</h3>
+        <p className="text-sm text-black font-medium mb-6 leading-relaxed">
+          You'll lose teacher access to this class from Teacher Workspace. Nothing about the class
+          itself — students, materials, or assignments — is deleted, and you can rejoin anytime with
+          the class code.
+        </p>
+        <div className="flex items-center gap-3">
+          <button onClick={onCancel} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50">
+            Cancel
+          </button>
+          <button onClick={onConfirm} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-500 hover:bg-amber-600 transition-colors disabled:opacity-60">
+            {busy ? 'Leaving…' : 'Leave Classroom'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -954,6 +989,8 @@ export default function ClassWorkspace() {
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('overview');
   const [prefillQuiz, setPrefillQuiz] = useState(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const loadClassroom = useCallback(() => {
     getClassroom(classCode).then(setClassroom).catch((err) => setError(err?.message || 'Unable to load this class.'));
@@ -991,6 +1028,22 @@ export default function ClassWorkspace() {
   useEffect(() => {
     if (memberToken) loadClassroom();
   }, [memberToken, loadClassroom]);
+
+  const handleLeave = async () => {
+    if (!memberToken) return;
+    setLeaving(true);
+    try {
+      await leaveClassroom(classCode, { memberToken });
+    } catch {
+      // still send them back to Teacher Workspace even if the
+      // network call failed — nothing left to do with this class
+      // workspace session either way.
+    } finally {
+      setLeaving(false);
+      setShowLeaveConfirm(false);
+      navigate('/teacher-workspace');
+    }
+  };
 
   if (error) {
     return (
@@ -1036,11 +1089,28 @@ export default function ClassWorkspace() {
               </p>
             </div>
           </div>
-          <span className="text-sm font-extrabold tracking-[0.2em] bg-white/15 border border-white/25 rounded-full px-4 py-1.5">
-            {classroom.class_code}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-extrabold tracking-[0.2em] bg-white/15 border border-white/25 rounded-full px-4 py-1.5">
+              {classroom.class_code}
+            </span>
+            <button
+              onClick={() => setShowLeaveConfirm(true)}
+              className="inline-flex items-center gap-1.5 text-sm font-bold bg-white/10 hover:bg-white/20 border border-white/25 rounded-full px-4 py-1.5 transition-colors"
+            >
+              <LogOut className="w-4 h-4" /> Leave Classroom
+            </button>
+          </div>
         </div>
       </div>
+
+      {showLeaveConfirm && (
+        <LeaveClassConfirmModal
+          className={classroom.name}
+          busy={leaving}
+          onCancel={() => setShowLeaveConfirm(false)}
+          onConfirm={handleLeave}
+        />
+      )}
 
       <div className="flex gap-1.5 overflow-x-auto border-b border-slate-200 pb-0.5">
         {TABS.map((t) => {

@@ -1707,6 +1707,33 @@ export default function Amivi() {
               </p>
             )}
 
+            {/* Shown right here, next to the button that made it —
+                previously the only link to the finished video lived
+                far above in the image-cards panel, so right after
+                clicking Generate Video a teacher saw nothing change
+                in this box and had no way to tell the video was
+                actually ready, or where to go look for it. */}
+            {result?.video_url && !isGeneratingVideo && (
+              <div className="flex flex-wrap items-center gap-3 mt-2">
+                <a
+                  href={getMediaUrl(result.video_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-colors shadow-lg"
+                >
+                  <Video size={18} />
+                  {t('Click here to see the video')}
+                </a>
+                <button
+                  onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-black font-bold rounded-2xl transition-colors shadow-lg"
+                >
+                  <Download size={18} />
+                  {t('Download')}
+                </button>
+              </div>
+            )}
+
           </div>
 
 

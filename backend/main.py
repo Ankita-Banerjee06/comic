@@ -3375,8 +3375,15 @@ def generate_image_resilient(
     never takes down an entire batch of chunks/panels that were
     generating in parallel. Tries the real prompt first; on any
     failure, retries once with a generic, clearly G-rated fallback
-    prompt; if that also fails, returns None so the caller can
-    fall back to a placeholder image instead of crashing.
+    prompt that still names the real subject; if THAT also fails
+    (seen with real-world sensitive topics — e.g. a lesson on an
+    actual election or other current/political event — where
+    simply asking for a "wholesome cartoon" doesn't help because
+    the image model refuses based on the subject itself, not the
+    tone), falls back once more to a fully generic, topic-blind
+    illustration with no reference to the subject at all, so a
+    chunk/panel practically never ends up with no image. Only
+    returns None if even that last, maximally-safe prompt fails.
     """
 
     try:
@@ -3417,11 +3424,36 @@ def generate_image_resilient(
         except Exception as retry_exc:
 
             print(
-                "Fallback image generation also "
-                f"failed: {retry_exc}"
+                "Fallback image generation also failed — "
+                f"retrying once more with a fully generic, "
+                f"topic-blind prompt: {retry_exc}"
             )
 
-            return None
+            generic_prompt = (
+                "A bright, cheerful, G-rated cartoon-style "
+                "illustration for a classroom lesson: an open "
+                "storybook, a lightbulb, a graduation cap, and "
+                "colorful abstract shapes. No real people, no "
+                "real places, no text, no logos or flags — "
+                "purely decorative and generic."
+            )
+
+            try:
+
+                return generate_image(
+                    prompt=generic_prompt,
+                    filename=filename,
+                    project_id=project_id,
+                )
+
+            except Exception as final_exc:
+
+                print(
+                    "Generic fallback image generation also "
+                    f"failed: {final_exc}"
+                )
+
+                return None
 
 
 # ============================================================
@@ -3837,6 +3869,17 @@ def create_amivi_video(
             preset="ultrafast",
             threads=4,
             logger=None,
+            # Without this, ffmpeg writes the MP4's metadata (the
+            # "moov atom") at the END of the file, which is the
+            # single most common reason a browser's <video> element
+            # silently refuses to play (or even show a duration
+            # for) an ffmpeg-generated MP4 — the browser can't find
+            # the metadata it needs until the whole file is in, so
+            # playback and even the Range-based partial loads the
+            # media endpoint now supports can both fail. This moves
+            # that metadata to the front, which is the standard fix
+            # (same "faststart" flag you'd pass ffmpeg directly).
+            ffmpeg_params=["-movflags", "+faststart"],
         )
 
         with open(
