@@ -48,6 +48,7 @@ import {
   getClassroomLibraryProjects,
   mediaUrl,
 } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const SESSION_KEY = 'vlq_classroom_session';
 
@@ -116,6 +117,7 @@ function formatDue(iso) {
 export default function ClassroomPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
 
   const [session, setSession] = useState(() => loadSession());
   const [parentSession, setParentSession] = useState(() => loadParentSession());
@@ -143,7 +145,7 @@ export default function ClassroomPage() {
     setError(null);
     getClassroom(classCode)
       .then((data) => setClassroom(data))
-      .catch((err) => setError(err?.message || 'Unable to load this classroom.'))
+      .catch((err) => setError(err?.message || t('Unable to load this classroom.')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -152,7 +154,7 @@ export default function ClassroomPage() {
     setParentError(null);
     getParentView(parentCode)
       .then((data) => setParentData(data))
-      .catch((err) => setParentError(err?.message || "That parent code isn't recognized."))
+      .catch((err) => setParentError(err?.message || t("That parent code isn't recognized.")))
       .finally(() => setParentLoading(false));
   }, []);
 
@@ -211,7 +213,7 @@ export default function ClassroomPage() {
     setClassroom(data.classroom);
     setScreen('classroom');
     if (data.teacher_code) {
-      setSavedCode({ role: 'teacher', code: data.teacher_code, label: 'teacher code' });
+      setSavedCode({ role: 'teacher', code: data.teacher_code, label: t('teacher code') });
     }
   };
 
@@ -240,7 +242,7 @@ export default function ClassroomPage() {
     setSession(newSession);
     setScreen('classroom');
     if (data.student_code) {
-      setSavedCode({ role: 'student', code: data.student_code, label: 'login code' });
+      setSavedCode({ role: 'student', code: data.student_code, label: t('login code') });
     }
   };
 
@@ -373,13 +375,13 @@ export default function ClassroomPage() {
 
       {showLeaveConfirm && (
         <ConfirmModal
-          title="Leave this classroom?"
+          title={t('Leave this classroom?')}
           body={
             myRole === 'teacher'
-              ? 'You can log back in any time with the class code and your teacher code.'
-              : 'You can log back in later with the class code and your login code. Your homework history stays saved.'
+              ? t('You can log back in any time with the class code and your teacher code.')
+              : t('You can log back in later with the class code and your login code. Your homework history stays saved.')
           }
-          confirmLabel={leaving ? 'Leaving…' : 'Leave Classroom'}
+          confirmLabel={leaving ? t('Leaving…') : t('Leave Classroom')}
           busy={leaving}
           onCancel={() => setShowLeaveConfirm(false)}
           onConfirm={handleLeave}
@@ -403,23 +405,24 @@ export default function ClassroomPage() {
 // ============================================================
 
 function Header({ screen, classroom, role, onLeaveClick, parentData, onParentLogout, onRefresh, refreshing }) {
+  const { t } = useLanguage();
   const isParent = screen === 'parent-view';
 
   const title = isParent
     ? parentData
-      ? `${parentData.student.display_name}'s Classroom`
-      : 'Parent View'
+      ? `${parentData.student.display_name} — ${t('Classroom')}`
+      : t('Parent View')
     : screen === 'classroom' && classroom
     ? classroom.name
-    : 'Homework, made simple';
+    : t('Homework, made simple');
 
   const subtitle = isParent
     ? parentData
       ? parentData.classroom.subject || parentData.classroom.name
-      : "See your child's assignments, scores and progress — read-only."
+      : t("See your child's assignments, scores and progress — read-only.")
     : screen === 'classroom' && classroom
-    ? classroom.subject || 'Assignments, quiz results and learning history for this class.'
-    : 'Teachers create a classroom and assign homework built from AMIVI, AMICO and Quiz. Students join, complete it, and track their progress.';
+    ? classroom.subject || t('Assignments, quiz results and learning history for this class.')
+    : t('Teachers create a classroom and assign homework built from AMIVI, AMICO and Quiz. Students join, complete it, and track their progress.');
 
   const showBadge = (screen === 'classroom' && classroom) || (isParent && parentData);
 
@@ -432,7 +435,7 @@ function Header({ screen, classroom, role, onLeaveClick, parentData, onParentLog
       <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5 text-xs font-bold mb-4">
-            <GraduationCap className="w-3.5 h-3.5" /> Classroom
+            <GraduationCap className="w-3.5 h-3.5" /> {t('Classroom')}
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">{title}</h1>
           <p className="text-white/90 font-medium max-w-lg">{subtitle}</p>
@@ -441,23 +444,23 @@ function Header({ screen, classroom, role, onLeaveClick, parentData, onParentLog
         {showBadge && (
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-white/15 border border-white/25">
-              {isParent ? '👪 Parent' : role === 'teacher' ? '👩‍🏫 Teacher' : '🎓 Student'}
+              {isParent ? `👪 ${t('Parent')}` : role === 'teacher' ? `👩‍🏫 ${t('Teacher')}` : `🎓 ${t('Student')}`}
             </span>
             {onRefresh && (
               <button
                 onClick={onRefresh}
                 disabled={refreshing}
-                title="Refresh to see the latest roster, submissions and scores"
+                title={t('Refresh to see the latest roster, submissions and scores')}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white/10 border border-white/25 text-white rounded-xl font-bold text-sm hover:bg-white/20 disabled:opacity-60 transition-colors"
               >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> {t('Refresh')}
               </button>
             )}
             <button
               onClick={isParent ? onParentLogout : onLeaveClick}
               className="flex items-center gap-2 px-5 py-2.5 bg-white/10 border border-white/25 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-colors"
             >
-              <LogOut className="w-4 h-4" /> {isParent ? 'Log Out' : 'Leave'}
+              <LogOut className="w-4 h-4" /> {isParent ? t('Log Out') : t('Leave')}
             </button>
           </div>
         )}
@@ -471,6 +474,7 @@ function Header({ screen, classroom, role, onLeaveClick, parentData, onParentLog
 // ============================================================
 
 function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
+  const { t } = useLanguage();
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <button
@@ -480,12 +484,12 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
         <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <Plus className="w-6 h-6 text-teal-600" />
         </div>
-        <h2 className="text-xl font-bold text-black mb-1.5">I'm a teacher</h2>
+        <h2 className="text-xl font-bold text-black mb-1.5">{t("I'm a teacher")}</h2>
         <p className="text-black font-medium text-sm mb-4">
-          Register a new classroom and get a class code, or log back into one you already run.
+          {t('Register a new classroom and get a class code, or log back into one you already run.')}
         </p>
         <span className="inline-flex items-center gap-1.5 text-teal-600 font-bold text-sm">
-          Register or log in <ArrowRight className="w-4 h-4" />
+          {t('Register or log in')} <ArrowRight className="w-4 h-4" />
         </span>
       </button>
 
@@ -496,12 +500,12 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
         <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <GraduationCap className="w-6 h-6 text-indigo-600" />
         </div>
-        <h2 className="text-xl font-bold text-black mb-1.5">I'm a student</h2>
+        <h2 className="text-xl font-bold text-black mb-1.5">{t("I'm a student")}</h2>
         <p className="text-black font-medium text-sm mb-4">
-          Register with a class code from your teacher, or log back in to your own homework.
+          {t('Register with a class code from your teacher, or log back in to your own homework.')}
         </p>
         <span className="inline-flex items-center gap-1.5 text-indigo-600 font-bold text-sm">
-          Register or log in <ArrowRight className="w-4 h-4" />
+          {t('Register or log in')} <ArrowRight className="w-4 h-4" />
         </span>
       </button>
 
@@ -512,12 +516,12 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
         <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
           <Heart className="w-6 h-6 text-rose-500" />
         </div>
-        <h2 className="text-xl font-bold text-black mb-1.5">I'm a parent</h2>
+        <h2 className="text-xl font-bold text-black mb-1.5">{t("I'm a parent")}</h2>
         <p className="text-black font-medium text-sm mb-4">
-          Got a parent code from your student? View their assignments and scores — read-only.
+          {t('Got a parent code from your student? View their assignments and scores — read-only.')}
         </p>
         <span className="inline-flex items-center gap-1.5 text-rose-500 font-bold text-sm">
-          View progress <ArrowRight className="w-4 h-4" />
+          {t('View progress')} <ArrowRight className="w-4 h-4" />
         </span>
       </button>
     </div>
@@ -529,6 +533,7 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
 // ============================================================
 
 function AuthTabs({ mode, onChange, activeTextClass }) {
+  const { t } = useLanguage();
   return (
     <div className="max-w-xl mx-auto flex items-center gap-1 bg-slate-100 rounded-xl p-1">
       <button
@@ -538,7 +543,7 @@ function AuthTabs({ mode, onChange, activeTextClass }) {
           mode === 'register' ? `bg-white ${activeTextClass} shadow-sm` : 'text-black hover:text-black'
         }`}
       >
-        Register
+        {t('Register')}
       </button>
       <button
         type="button"
@@ -547,7 +552,7 @@ function AuthTabs({ mode, onChange, activeTextClass }) {
           mode === 'login' ? `bg-white ${activeTextClass} shadow-sm` : 'text-black hover:text-black'
         }`}
       >
-        Log In
+        {t('Log In')}
       </button>
     </div>
   );
@@ -588,6 +593,7 @@ function StudentSection({ onCancel, onJoined, onLoggedIn }) {
 // ============================================================
 
 function CreateClassroomForm({ onCancel, onCreated }) {
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -600,7 +606,7 @@ function CreateClassroomForm({ onCancel, onCreated }) {
     setError(null);
 
     if (!name.trim() || !displayName.trim()) {
-      setError('Classroom name and your name are both required.');
+      setError(t('Classroom name and your name are both required.'));
       return;
     }
 
@@ -614,7 +620,7 @@ function CreateClassroomForm({ onCancel, onCreated }) {
       });
       onCreated(data);
     } catch (err) {
-      setError(err?.message || 'Failed to create classroom.');
+      setError(err?.message || t('Failed to create classroom.'));
     } finally {
       setSubmitting(false);
     }
@@ -622,33 +628,33 @@ function CreateClassroomForm({ onCancel, onCreated }) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-black">Create a classroom</h2>
+      <h2 className="text-xl font-bold text-black">{t('Create a classroom')}</h2>
 
-      <Field label="Classroom name">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 7th Grade Biology" className={INPUT_CLASS} />
+      <Field label={t('Classroom name')}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('e.g. 7th Grade Biology')} className={INPUT_CLASS} />
       </Field>
 
-      <Field label="Subject (optional)">
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Biology" className={INPUT_CLASS} />
+      <Field label={t('Subject (optional)')}>
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t('e.g. Biology')} className={INPUT_CLASS} />
       </Field>
 
-      <Field label="Description (optional)">
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's this class about?" rows={3} className={`${INPUT_CLASS} resize-none`} />
+      <Field label={t('Description (optional)')}>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("What's this class about?")} rows={3} className={`${INPUT_CLASS} resize-none`} />
       </Field>
 
-      <Field label="Your name">
-        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name, as students will see it" className={INPUT_CLASS} />
+      <Field label={t('Your name')}>
+        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t('Your name, as students will see it')} className={INPUT_CLASS} />
       </Field>
 
       {error && <p className="text-red-500 font-bold text-sm text-center whitespace-pre-wrap">{error}</p>}
 
       <div className="flex items-center gap-3 pt-1">
         <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
-          Cancel
+          {t('Cancel')}
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          {submitting ? 'Creating…' : 'Create Classroom'}
+          {submitting ? t('Creating…') : t('Create Classroom')}
         </button>
       </div>
     </form>
@@ -656,6 +662,7 @@ function CreateClassroomForm({ onCancel, onCreated }) {
 }
 
 function TeacherLoginForm({ onCancel, onLoggedIn }) {
+  const { t } = useLanguage();
   const [classCode, setClassCode] = useState('');
   const [teacherCode, setTeacherCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -666,7 +673,7 @@ function TeacherLoginForm({ onCancel, onLoggedIn }) {
     setError(null);
 
     if (!classCode.trim() || !teacherCode.trim()) {
-      setError('Class code and teacher code are both required.');
+      setError(t('Class code and teacher code are both required.'));
       return;
     }
 
@@ -677,7 +684,7 @@ function TeacherLoginForm({ onCancel, onLoggedIn }) {
       const data = await teacherLogin(code, { teacherCode: teacherCode.trim().toUpperCase() });
       onLoggedIn(data, code);
     } catch (err) {
-      setError(err?.message || "That class code or teacher code isn't recognized.");
+      setError(err?.message || t("That class code or teacher code isn't recognized."));
     } finally {
       setSubmitting(false);
     }
@@ -685,26 +692,26 @@ function TeacherLoginForm({ onCancel, onLoggedIn }) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-black">Teacher log in</h2>
+      <h2 className="text-xl font-bold text-black">{t('Teacher log in')}</h2>
       <p className="text-sm text-black font-medium -mt-3">
-        Use the class code and the private teacher code you saved when you created this classroom.
+        {t('Use the class code and the private teacher code you saved when you created this classroom.')}
       </p>
 
-      <Field label="Class code">
+      <Field label={t('Class code')}>
         <input
           value={classCode}
           onChange={(e) => setClassCode(e.target.value.toUpperCase())}
-          placeholder="e.g. K7P2QX"
+          placeholder={t('e.g. K7P2QX')}
           className={`${INPUT_CLASS} tracking-[0.3em] text-center font-bold uppercase`}
           maxLength={12}
         />
       </Field>
 
-      <Field label="Teacher code">
+      <Field label={t('Teacher code')}>
         <input
           value={teacherCode}
           onChange={(e) => setTeacherCode(e.target.value.toUpperCase())}
-          placeholder="e.g. K7P2QXA9RT"
+          placeholder={t('e.g. K7P2QXA9RT')}
           className={`${INPUT_CLASS} tracking-[0.2em] text-center font-bold uppercase`}
           maxLength={20}
         />
@@ -714,11 +721,11 @@ function TeacherLoginForm({ onCancel, onLoggedIn }) {
 
       <div className="flex items-center gap-3 pt-1">
         <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
-          Cancel
+          {t('Cancel')}
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          {submitting ? 'Logging in…' : 'Log In'}
+          {submitting ? t('Logging in…') : t('Log In')}
         </button>
       </div>
     </form>
@@ -726,6 +733,7 @@ function TeacherLoginForm({ onCancel, onLoggedIn }) {
 }
 
 function JoinClassroomForm({ onCancel, onJoined }) {
+  const { t } = useLanguage();
   const [classCode, setClassCode] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -736,7 +744,7 @@ function JoinClassroomForm({ onCancel, onJoined }) {
     setError(null);
 
     if (!classCode.trim() || !displayName.trim()) {
-      setError('Class code and your name are both required.');
+      setError(t('Class code and your name are both required.'));
       return;
     }
 
@@ -747,7 +755,7 @@ function JoinClassroomForm({ onCancel, onJoined }) {
       const data = await joinClassroom({ classCode: code, displayName: displayName.trim() });
       onJoined(data, code);
     } catch (err) {
-      setError(err?.message || 'Failed to join classroom.');
+      setError(err?.message || t('Failed to join classroom.'));
     } finally {
       setSubmitting(false);
     }
@@ -755,31 +763,31 @@ function JoinClassroomForm({ onCancel, onJoined }) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-black">Join a classroom</h2>
+      <h2 className="text-xl font-bold text-black">{t('Join a classroom')}</h2>
 
-      <Field label="Class code">
+      <Field label={t('Class code')}>
         <input
           value={classCode}
           onChange={(e) => setClassCode(e.target.value.toUpperCase())}
-          placeholder="e.g. K7P2QX"
+          placeholder={t('e.g. K7P2QX')}
           className={`${INPUT_CLASS} tracking-[0.3em] text-center font-bold uppercase`}
           maxLength={12}
         />
       </Field>
 
-      <Field label="Your name">
-        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="How your teacher will see you" className={INPUT_CLASS} />
+      <Field label={t('Your name')}>
+        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t('How your teacher will see you')} className={INPUT_CLASS} />
       </Field>
 
       {error && <p className="text-red-500 font-bold text-sm text-center whitespace-pre-wrap">{error}</p>}
 
       <div className="flex items-center gap-3 pt-1">
         <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
-          Cancel
+          {t('Cancel')}
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          {submitting ? 'Joining…' : 'Join Classroom'}
+          {submitting ? t('Joining…') : t('Join Classroom')}
         </button>
       </div>
     </form>
@@ -787,6 +795,7 @@ function JoinClassroomForm({ onCancel, onJoined }) {
 }
 
 function StudentLoginForm({ onCancel, onLoggedIn }) {
+  const { t } = useLanguage();
   const [classCode, setClassCode] = useState('');
   const [studentCode, setStudentCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -797,7 +806,7 @@ function StudentLoginForm({ onCancel, onLoggedIn }) {
     setError(null);
 
     if (!classCode.trim() || !studentCode.trim()) {
-      setError('Class code and login code are both required.');
+      setError(t('Class code and login code are both required.'));
       return;
     }
 
@@ -808,7 +817,7 @@ function StudentLoginForm({ onCancel, onLoggedIn }) {
       const data = await studentLogin(code, { studentCode: studentCode.trim().toUpperCase() });
       onLoggedIn(data, code);
     } catch (err) {
-      setError(err?.message || "That class code or login code isn't recognized.");
+      setError(err?.message || t("That class code or login code isn't recognized."));
     } finally {
       setSubmitting(false);
     }
@@ -816,26 +825,26 @@ function StudentLoginForm({ onCancel, onLoggedIn }) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-black">Student log in</h2>
+      <h2 className="text-xl font-bold text-black">{t('Student log in')}</h2>
       <p className="text-sm text-black font-medium -mt-3">
-        Use the class code and the private login code you saved when you registered.
+        {t('Use the class code and the private login code you saved when you registered.')}
       </p>
 
-      <Field label="Class code">
+      <Field label={t('Class code')}>
         <input
           value={classCode}
           onChange={(e) => setClassCode(e.target.value.toUpperCase())}
-          placeholder="e.g. K7P2QX"
+          placeholder={t('e.g. K7P2QX')}
           className={`${INPUT_CLASS} tracking-[0.3em] text-center font-bold uppercase`}
           maxLength={12}
         />
       </Field>
 
-      <Field label="Login code">
+      <Field label={t('Login code')}>
         <input
           value={studentCode}
           onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
-          placeholder="e.g. K7P2QXA9RT"
+          placeholder={t('e.g. K7P2QXA9RT')}
           className={`${INPUT_CLASS} tracking-[0.2em] text-center font-bold uppercase`}
           maxLength={20}
         />
@@ -845,11 +854,11 @@ function StudentLoginForm({ onCancel, onLoggedIn }) {
 
       <div className="flex items-center gap-3 pt-1">
         <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
-          Cancel
+          {t('Cancel')}
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          {submitting ? 'Logging in…' : 'Log In'}
+          {submitting ? t('Logging in…') : t('Log In')}
         </button>
       </div>
     </form>
@@ -857,6 +866,7 @@ function StudentLoginForm({ onCancel, onLoggedIn }) {
 }
 
 function ParentLoginForm({ onCancel, onLoggedIn }) {
+  const { t } = useLanguage();
   const [parentCode, setParentCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -866,7 +876,7 @@ function ParentLoginForm({ onCancel, onLoggedIn }) {
     setError(null);
 
     if (!parentCode.trim()) {
-      setError('Parent code is required.');
+      setError(t('Parent code is required.'));
       return;
     }
 
@@ -877,7 +887,7 @@ function ParentLoginForm({ onCancel, onLoggedIn }) {
       const data = await getParentView(code);
       onLoggedIn(code, data);
     } catch (err) {
-      setError(err?.message || "That parent code isn't recognized.");
+      setError(err?.message || t("That parent code isn't recognized."));
     } finally {
       setSubmitting(false);
     }
@@ -885,16 +895,16 @@ function ParentLoginForm({ onCancel, onLoggedIn }) {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 space-y-5">
-      <h2 className="text-xl font-bold text-black">Parent access</h2>
+      <h2 className="text-xl font-bold text-black">{t('Parent access')}</h2>
       <p className="text-sm text-black font-medium -mt-3">
-        Enter the code your student gave you to see their assignments and scores.
+        {t('Enter the code your student gave you to see their assignments and scores.')}
       </p>
 
-      <Field label="Parent code">
+      <Field label={t('Parent code')}>
         <input
           value={parentCode}
           onChange={(e) => setParentCode(e.target.value.toUpperCase())}
-          placeholder="e.g. K7P2QXA9RT"
+          placeholder={t('e.g. K7P2QXA9RT')}
           className={`${INPUT_CLASS} tracking-[0.2em] text-center font-bold uppercase`}
           maxLength={20}
         />
@@ -904,11 +914,11 @@ function ParentLoginForm({ onCancel, onLoggedIn }) {
 
       <div className="flex items-center gap-3 pt-1">
         <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
-          Cancel
+          {t('Cancel')}
         </button>
         <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-rose-500 hover:bg-rose-600 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
           {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-          {submitting ? 'Checking…' : 'View Progress'}
+          {submitting ? t('Checking…') : t('View Progress')}
         </button>
       </div>
     </form>
@@ -929,20 +939,21 @@ function Field({ label, children }) {
 // ============================================================
 
 function ClassroomView({ session, classroom, myMember, role, loading, error, onRetry, onUpdate, onBackToHub, navigate }) {
+  const { t } = useLanguage();
   if (loading && !classroom) return <ClassroomSkeleton />;
 
   if (error && !classroom) {
     return (
       <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
         <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-        <p className="text-black font-bold text-lg mb-1">Couldn't load this classroom.</p>
+        <p className="text-black font-bold text-lg mb-1">{t("Couldn't load this classroom.")}</p>
         <p className="text-black font-medium text-sm mb-5">{error}</p>
         <div className="flex items-center justify-center gap-3">
           <button onClick={onRetry} className="inline-flex items-center gap-2 bg-teal-600 text-white font-bold py-2.5 px-5 rounded-xl hover:bg-teal-700 transition-colors text-sm">
-            <RefreshCw className="w-4 h-4" /> Try Again
+            <RefreshCw className="w-4 h-4" /> {t('Try Again')}
           </button>
           <button onClick={onBackToHub} className="inline-flex items-center gap-2 bg-slate-100 text-black font-bold py-2.5 px-5 rounded-xl hover:bg-slate-200 transition-colors text-sm">
-            Back to Start
+            {t('Back to Start')}
           </button>
         </div>
       </div>
@@ -994,6 +1005,7 @@ function ClassroomSkeleton() {
 // ============================================================
 
 function ClassCodeCard({ classroom }) {
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -1009,13 +1021,13 @@ function ClassCodeCard({ classroom }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <p className="text-xs font-bold text-black uppercase tracking-wide mb-1">Class code</p>
+        <p className="text-xs font-bold text-black uppercase tracking-wide mb-1">{t('Class code')}</p>
         <p className="text-xl sm:text-2xl font-extrabold text-black tracking-[0.15em] sm:tracking-[0.2em] break-all">{classroom.class_code}</p>
         {classroom.description && <p className="text-sm text-black font-medium mt-2 max-w-md">{classroom.description}</p>}
       </div>
       <button onClick={handleCopy} className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl font-bold text-sm bg-slate-900 text-white hover:bg-slate-800 transition-colors shrink-0">
         {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-        {copied ? 'Copied' : 'Copy Code'}
+        {copied ? t('Copied') : t('Copy Code')}
       </button>
     </div>
   );
@@ -1026,13 +1038,14 @@ function ClassCodeCard({ classroom }) {
 // ============================================================
 
 function RosterPanel({ classroom, myMember }) {
+  const { t } = useLanguage();
   const teacher = classroom.members.find((m) => m.role === 'teacher');
   const students = classroom.members.filter((m) => m.role === 'student');
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <h2 className="font-bold text-black flex items-center gap-2 mb-4">
-        <Users className="w-4.5 h-4.5 text-black" /> Roster
+        <Users className="w-4.5 h-4.5 text-black" /> {t('Roster')}
       </h2>
 
       {teacher && (
@@ -1042,13 +1055,13 @@ function RosterPanel({ classroom, myMember }) {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-black truncate">{teacher.display_name}</p>
-            <p className="text-xs text-teal-600 font-semibold">Teacher{teacher.id === myMember?.id ? ' · You' : ''}</p>
+            <p className="text-xs text-teal-600 font-semibold">{t('Teacher')}{teacher.id === myMember?.id ? ` · ${t('You')}` : ''}</p>
           </div>
         </div>
       )}
 
       {students.length === 0 ? (
-        <p className="text-sm text-black font-medium">No students have joined yet.</p>
+        <p className="text-sm text-black font-medium">{t('No students have joined yet.')}</p>
       ) : (
         <div className="space-y-3">
           {students.map((s) => (
@@ -1059,7 +1072,7 @@ function RosterPanel({ classroom, myMember }) {
               <p className="text-sm font-bold text-black truncate flex items-center gap-1.5">
                 {s.display_name}
                 {s.id === myMember?.id && (
-                  <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full">You</span>
+                  <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full">{t('You')}</span>
                 )}
               </p>
             </div>
@@ -1075,6 +1088,7 @@ function RosterPanel({ classroom, myMember }) {
 // ============================================================
 
 function MyLoginCodeCard({ session, role }) {
+  const { t } = useLanguage();
   const isTeacher = role === 'teacher';
 
   const [code, setCode] = useState(null);
@@ -1090,7 +1104,7 @@ function MyLoginCodeCard({ session, role }) {
       const fetcher = isTeacher ? getTeacherCode : getStudentCode;
       fetcher(session.classCode, { memberToken: session.memberToken, regenerate })
         .then((data) => setCode(isTeacher ? data.teacher_code : data.student_code))
-        .catch((err) => setError(err?.message || 'Failed to load your login code.'))
+        .catch((err) => setError(err?.message || t('Failed to load your login code.')))
         .finally(() => {
           setLoading(false);
           setConfirmRegenerate(false);
@@ -1118,39 +1132,39 @@ function MyLoginCodeCard({ session, role }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <h2 className="font-bold text-black flex items-center gap-2 mb-1.5">
-        <KeyRound className="w-4.5 h-4.5 text-black" /> {isTeacher ? 'Teacher login code' : 'Your login code'}
+        <KeyRound className="w-4.5 h-4.5 text-black" /> {isTeacher ? t('Teacher login code') : t('Your login code')}
       </h2>
       <p className="text-sm text-black font-medium mb-4">
         {isTeacher
-          ? 'Private — pair this with the class code to log back in as teacher from another device. Never share it with students.'
-          : 'Private — pair this with the class code to log back into your own homework and history from another device.'}
+          ? t('Private — pair this with the class code to log back in as teacher from another device. Never share it with students.')
+          : t('Private — pair this with the class code to log back into your own homework and history from another device.')}
       </p>
 
       {loading && !code ? (
-        <p className="text-sm text-black font-medium">Loading…</p>
+        <p className="text-sm text-black font-medium">{t('Loading…')}</p>
       ) : code ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
             <span className="text-base font-extrabold text-black tracking-[0.12em] truncate">{code}</span>
             <button onClick={handleCopy} className="inline-flex items-center gap-1.5 text-xs font-bold text-black hover:text-black transition-colors shrink-0">
               {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? t('Copied') : t('Copy')}
             </button>
           </div>
 
           {confirmRegenerate ? (
             <div className="flex items-center gap-2">
-              <p className="text-xs text-black font-medium flex-1">This disables the old code.</p>
+              <p className="text-xs text-black font-medium flex-1">{t('This disables the old code.')}</p>
               <button onClick={() => setConfirmRegenerate(false)} className="text-xs font-bold text-black hover:text-black transition-colors">
-                Cancel
+                {t('Cancel')}
               </button>
               <button onClick={() => fetchCode(true)} className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors">
-                Confirm
+                {t('Confirm')}
               </button>
             </div>
           ) : (
             <button onClick={() => setConfirmRegenerate(true)} className="text-xs font-bold text-black hover:text-black transition-colors">
-              Generate a new code
+              {t('Generate a new code')}
             </button>
           )}
         </div>
@@ -1166,6 +1180,7 @@ function MyLoginCodeCard({ session, role }) {
 // ============================================================
 
 function ParentAccessCard({ session }) {
+  const { t } = useLanguage();
   const [code, setCode] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1179,7 +1194,7 @@ function ParentAccessCard({ session }) {
       const data = await getParentCode(session.classCode, { memberToken: session.memberToken, regenerate });
       setCode(data.parent_code);
     } catch (err) {
-      setError(err?.message || 'Failed to generate a parent code.');
+      setError(err?.message || t('Failed to generate a parent code.'));
     } finally {
       setLoading(false);
       setConfirmRegenerate(false);
@@ -1200,10 +1215,10 @@ function ParentAccessCard({ session }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <h2 className="font-bold text-black flex items-center gap-2 mb-1.5">
-        <KeyRound className="w-4.5 h-4.5 text-black" /> Parent access
+        <KeyRound className="w-4.5 h-4.5 text-black" /> {t('Parent access')}
       </h2>
       <p className="text-sm text-black font-medium mb-4">
-        Share this code with a parent or guardian so they can see your assignments and scores — read-only, no password needed.
+        {t('Share this code with a parent or guardian so they can see your assignments and scores — read-only, no password needed.')}
       </p>
 
       {!code ? (
@@ -1213,7 +1228,7 @@ function ParentAccessCard({ session }) {
           className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 transition-colors"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Generating…' : 'Get a parent code'}
+          {loading ? t('Generating…') : t('Get a parent code')}
         </button>
       ) : (
         <div className="space-y-3">
@@ -1221,23 +1236,23 @@ function ParentAccessCard({ session }) {
             <span className="text-base font-extrabold text-black tracking-[0.12em] truncate">{code}</span>
             <button onClick={handleCopy} className="inline-flex items-center gap-1.5 text-xs font-bold text-black hover:text-black transition-colors shrink-0">
               {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? t('Copied') : t('Copy')}
             </button>
           </div>
 
           {confirmRegenerate ? (
             <div className="flex items-center gap-2">
-              <p className="text-xs text-black font-medium flex-1">This disables the old code.</p>
+              <p className="text-xs text-black font-medium flex-1">{t('This disables the old code.')}</p>
               <button onClick={() => setConfirmRegenerate(false)} className="text-xs font-bold text-black hover:text-black transition-colors">
-                Cancel
+                {t('Cancel')}
               </button>
               <button onClick={() => fetchCode(true)} disabled={loading} className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors">
-                Confirm
+                {t('Confirm')}
               </button>
             </div>
           ) : (
             <button onClick={() => setConfirmRegenerate(true)} className="text-xs font-bold text-black hover:text-black transition-colors">
-              Generate a new code
+              {t('Generate a new code')}
             </button>
           )}
         </div>
@@ -1253,6 +1268,7 @@ function ParentAccessCard({ session }) {
 // ============================================================
 
 function CreateAssignmentPanel({ session, classroom, onUpdate }) {
+  const { t, language } = useLanguage();
   const [material, setMaterial] = useState('');
   const [generated, setGenerated] = useState({ quiz: null, amivi: null, amico: null });
   const [busy, setBusy] = useState(null); // 'quiz' | 'amivi' | 'amico' | null
@@ -1267,7 +1283,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
 
   const runGenerate = async (kind) => {
     if (!material.trim()) {
-      setGenErrors((e) => ({ ...e, [kind]: 'Add some learning material first.' }));
+      setGenErrors((e) => ({ ...e, [kind]: t('Add some learning material first.') }));
       return;
     }
 
@@ -1277,24 +1293,31 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
     try {
       let projectId, projTitle;
 
+      // Generate in whatever language the teacher is currently working
+      // in (the same `language` the whole app's chrome is translated
+      // into), rather than always English — this is what lets a
+      // Spanish-speaking teacher assign Spanish homework straight from
+      // this panel. See the matching fix in generate_quiz_draft on the
+      // backend for the "Generate from Lesson" path in ClassWorkspace.
       if (kind === 'quiz') {
-        const data = await generateQuiz({ mode: 'material', materialText: material, language: 'en', numQuestions: 5, generateImages: true, generateVideos: false });
+        const data = await generateQuiz({ mode: 'material', materialText: material, language, numQuestions: 5, generateImages: true, generateVideos: false });
         projectId = data.project_id;
         projTitle = data.quiz?.title;
       } else if (kind === 'amivi') {
-        const data = await generateAmivi(material, 'en', false, '');
+        const data = await generateAmivi(material, language, false, '');
         projectId = data.project_id;
-        projTitle = 'AMIVI Visuals';
+        projTitle = t('AMIVI Visuals');
       } else {
-        const data = await generateAmico({ homeworkPrompt: material, language: 'en' });
+        const data = await generateAmico({ homeworkPrompt: material, language });
         projectId = data.project_id;
-        projTitle = data.title || 'AMICO Comic';
+        projTitle = data.title || t('AMICO Comic');
       }
 
       setGenerated((g) => ({ ...g, [kind]: { projectId, title: projTitle } }));
       if (kind === 'quiz' && !title) setTitle(projTitle || '');
     } catch (err) {
-      setGenErrors((e) => ({ ...e, [kind]: err?.message || `Failed to generate ${kind}.` }));
+      const kindLabel = kind === 'amivi' ? t('AMIVI') : kind === 'amico' ? t('AMICO') : t('Quiz');
+      setGenErrors((e) => ({ ...e, [kind]: err?.message || `${t('Failed to generate')} ${kindLabel}.` }));
     } finally {
       setBusy(null);
     }
@@ -1315,12 +1338,12 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
     setAssignError(null);
 
     if (!generated.quiz && !generated.amivi && !generated.amico) {
-      setAssignError('Add at least a Quiz, Visuals, or a Comic before assigning homework.');
+      setAssignError(t('Add at least a Quiz, Visuals, or a Comic before assigning homework.'));
       return;
     }
 
     if (!title.trim()) {
-      setAssignError('Give this homework a title.');
+      setAssignError(t('Give this homework a title.'));
       return;
     }
 
@@ -1346,7 +1369,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
       setDueAt('');
       setExpanded(false);
     } catch (err) {
-      setAssignError(err?.message || 'Failed to assign homework.');
+      setAssignError(err?.message || t('Failed to assign homework.'));
     } finally {
       setAssigning(false);
     }
@@ -1358,7 +1381,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         onClick={() => setExpanded(true)}
         className="w-full bg-white rounded-2xl border-2 border-dashed border-slate-200 shadow-sm p-6 flex items-center justify-center gap-2 font-bold text-teal-600 hover:border-teal-300 hover:bg-teal-50/40 transition-colors"
       >
-        <Plus className="w-5 h-5" /> Assign new homework
+        <Plus className="w-5 h-5" /> {t('Assign new homework')}
       </button>
     );
   }
@@ -1366,17 +1389,17 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
   return (
     <form onSubmit={handleAssign} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-bold text-black">Assign homework</h2>
+        <h2 className="font-bold text-black">{t('Assign homework')}</h2>
         <button type="button" onClick={() => setExpanded(false)} className="text-black hover:text-black transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <Field label="Learning material">
+      <Field label={t('Learning material')}>
         <textarea
           value={material}
           onChange={(e) => setMaterial(e.target.value)}
-          placeholder="Paste the topic or material this homework is based on..."
+          placeholder={t('Paste the topic or material this homework is based on...')}
           rows={5}
           className={`${INPUT_CLASS} resize-none`}
         />
@@ -1385,7 +1408,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <GenerateChip
-            label="Quiz"
+            label={t('Quiz')}
             icon={Puzzle}
             color="text-purple-600"
             done={!!generated.quiz}
@@ -1402,7 +1425,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         </div>
         <div>
           <GenerateChip
-            label="AMIVI Visuals"
+            label={t('AMIVI Visuals')}
             icon={Palette}
             color="text-orange-500"
             done={!!generated.amivi}
@@ -1419,7 +1442,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         </div>
         <div>
           <GenerateChip
-            label="AMICO Comic"
+            label={t('AMICO Comic')}
             icon={BookOpen}
             color="text-pink-500"
             done={!!generated.amico}
@@ -1436,20 +1459,20 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         </div>
       </div>
       <p className="text-xs text-black -mt-1">
-        Already have a lesson saved? Use "Or use something I already saved" under any of the three above instead of generating new — your existing images, slogans and descriptions are reused as-is, nothing is regenerated.
+        {t('Already have a lesson saved? Use')} "{t('Or use something I already saved')}" {t('under any of the three above instead of generating new — your existing images, slogans and descriptions are reused as-is, nothing is regenerated.')}
       </p>
 
       {(generated.quiz || generated.amivi || generated.amico) && (
         <>
-          <Field label="Homework title">
-            <input value={title} onChange={(e) => { setTitle(e.target.value); if (assignError) setAssignError(null); }} placeholder="e.g. Chapter 3 Quiz" className={INPUT_CLASS} />
+          <Field label={t('Homework title')}>
+            <input value={title} onChange={(e) => { setTitle(e.target.value); if (assignError) setAssignError(null); }} placeholder={t('e.g. Chapter 3 Quiz')} className={INPUT_CLASS} />
           </Field>
 
-          <Field label="Instructions (optional)">
+          <Field label={t('Instructions (optional)')}>
             <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={2} className={`${INPUT_CLASS} resize-none`} />
           </Field>
 
-          <Field label="Due date (optional)">
+          <Field label={t('Due date (optional)')}>
             <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className={INPUT_CLASS} />
           </Field>
         </>
@@ -1457,7 +1480,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
 
       {!generated.quiz && !generated.amivi && !generated.amico && (
         <p className="text-amber-600 font-bold text-xs text-center">
-          Add at least a Quiz, Visuals, or a Comic above before you can assign this homework. A Quiz is optional — add one only if you want it auto-graded.
+          {t('Add at least a Quiz, Visuals, or a Comic above before you can assign this homework. A Quiz is optional — add one only if you want it auto-graded.')}
         </p>
       )}
 
@@ -1469,13 +1492,14 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         className="w-full py-3 rounded-xl font-bold text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
       >
         {assigning && <Loader2 className="w-4 h-4 animate-spin" />}
-        {assigning ? 'Assigning…' : 'Assign Homework'}
+        {assigning ? t('Assigning…') : t('Assign Homework')}
       </button>
     </form>
   );
 }
 
 function GenerateChip({ label, required, icon: Icon, color, done, busy, error, onClick }) {
+  const { t } = useLanguage();
   return (
     <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center text-center gap-2">
       <Icon className={`w-5 h-5 ${color}`} />
@@ -1486,7 +1510,7 @@ function GenerateChip({ label, required, icon: Icon, color, done, busy, error, o
       {error && <p className="text-[10px] text-red-500 font-semibold">{error}</p>}
       {done ? (
         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-green-600">
-          <CheckCircle2 className="w-3.5 h-3.5" /> Ready
+          <CheckCircle2 className="w-3.5 h-3.5" /> {t('Ready')}
         </span>
       ) : (
         <button
@@ -1496,7 +1520,7 @@ function GenerateChip({ label, required, icon: Icon, color, done, busy, error, o
           className="inline-flex items-center gap-1 text-[11px] font-bold text-black hover:text-teal-600 disabled:opacity-50 transition-colors"
         >
           {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-          {busy ? 'Generating…' : 'Generate'}
+          {busy ? t('Generating…') : t('Generate')}
         </button>
       )}
     </div>
@@ -1508,12 +1532,13 @@ function GenerateChip({ label, required, icon: Icon, color, done, busy, error, o
 // one. Loads the list lazily (only once the teacher actually opens
 // it) and only for the one kind it's asked for.
 function LibraryPicker({ classroom, session, kind, onPick }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState(null); // null = not loaded yet
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const kindLabel = kind === 'amivi' ? 'AMIVI lesson' : kind === 'amico' ? 'AMICO comic' : 'quiz';
+  const kindLabel = kind === 'amivi' ? t('AMIVI lesson') : kind === 'amico' ? t('AMICO comic') : t('quiz');
 
   const toggle = () => {
     const willOpen = !open;
@@ -1524,7 +1549,7 @@ function LibraryPicker({ classroom, session, kind, onPick }) {
     setError(null);
     getClassroomLibraryProjects(classroom.class_code, session.memberToken, kind)
       .then((data) => setProjects(data.projects || []))
-      .catch((err) => setError(err?.message || 'Unable to load your Library.'))
+      .catch((err) => setError(err?.message || t('Unable to load your Library.')))
       .finally(() => setLoading(false));
   };
 
@@ -1535,14 +1560,14 @@ function LibraryPicker({ classroom, session, kind, onPick }) {
         onClick={toggle}
         className="text-[11px] font-bold text-teal-600 hover:text-teal-700 underline"
       >
-        {open ? 'Hide saved Library' : 'Or use something I already saved'}
+        {open ? t('Hide saved Library') : t('Or use something I already saved')}
       </button>
       {open && (
         <div className="mt-1.5">
-          {loading && <p className="text-[11px] text-black">Loading your Library…</p>}
+          {loading && <p className="text-[11px] text-black">{t('Loading your Library…')}</p>}
           {error && <p className="text-[11px] text-red-500 font-semibold">{error}</p>}
           {projects && projects.length === 0 && !loading && (
-            <p className="text-[11px] text-black">No saved {kindLabel}s in your Library yet.</p>
+            <p className="text-[11px] text-black">{t('No saved')} {kindLabel}s {t('in your Library yet.')}</p>
           )}
           {projects && projects.length > 0 && (
             <select
@@ -1554,7 +1579,7 @@ function LibraryPicker({ classroom, session, kind, onPick }) {
               className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white font-semibold"
             >
               <option value="" disabled>
-                Pick a saved {kindLabel}…
+                {t('Pick a saved')} {kindLabel}…
               </option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -1574,6 +1599,7 @@ function LibraryPicker({ classroom, session, kind, onPick }) {
 // ============================================================
 
 function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
+  const { t } = useLanguage();
   const assignments = classroom.assignments || [];
   const [resultsFor, setResultsFor] = useState(null);
   const [playFor, setPlayFor] = useState(null);
@@ -1581,12 +1607,12 @@ function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <h2 className="font-bold text-black flex items-center gap-2 mb-4">
-        <ClipboardList className="w-4.5 h-4.5 text-black" /> {role === 'teacher' ? 'Assigned homework' : 'My homework'}
+        <ClipboardList className="w-4.5 h-4.5 text-black" /> {role === 'teacher' ? t('Assigned homework') : t('My homework')}
       </h2>
 
       {assignments.length === 0 ? (
         <p className="text-sm text-black font-medium py-6 text-center">
-          {role === 'teacher' ? 'No homework assigned yet — use the form above to create one.' : 'No homework yet — check back once your teacher assigns some.'}
+          {role === 'teacher' ? t('No homework assigned yet — use the form above to create one.') : t('No homework yet — check back once your teacher assigns some.')}
         </p>
       ) : (
         <div className="space-y-3">
@@ -1633,6 +1659,7 @@ function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
 }
 
 function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, classCode, memberToken }) {
+  const { t } = useLanguage();
   const due = formatDue(assignment.due_at);
 
   // Student/teacher view of the AMIVI/AMICO attached to this assignment:
@@ -1652,7 +1679,7 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, clas
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs font-semibold text-black">
           {due && (
             <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> Due {due}
+              <Clock className="w-3.5 h-3.5" /> {t('Due')} {due}
             </span>
           )}
           {assignment.amivi_project_id && (
@@ -1660,7 +1687,7 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, clas
               onClick={() => navigate(`/amivi/${assignment.amivi_project_id}`, { state: { classroomView: { ...classroomView, kind: 'amivi' } } })}
               className="inline-flex items-center gap-1 text-orange-500 hover:text-orange-600"
             >
-              <Palette className="w-3.5 h-3.5" /> Visuals
+              <Palette className="w-3.5 h-3.5" /> {t('Visuals')}
             </button>
           )}
           {assignment.amico_project_id && (
@@ -1668,7 +1695,7 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, clas
               onClick={() => navigate(`/amico/${assignment.amico_project_id}`, { state: { classroomView: { ...classroomView, kind: 'amico' } } })}
               className="inline-flex items-center gap-1 text-pink-500 hover:text-pink-600"
             >
-              <BookOpen className="w-3.5 h-3.5" /> Comic
+              <BookOpen className="w-3.5 h-3.5" /> {t('Comic')}
             </button>
           )}
         </div>
@@ -1684,19 +1711,19 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, clas
             onClick={onViewResults}
             className="shrink-0 inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 transition-colors"
           >
-            Results ({assignment.submitted_count}/{assignment.student_count})
+            {t('Results')} ({assignment.submitted_count}/{assignment.student_count})
           </button>
         ) : (
           <button
             onClick={onPlay}
             className="shrink-0 inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors"
           >
-            <Puzzle className="w-3.5 h-3.5" /> {assignment.submitted_count > 0 ? 'Retake' : 'Start'}
+            <Puzzle className="w-3.5 h-3.5" /> {assignment.submitted_count > 0 ? t('Retake') : t('Start')}
           </button>
         )
       ) : (
         <span className="shrink-0 text-xs font-semibold text-black italic px-1">
-          No quiz on this one
+          {t('No quiz on this one')}
         </span>
       )}
     </div>
@@ -1708,6 +1735,7 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, clas
 // ============================================================
 
 function ResultsModal({ session, classroom, assignment, onClose }) {
+  const { t } = useLanguage();
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1718,7 +1746,7 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
     setError(null);
     getAssignmentResults(classroom.class_code, assignment.id, session.memberToken)
       .then((data) => setResults(data.results || []))
-      .catch((err) => setError(err?.message || 'Unable to load results.'))
+      .catch((err) => setError(err?.message || t('Unable to load results.')))
       .finally(() => setLoading(false));
   }, [classroom.class_code, assignment.id, session.memberToken]);
 
@@ -1740,7 +1768,7 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
       <div className="absolute inset-0 bg-slate-900/60" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h3 className="font-extrabold text-black">{assignment.title} — Results</h3>
+          <h3 className="font-extrabold text-black">{assignment.title} — {t('Results')}</h3>
           <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-black hover:bg-slate-100 transition-colors">
             <X className="w-4.5 h-4.5" />
           </button>
@@ -1756,7 +1784,7 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
           {!loading && error && <p className="text-red-500 font-bold text-sm text-center py-8">{error}</p>}
 
           {!loading && !error && results?.length === 0 && (
-            <p className="text-black font-medium text-sm text-center py-8">No students have joined this classroom yet.</p>
+            <p className="text-black font-medium text-sm text-center py-8">{t('No students have joined this classroom yet.')}</p>
           )}
 
           {!loading && !error && results?.length > 0 && (
@@ -1775,7 +1803,9 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
                     <div>
                       <p className="text-sm font-bold text-black">{r.display_name}</p>
                       <p className="text-xs text-black font-semibold">
-                        {canReview ? `${r.attempts} attempt${r.attempts === 1 ? '' : 's'} — tap to review answers` : 'Not started'}
+                        {canReview
+                          ? `${r.attempts} ${r.attempts === 1 ? t('attempt') : t('attempts')} — ${t('tap to review answers')}`
+                          : t('Not started')}
                       </p>
                     </div>
                     {r.total ? (
@@ -1800,6 +1830,7 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
 // ============================================================
 
 function SubmissionDetailModal({ session, classroom, assignment, member, onBack, onClose }) {
+  const { t } = useLanguage();
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1809,7 +1840,7 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
     setError(null);
     getSubmissionDetail(classroom.class_code, assignment.id, member.member_id, session.memberToken)
       .then((data) => setDetail(data))
-      .catch((err) => setError(err?.message || "Unable to load this student's answers."))
+      .catch((err) => setError(err?.message || t("Unable to load this student's answers.")))
       .finally(() => setLoading(false));
   }, [classroom.class_code, assignment.id, member.member_id, session.memberToken]);
 
@@ -1840,19 +1871,19 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
           {!loading && error && <p className="text-red-500 font-bold text-sm text-center py-8">{error}</p>}
 
           {!loading && !error && detail && !detail.submitted && (
-            <p className="text-black font-medium text-sm text-center py-8">This student hasn't submitted this homework yet.</p>
+            <p className="text-black font-medium text-sm text-center py-8">{t("This student hasn't submitted this homework yet.")}</p>
           )}
 
           {!loading && !error && detail?.submitted && (
             <div className="space-y-5">
               <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                <span className="text-sm font-bold text-black">Score</span>
+                <span className="text-sm font-bold text-black">{t('Score')}</span>
                 <span className="font-extrabold text-black">{detail.score}/{detail.total}</span>
               </div>
 
               {detail.questions.length === 0 && (
                 <p className="text-black font-medium text-sm text-center py-6">
-                  This homework's quiz is no longer available, so its questions can't be shown — the score above is still accurate.
+                  {t("This homework's quiz is no longer available, so its questions can't be shown — the score above is still accurate.")}
                 </p>
               )}
 
@@ -1882,7 +1913,7 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
                   </div>
 
                   {q.selected === null && (
-                    <p className="text-xs font-semibold text-amber-600 mt-2">Skipped — no answer selected.</p>
+                    <p className="text-xs font-semibold text-amber-600 mt-2">{t('Skipped — no answer selected.')}</p>
                   )}
 
                   {q.explanation && (
@@ -1903,6 +1934,7 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
 // ============================================================
 
 function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubmitted }) {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [player, setPlayer] = useState(null); // { questions, idx, selected, score, answers }
@@ -1920,10 +1952,10 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
     getAssignmentProject(classroom.class_code, assignment.id, 'quiz', session.memberToken)
       .then((project) => {
         const questions = project?.data?.questions || [];
-        if (!questions.length) throw new Error('This homework has no questions to show.');
+        if (!questions.length) throw new Error(t('This homework has no questions to show.'));
         setPlayer({ questions, idx: 0, selected: null, score: 0, answers: [] });
       })
-      .catch((err) => setError(err?.message || 'Unable to load this homework.'))
+      .catch((err) => setError(err?.message || t('Unable to load this homework.')))
       .finally(() => setLoading(false));
   }, [assignment.quiz_project_id, classroom.class_code, assignment.id, session.memberToken]);
 
@@ -1966,7 +1998,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
       onSubmitted(assignment.id, { submitted_count: assignment.submitted_count + 1 });
       setFinished(true);
     } catch (err) {
-      setError(err?.message || 'Failed to submit your answers.');
+      setError(err?.message || t('Failed to submit your answers.'));
     }
   };
 
@@ -1998,15 +2030,15 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
               <div className="text-7xl mb-4">
                 {player.score / player.questions.length >= 0.8 ? '🏆' : player.score / player.questions.length >= 0.5 ? '⭐' : '💪'}
               </div>
-              <h4 className="font-bold text-black text-2xl sm:text-3xl mb-2">You scored {player.score}/{player.questions.length}</h4>
-              <p className="text-base text-black font-semibold">Your teacher can see this result, and it's saved to your learning history.</p>
+              <h4 className="font-bold text-black text-2xl sm:text-3xl mb-2">{t('You scored')} {player.score}/{player.questions.length}</h4>
+              <p className="text-base text-black font-semibold">{t("Your teacher can see this result, and it's saved to your learning history.")}</p>
             </div>
           )}
 
           {!loading && !error && !finished && player && (
             <>
               <span className="inline-block text-base font-bold text-purple-600 bg-purple-100 px-4 py-1.5 rounded-full mb-5">
-                Question {player.idx + 1}/{player.questions.length}
+                {t('Question')} {player.idx + 1}/{player.questions.length}
               </span>
 
               {(() => {
@@ -2047,7 +2079,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
                         onClick={handleNext}
                         className="w-full py-3.5 sm:py-4 rounded-2xl font-bold text-lg sm:text-xl text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:scale-[1.01] transition-transform shadow-lg"
                       >
-                        {player.idx === player.questions.length - 1 ? 'Submit' : 'Next →'}
+                        {player.idx === player.questions.length - 1 ? t('Submit') : `${t('Next')} →`}
                       </button>
                     )}
                   </>
@@ -2066,6 +2098,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
 // ============================================================
 
 function HistoryPanel({ session }) {
+  const { t } = useLanguage();
   const [history, setHistory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -2073,14 +2106,14 @@ function HistoryPanel({ session }) {
   useEffect(() => {
     getClassroomHistory(session.classCode, session.memberToken)
       .then((data) => setHistory(data.history || []))
-      .catch((err) => setError(err?.message || 'Unable to load your learning history.'))
+      .catch((err) => setError(err?.message || t('Unable to load your learning history.')))
       .finally(() => setLoading(false));
   }, [session.classCode, session.memberToken]);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
       <h2 className="font-bold text-black flex items-center gap-2 mb-4">
-        <History className="w-4.5 h-4.5 text-black" /> My learning history
+        <History className="w-4.5 h-4.5 text-black" /> {t('My learning history')}
       </h2>
 
       {loading && (
@@ -2092,7 +2125,7 @@ function HistoryPanel({ session }) {
       {!loading && error && <p className="text-red-400 font-semibold text-sm text-center py-6">{error}</p>}
 
       {!loading && !error && history?.length === 0 && (
-        <p className="text-black font-medium text-sm text-center py-6">No attempts yet — complete some homework to see your history here.</p>
+        <p className="text-black font-medium text-sm text-center py-6">{t('No attempts yet — complete some homework to see your history here.')}</p>
       )}
 
       {!loading && !error && history?.length > 0 && (
@@ -2120,6 +2153,7 @@ function HistoryPanel({ session }) {
 // ============================================================
 
 function ParentView({ data, loading, error, onRetry, onLogout }) {
+  const { t } = useLanguage();
   if (loading && !data) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-pulse">
@@ -2137,14 +2171,14 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
     return (
       <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
         <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-        <p className="text-black font-bold text-lg mb-1">Couldn't load this view.</p>
+        <p className="text-black font-bold text-lg mb-1">{t("Couldn't load this view.")}</p>
         <p className="text-black font-medium text-sm mb-5">{error}</p>
         <div className="flex items-center justify-center gap-3">
           <button onClick={onRetry} className="inline-flex items-center gap-2 bg-rose-500 text-white font-bold py-2.5 px-5 rounded-xl hover:bg-rose-600 transition-colors text-sm">
-            <RefreshCw className="w-4 h-4" /> Try Again
+            <RefreshCw className="w-4 h-4" /> {t('Try Again')}
           </button>
           <button onClick={onLogout} className="inline-flex items-center gap-2 bg-slate-100 text-black font-bold py-2.5 px-5 rounded-xl hover:bg-slate-200 transition-colors text-sm">
-            Use a Different Code
+            {t('Use a Different Code')}
           </button>
         </div>
       </div>
@@ -2157,22 +2191,22 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <p className="text-xs font-bold text-black uppercase tracking-wide mb-1">Classroom</p>
+          <p className="text-xs font-bold text-black uppercase tracking-wide mb-1">{t('Classroom')}</p>
           <p className="text-xl font-extrabold text-black">{data.classroom.name}</p>
           {data.classroom.subject && <p className="text-sm text-black font-semibold mt-1">{data.classroom.subject}</p>}
           {data.classroom.description && <p className="text-sm text-black font-medium mt-2">{data.classroom.description}</p>}
           {data.classroom.teacher_name && (
-            <p className="text-xs text-black font-semibold mt-3">Teacher: {data.classroom.teacher_name}</p>
+            <p className="text-xs text-black font-semibold mt-3">{t('Teacher')}: {data.classroom.teacher_name}</p>
           )}
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h2 className="font-bold text-black flex items-center gap-2 mb-4">
-            <ClipboardList className="w-4.5 h-4.5 text-black" /> Assignments
+            <ClipboardList className="w-4.5 h-4.5 text-black" /> {t('Assignments')}
           </h2>
 
           {data.assignments.length === 0 ? (
-            <p className="text-sm text-black font-medium">No homework has been assigned yet.</p>
+            <p className="text-sm text-black font-medium">{t('No homework has been assigned yet.')}</p>
           ) : (
             <div className="space-y-3">
               {data.assignments.map((a) => (
@@ -2182,7 +2216,7 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
                       <p className="font-bold text-black truncate">{a.title}</p>
                       {a.due_at && (
                         <p className="text-xs text-black font-semibold flex items-center gap-1 mt-1">
-                          <Clock className="w-3 h-3" /> Due {formatDue(a.due_at)}
+                          <Clock className="w-3 h-3" /> {t('Due')} {formatDue(a.due_at)}
                         </p>
                       )}
                     </div>
@@ -2192,7 +2226,7 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
                       </span>
                     ) : (
                       <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
-                        <Clock className="w-3.5 h-3.5" /> Not started
+                        <Clock className="w-3.5 h-3.5" /> {t('Not started')}
                       </span>
                     )}
                   </div>
@@ -2206,11 +2240,11 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
       <div className="space-y-6">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h2 className="font-bold text-black flex items-center gap-2 mb-4">
-            <History className="w-4.5 h-4.5 text-black" /> Learning history
+            <History className="w-4.5 h-4.5 text-black" /> {t('Learning history')}
           </h2>
 
           {data.history.length === 0 ? (
-            <p className="text-sm text-black font-medium">No completed homework yet.</p>
+            <p className="text-sm text-black font-medium">{t('No completed homework yet.')}</p>
           ) : (
             <div className="space-y-3">
               {data.history.map((h) => (
@@ -2237,6 +2271,7 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
 // ============================================================
 
 function ConfirmModal({ title, body, confirmLabel, busy, onCancel, onConfirm }) {
+  const { t } = useLanguage();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60" onClick={() => (!busy ? onCancel() : null)} />
@@ -2248,7 +2283,7 @@ function ConfirmModal({ title, body, confirmLabel, busy, onCancel, onConfirm }) 
         <p className="text-sm text-black font-medium mb-6 leading-relaxed">{body}</p>
         <div className="flex items-center gap-3">
           <button onClick={onCancel} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50">
-            Cancel
+            {t('Cancel')}
           </button>
           <button onClick={onConfirm} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-500 hover:bg-amber-600 transition-colors disabled:opacity-60">
             {confirmLabel}
@@ -2264,6 +2299,7 @@ function ConfirmModal({ title, body, confirmLabel, busy, onCancel, onConfirm }) 
 // ============================================================
 
 function CodeSavedModal({ role, code, label, onContinue }) {
+  const { t } = useLanguage();
   const isTeacher = role === 'teacher';
   const [copied, setCopied] = useState(false);
 
@@ -2284,17 +2320,17 @@ function CodeSavedModal({ role, code, label, onContinue }) {
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${isTeacher ? 'bg-teal-50' : 'bg-indigo-50'}`}>
           <KeyRound className={`w-6 h-6 ${isTeacher ? 'text-teal-600' : 'text-indigo-600'}`} />
         </div>
-        <h3 className="text-lg font-extrabold text-black mb-1.5">Save your {label}</h3>
+        <h3 className="text-lg font-extrabold text-black mb-1.5">{t('Save your')} {label}</h3>
         <p className="text-sm text-black font-medium mb-4 leading-relaxed">
           {isTeacher
-            ? "This is private — never share it with students. It's the only way to log back into this classroom as teacher from another device."
-            : "This is private. It's how you log back into your homework and history here from another device — your teacher won't see it."}
+            ? t("This is private — never share it with students. It's the only way to log back into this classroom as teacher from another device.")
+            : t("This is private. It's how you log back into your homework and history here from another device — your teacher won't see it.")}
         </p>
         <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-5">
           <span className="text-base font-extrabold text-black tracking-[0.12em] truncate">{code}</span>
           <button onClick={handleCopy} className="inline-flex items-center gap-1.5 text-xs font-bold text-black hover:text-black transition-colors shrink-0">
             {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? 'Copied' : 'Copy'}
+            {copied ? t('Copied') : t('Copy')}
           </button>
         </div>
         <button
@@ -2303,7 +2339,7 @@ function CodeSavedModal({ role, code, label, onContinue }) {
             isTeacher ? 'bg-teal-600 hover:bg-teal-700' : 'bg-indigo-600 hover:bg-indigo-700'
           }`}
         >
-          I've saved it — Continue
+          {t("I've saved it — Continue")}
         </button>
       </div>
     </div>

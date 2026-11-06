@@ -13,6 +13,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import {
   getMyClassrooms,
   getTeacherWorkspaceSummary,
@@ -60,6 +61,7 @@ const inputClass =
   'w-full px-4 py-2.5 rounded-xl border border-slate-200 text-black font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 transition-colors';
 
 function CreateClassModal({ displayName, onClose, onCreated }) {
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
   const [gradeLevel, setGradeLevel] = useState('');
@@ -73,7 +75,7 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError('Class name is required.');
+      setError(t('Class name is required.'));
       return;
     }
     setSubmitting(true);
@@ -90,7 +92,7 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
       setCreated(data.classroom);
       onCreated();
     } catch (err) {
-      setError(err?.message || 'Failed to create the class.');
+      setError(err?.message || t('Failed to create the class.'));
     } finally {
       setSubmitting(false);
     }
@@ -115,7 +117,7 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="font-extrabold text-lg text-black">
-            {created ? 'Class created' : 'Create New Class'}
+            {created ? t('Class created') : t('Create New Class')}
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
             <X className="w-5 h-5" />
@@ -125,8 +127,8 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
         {created ? (
           <div className="p-6 space-y-5">
             <p className="text-black font-medium">
-              <span className="font-extrabold">{created.name}</span> is ready. Share this code with
-              your students so they can join:
+              <span className="font-extrabold">{created.name}</span>{' '}
+              {t('is ready. Share this code with your students so they can join:')}
             </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center">
@@ -137,7 +139,7 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
               <button
                 onClick={copyCode}
                 className="p-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-black shrink-0"
-                aria-label="Copy class code"
+                aria-label={t('Copy class code')}
               >
                 {copied ? <Check className="w-5 h-5 text-teal-600" /> : <Copy className="w-5 h-5" />}
               </button>
@@ -146,58 +148,57 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
               onClick={onClose}
               className="w-full px-4 py-3 rounded-xl font-bold text-white bg-slate-800 hover:bg-slate-700 transition-colors"
             >
-              Done
+              {t('Done')}
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <Field label="Class Name">
+            <Field label={t('Class Name')}>
               <input
                 className={inputClass}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Grade 5 Science"
+                placeholder={t('e.g. Grade 5 Science')}
                 autoFocus
               />
             </Field>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Subject">
+              <Field label={t('Subject')}>
                 <input
                   className={inputClass}
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  placeholder="e.g. Science"
+                  placeholder={t('e.g. Science')}
                 />
               </Field>
-              <Field label="Grade / Standard">
+              <Field label={t('Grade / Standard')}>
                 <input
                   className={inputClass}
                   value={gradeLevel}
                   onChange={(e) => setGradeLevel(e.target.value)}
-                  placeholder="e.g. Grade 5"
+                  placeholder={t('e.g. Grade 5')}
                 />
               </Field>
             </div>
-            <Field label="Chapter or Topic">
+            <Field label={t('Chapter or Topic')}>
               <input
                 className={inputClass}
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder="e.g. Photosynthesis"
+                placeholder={t('e.g. Photosynthesis')}
               />
             </Field>
-            <Field label="Class Description">
+            <Field label={t('Class Description')}>
               <textarea
                 className={`${inputClass} resize-none`}
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What is this class about?"
+                placeholder={t('What is this class about?')}
               />
             </Field>
             <p className="text-xs text-black/60 font-medium">
-              A unique joining code is generated automatically once the class is created — your
-              students use it to enroll.
+              {t('A unique joining code is generated automatically once the class is created — your students use it to enroll.')}
             </p>
             {error && (
               <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
@@ -210,7 +211,7 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 transition-colors"
             >
               {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-              {submitting ? 'Creating…' : 'Create Class'}
+              {submitting ? t('Creating…') : t('Create Class')}
             </button>
           </form>
         )}
@@ -220,6 +221,7 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
 }
 
 function ClassCard({ classroom, onOpen }) {
+  const { t } = useLanguage();
   return (
     <button
       onClick={() => onOpen(classroom)}
@@ -233,15 +235,15 @@ function ClassCard({ classroom, onOpen }) {
       </div>
       <p className="text-sm font-semibold text-black/70 mb-4">
         {[classroom.subject, classroom.grade_level, classroom.topic].filter(Boolean).join(' · ') ||
-          'No details set'}
+          t('No details set')}
       </p>
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold text-black/60">
-          {classroom.student_count ?? 0} student{classroom.student_count === 1 ? '' : 's'} ·{' '}
-          {classroom.assignment_count} assignment{classroom.assignment_count === 1 ? '' : 's'}
+          {classroom.student_count ?? 0} {t(classroom.student_count === 1 ? 'student' : 'students')} ·{' '}
+          {classroom.assignment_count} {t(classroom.assignment_count === 1 ? 'assignment' : 'assignments')}
         </p>
         <span className="inline-flex items-center gap-1 text-sm font-bold text-teal-700 opacity-0 group-hover:opacity-100 transition-opacity">
-          Open <ArrowRight className="w-3.5 h-3.5" />
+          {t('Open')} <ArrowRight className="w-3.5 h-3.5" />
         </span>
       </div>
     </button>
@@ -250,6 +252,7 @@ function ClassCard({ classroom, onOpen }) {
 
 export default function TeacherWorkspace() {
   const { user, role, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const [summary, setSummary] = useState(null);
@@ -264,7 +267,7 @@ export default function TeacherWorkspace() {
         setSummary(summaryData);
         setClassrooms((classroomsData.classrooms || []).filter((c) => c.role === 'teacher'));
       })
-      .catch((err) => setError(err?.message || 'Unable to load your Teacher Workspace.'));
+      .catch((err) => setError(err?.message || t('Unable to load your Teacher Workspace.')));
   };
 
   useEffect(() => {
@@ -311,20 +314,20 @@ export default function TeacherWorkspace() {
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5 text-xs font-bold mb-4">
-              👩‍🏫 Teacher Workspace
+              👩‍🏫 {t('Teacher Workspace')}
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">
-              Your classes, your content
+              {t('Your classes, your content')}
             </h1>
             <p className="text-white/90 font-medium max-w-lg">
-              Build classes, lessons, quizzes, and assignments yourself — no AI generation needed.
+              {t('Build classes, lessons, quizzes, and assignments yourself — no AI generation needed.')}
             </p>
           </div>
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-slate-900 bg-white hover:bg-white/90 transition-colors shrink-0"
           >
-            <Plus className="w-5 h-5" /> Create New Class
+            <Plus className="w-5 h-5" /> {t('Create New Class')}
           </button>
         </div>
       </div>
@@ -332,7 +335,7 @@ export default function TeacherWorkspace() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard
           icon={School}
-          label="Total Classes"
+          label={t('Total Classes')}
           value={summary?.total_classes ?? 0}
           tint="bg-teal-50"
           iconColor="text-teal-600"
@@ -340,7 +343,7 @@ export default function TeacherWorkspace() {
         />
         <SummaryCard
           icon={Users}
-          label="Total Students"
+          label={t('Total Students')}
           value={summary?.total_students ?? 0}
           tint="bg-blue-50"
           iconColor="text-blue-600"
@@ -348,7 +351,7 @@ export default function TeacherWorkspace() {
         />
         <SummaryCard
           icon={Puzzle}
-          label="Total Quizzes"
+          label={t('Total Quizzes')}
           value={summary?.total_quizzes ?? 0}
           tint="bg-purple-50"
           iconColor="text-purple-600"
@@ -356,7 +359,7 @@ export default function TeacherWorkspace() {
         />
         <SummaryCard
           icon={ClipboardList}
-          label="Pending Assignments"
+          label={t('Pending Assignments')}
           value={summary?.pending_assignments ?? 0}
           tint="bg-amber-50"
           iconColor="text-amber-600"
@@ -367,13 +370,13 @@ export default function TeacherWorkspace() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-extrabold text-black text-lg flex items-center gap-2">
-            <School className="w-5 h-5" /> My Classes
+            <School className="w-5 h-5" /> {t('My Classes')}
           </h2>
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800"
           >
-            <Plus className="w-4 h-4" /> New class
+            <Plus className="w-4 h-4" /> {t('New class')}
           </button>
         </div>
 
@@ -391,15 +394,15 @@ export default function TeacherWorkspace() {
 
         {!error && classrooms && classrooms.length === 0 && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
-            <p className="font-bold text-black mb-1">No classes yet</p>
+            <p className="font-bold text-black mb-1">{t('No classes yet')}</p>
             <p className="text-sm text-black/70 font-medium mb-4">
-              Create your first class to start building lessons, quizzes, and assignments.
+              {t('Create your first class to start building lessons, quizzes, and assignments.')}
             </p>
             <button
               onClick={() => setShowCreate(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 transition-colors"
             >
-              <Plus className="w-4 h-4" /> Create New Class
+              <Plus className="w-4 h-4" /> {t('Create New Class')}
             </button>
           </div>
         )}

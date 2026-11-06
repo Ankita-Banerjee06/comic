@@ -19,6 +19,8 @@ import {
   Clock,
   Copy,
   LogOut,
+  Sparkles,
+  BookMarked,
 } from 'lucide-react';
 import {
   getClassroom,
@@ -30,12 +32,15 @@ import {
   createManualQuiz,
   updateManualQuiz,
   deleteManualQuiz,
+  generateQuizDraftFromLesson,
+  getLibrary,
   createAssignment,
   getClassroomStudents,
   uploadClassroomMedia,
   leaveClassroom,
   mediaUrl,
 } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // ============================================================
 // Class Workspace — the per-class home inside Teacher Workspace.
@@ -83,6 +88,7 @@ function EmptyState({ icon: Icon, title, subtitle, action }) {
 // teacher with access (or this teacher rejoining with the class code)
 // still finds everything exactly as it was.
 function LeaveClassConfirmModal({ className, busy, onCancel, onConfirm }) {
+  const { t } = useLanguage();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60" onClick={() => (!busy ? onCancel() : null)} />
@@ -90,18 +96,16 @@ function LeaveClassConfirmModal({ className, busy, onCancel, onConfirm }) {
         <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mb-4">
           <LogOut className="w-6 h-6 text-amber-500" />
         </div>
-        <h3 className="text-lg font-extrabold text-black mb-1.5">Leave {className || 'this classroom'}?</h3>
+        <h3 className="text-lg font-extrabold text-black mb-1.5">{t('Leave')} {className || t('this classroom')}?</h3>
         <p className="text-sm text-black font-medium mb-6 leading-relaxed">
-          You'll lose teacher access to this class from Teacher Workspace. Nothing about the class
-          itself — students, materials, or assignments — is deleted, and you can rejoin anytime with
-          the class code.
+          {t("You'll lose teacher access to this class from Teacher Workspace. Nothing about the class itself — students, materials, or assignments — is deleted, and you can rejoin anytime with the class code.")}
         </p>
         <div className="flex items-center gap-3">
           <button onClick={onCancel} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50">
-            Cancel
+            {t('Cancel')}
           </button>
           <button onClick={onConfirm} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-500 hover:bg-amber-600 transition-colors disabled:opacity-60">
-            {busy ? 'Leaving…' : 'Leave Classroom'}
+            {busy ? t('Leaving…') : t('Leave Classroom')}
           </button>
         </div>
       </div>
@@ -110,6 +114,7 @@ function LeaveClassConfirmModal({ className, busy, onCancel, onConfirm }) {
 }
 
 function AttachmentList({ attachments }) {
+  const { t } = useLanguage();
   if (!attachments || attachments.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2 mt-3">
@@ -121,7 +126,7 @@ function AttachmentList({ attachments }) {
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-slate-100"
         >
-          <Paperclip className="w-3 h-3" /> {a.filename || 'file'}
+          <Paperclip className="w-3 h-3" /> {a.filename || t('file')}
         </a>
       ))}
     </div>
@@ -132,6 +137,7 @@ function AttachmentList({ attachments }) {
 // attachment refs" widget used by both Teaching Materials and
 // Assignments — avoids building the same upload flow twice.
 function AttachmentPicker({ classCode, memberToken, attachments, setAttachments }) {
+  const { t } = useLanguage();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -150,7 +156,7 @@ function AttachmentPicker({ classCode, memberToken, attachments, setAttachments 
       }
       setAttachments([...attachments, ...uploaded]);
     } catch (err) {
-      setError(err?.message || 'Upload failed.');
+      setError(err?.message || t('Upload failed.'));
     } finally {
       setUploading(false);
     }
@@ -160,7 +166,7 @@ function AttachmentPicker({ classCode, memberToken, attachments, setAttachments 
     <div>
       <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 text-sm font-bold text-black/70 hover:bg-slate-50 cursor-pointer transition-colors">
         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-        {uploading ? 'Uploading…' : 'Upload files (PDF, image, doc)'}
+        {uploading ? t('Uploading…') : t('Upload files (PDF, image, doc)')}
         <input
           type="file"
           multiple
@@ -198,6 +204,7 @@ function AttachmentPicker({ classCode, memberToken, attachments, setAttachments 
 // ---------------------------------------------------------------
 
 function MaterialForm({ classCode, memberToken, onClose, onSaved }) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [attachments, setAttachments] = useState([]);
@@ -207,7 +214,7 @@ function MaterialForm({ classCode, memberToken, onClose, onSaved }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Title is required.');
+      setError(t('Title is required.'));
       return;
     }
     setSubmitting(true);
@@ -221,7 +228,7 @@ function MaterialForm({ classCode, memberToken, onClose, onSaved }) {
       });
       onSaved();
     } catch (err) {
-      setError(err?.message || 'Failed to save material.');
+      setError(err?.message || t('Failed to save material.'));
     } finally {
       setSubmitting(false);
     }
@@ -235,19 +242,19 @@ function MaterialForm({ classCode, memberToken, onClose, onSaved }) {
         className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-extrabold text-lg text-black">Add Teaching Material</h2>
+          <h2 className="font-extrabold text-lg text-black">{t('Add Teaching Material')}</h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="p-6 space-y-4">
-          <Field label="Title">
-            <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder="e.g. Unit 3 Reference Sheet" />
+          <Field label={t('Title')}>
+            <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder={t('e.g. Unit 3 Reference Sheet')} />
           </Field>
-          <Field label="Description">
-            <textarea className={`${inputClass} resize-none`} rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's in this material?" />
+          <Field label={t('Description')}>
+            <textarea className={`${inputClass} resize-none`} rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("What's in this material?")} />
           </Field>
-          <Field label="Files">
+          <Field label={t('Files')}>
             <AttachmentPicker classCode={classCode} memberToken={memberToken} attachments={attachments} setAttachments={setAttachments} />
           </Field>
           {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
@@ -259,7 +266,7 @@ function MaterialForm({ classCode, memberToken, onClose, onSaved }) {
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 transition-colors"
           >
             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-            {submitting ? 'Saving…' : 'Save Material'}
+            {submitting ? t('Saving…') : t('Save Material')}
           </button>
         </div>
       </form>
@@ -268,6 +275,7 @@ function MaterialForm({ classCode, memberToken, onClose, onSaved }) {
 }
 
 function MaterialsTab({ classCode, memberToken }) {
+  const { t } = useLanguage();
   const [materials, setMaterials] = useState(null);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -276,18 +284,18 @@ function MaterialsTab({ classCode, memberToken }) {
     setError(null);
     listMaterials(classCode, memberToken)
       .then((data) => setMaterials(data.materials || []))
-      .catch((err) => setError(err?.message || 'Unable to load materials.'));
+      .catch((err) => setError(err?.message || t('Unable to load materials.')));
   }, [classCode, memberToken]);
 
   useEffect(() => { load(); }, [load]);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this material?')) return;
+    if (!window.confirm(t('Delete this material?'))) return;
     try {
       await deleteMaterial(classCode, id, memberToken);
       load();
     } catch (err) {
-      setError(err?.message || 'Failed to delete.');
+      setError(err?.message || t('Failed to delete.'));
     }
   };
 
@@ -295,13 +303,13 @@ function MaterialsTab({ classCode, memberToken }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-extrabold text-black text-lg flex items-center gap-2">
-          <FileText className="w-5 h-5" /> Teaching Materials
+          <FileText className="w-5 h-5" /> {t('Teaching Materials')}
         </h2>
         <button
           onClick={() => setShowForm(true)}
           className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800"
         >
-          <Plus className="w-4 h-4" /> Add material
+          <Plus className="w-4 h-4" /> {t('Add material')}
         </button>
       </div>
 
@@ -316,11 +324,11 @@ function MaterialsTab({ classCode, memberToken }) {
       {!error && materials && materials.length === 0 && (
         <EmptyState
           icon={FileText}
-          title="No teaching materials yet"
-          subtitle="Upload reference sheets, slides, or notes for this class."
+          title={t('No teaching materials yet')}
+          subtitle={t('Upload reference sheets, slides, or notes for this class.')}
           action={
             <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 transition-colors">
-              <Plus className="w-4 h-4" /> Add material
+              <Plus className="w-4 h-4" /> {t('Add material')}
             </button>
           }
         />
@@ -360,25 +368,54 @@ function MaterialsTab({ classCode, memberToken }) {
 // ---------------------------------------------------------------
 
 function blankQuestion() {
-  return { question: '', options: ['', ''], correct: 0, explanation: '', marks: 1 };
+  return { question: '', options: ['', ''], correct: 0, explanation: '', marks: 1, microbit_reference: null };
 }
 
-function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
-  const [title, setTitle] = useState(existing?.title || '');
+// `existing` (edit an already-saved quiz) and `initialDraft` (review
+// an unsaved "Generate from Lesson" result, before it's ever been
+// saved) are mutually exclusive — `existing` always wins if somehow
+// both were passed. Both pre-fill the exact same form; the only
+// real difference is which save call handleSubmit makes, and that a
+// draft's questions carry a microbit_reference to show the teacher.
+function QuizForm({ classCode, memberToken, existing, initialDraft, onClose, onSaved }) {
+  const isReviewingDraft = !existing && !!initialDraft;
+  // A brand-new quiz's content language: a "Generate from Lesson"
+  // draft already carries the source lesson's own language (see
+  // generateQuizDraftFromLesson); a Start Blank quiz has no lesson
+  // to inherit from, so it saves in whichever language the teacher
+  // is currently working in. Editing an existing quiz never changes
+  // its language — that's fixed at creation, same as an AMIVI
+  // lesson's language never changes after it's generated.
+  const { language: currentUiLanguage, t } = useLanguage();
+  const quizLanguage = initialDraft?.language || currentUiLanguage || 'en';
+
+  const [title, setTitle] = useState(existing?.title || initialDraft?.title || '');
   const [description, setDescription] = useState(existing?.description || '');
   const [durationMinutes, setDurationMinutes] = useState(existing?.duration_minutes || '');
   const [status, setStatus] = useState(existing?.status || 'draft');
-  const [questions, setQuestions] = useState(
-    existing?.questions?.length
-      ? existing.questions.map((q) => ({
-          question: q.q || '',
-          options: q.options?.length ? q.options : ['', ''],
-          correct: q.correct ?? 0,
-          explanation: q.explanation || '',
-          marks: q.marks || 1,
-        }))
-      : [blankQuestion()]
-  );
+  const [questions, setQuestions] = useState(() => {
+    if (existing?.questions?.length) {
+      return existing.questions.map((q) => ({
+        question: q.q || '',
+        options: q.options?.length ? q.options : ['', ''],
+        correct: q.correct ?? 0,
+        explanation: q.explanation || '',
+        marks: q.marks || 1,
+        microbit_reference: q.microbit_reference || null,
+      }));
+    }
+    if (initialDraft?.questions?.length) {
+      return initialDraft.questions.map((q) => ({
+        question: q.question || '',
+        options: q.options?.length ? q.options : ['', ''],
+        correct: q.correct ?? 0,
+        explanation: q.explanation || '',
+        marks: q.marks || 1,
+        microbit_reference: q.microbit_reference || null,
+      }));
+    }
+    return [blankQuestion()];
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -415,14 +452,14 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
   const handleSubmit = async (e, publish) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Quiz title is required.');
+      setError(t('Quiz title is required.'));
       return;
     }
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const cleanOptions = q.options.map((o) => o.trim()).filter(Boolean);
       if (!q.question.trim() || cleanOptions.length < 2) {
-        setError(`Question ${i + 1} needs text and at least 2 options.`);
+        setError(`${t('Question')} ${i + 1} ${t('needs text and at least 2 options.')}`);
         return;
       }
     }
@@ -441,16 +478,25 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
           correct: q.correct,
           explanation: q.explanation.trim(),
           marks: Number(q.marks) || 1,
+          microbit_reference: q.microbit_reference || null,
         })),
       };
       if (existing?.project_id) {
         await updateManualQuiz(classCode, existing.project_id, payload);
       } else {
-        await createManualQuiz(classCode, payload);
+        // Only a quiz that started as a "Generate from Lesson" draft
+        // (and has gone through this same review screen) is tagged
+        // generated — a brand new Start Blank quiz, or one with no
+        // draft behind it at all, saves as manual exactly as before.
+        await createManualQuiz(classCode, {
+          ...payload,
+          createdVia: isReviewingDraft ? 'generated' : 'manual',
+          language: quizLanguage,
+        });
       }
       onSaved();
     } catch (err) {
-      setError(err?.message || 'Failed to save quiz.');
+      setError(err?.message || t('Failed to save quiz.'));
     } finally {
       setSubmitting(false);
     }
@@ -464,27 +510,36 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
         className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
-          <h2 className="font-extrabold text-lg text-black">{existing ? 'Edit Quiz' : 'New Quiz'}</h2>
+          <h2 className="font-extrabold text-lg text-black">
+            {existing ? t('Edit Quiz') : isReviewingDraft ? t('Review Generated Quiz') : t('New Quiz')}
+          </h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {isReviewingDraft && (
+          <div className="mx-6 mt-4 px-4 py-3 bg-purple-50 border border-purple-100 rounded-xl text-sm font-semibold text-purple-900">
+            {t('Generated from')} <span className="font-extrabold">{initialDraft.source_title}</span> —{' '}
+            {t("each question below is tagged with the Microbit it came from. Review the answers and explanations, edit or remove anything that's off, add more if you want, then save.")}
+          </div>
+        )}
+
         <div className="p-6 space-y-5">
-          <Field label="Quiz Title">
-            <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder="e.g. Chapter 3 Checkpoint" />
+          <Field label={t('Quiz Title')}>
+            <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder={t('e.g. Chapter 3 Checkpoint')} />
           </Field>
-          <Field label="Description">
+          <Field label={t('Description')}>
             <textarea className={`${inputClass} resize-none`} rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Duration (minutes)" hint="Optional">
-              <input type="number" min="1" className={inputClass} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} placeholder="e.g. 15" />
+            <Field label={t('Duration (minutes)')} hint={t('Optional')}>
+              <input type="number" min="1" className={inputClass} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} placeholder={t('e.g. 15')} />
             </Field>
-            <Field label="Status">
+            <Field label={t('Status')}>
               <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
+                <option value="draft">{t('Draft')}</option>
+                <option value="published">{t('Published')}</option>
               </select>
             </Field>
           </div>
@@ -493,7 +548,14 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
             {questions.map((q, qIdx) => (
               <div key={qIdx} className="border border-slate-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs font-extrabold text-teal-700 bg-teal-50 rounded-full px-2.5 py-1">Q{qIdx + 1}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-extrabold text-teal-700 bg-teal-50 rounded-full px-2.5 py-1">Q{qIdx + 1}</span>
+                    {q.microbit_reference && (
+                      <span className="text-xs font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-2.5 py-1">
+                        📍 {q.microbit_reference}
+                      </span>
+                    )}
+                  </div>
                   {questions.length > 1 && (
                     <button type="button" onClick={() => removeQuestion(qIdx)} className="p-1 rounded-lg hover:bg-red-50 text-black/40 hover:text-red-500">
                       <Trash2 className="w-4 h-4" />
@@ -502,7 +564,7 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
                 </div>
                 <input
                   className={inputClass}
-                  placeholder="Question text"
+                  placeholder={t('Question text')}
                   value={q.question}
                   onChange={(e) => updateQuestion(qIdx, { question: e.target.value })}
                 />
@@ -518,7 +580,7 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
                       />
                       <input
                         className={`${inputClass} flex-1`}
-                        placeholder={`Option ${optIdx + 1}`}
+                        placeholder={`${t('Option')} ${optIdx + 1}`}
                         value={opt}
                         onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
                       />
@@ -531,14 +593,14 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
                   ))}
                   {q.options.length < 6 && (
                     <button type="button" onClick={() => addOption(qIdx)} className="text-xs font-bold text-teal-700 hover:text-teal-800">
-                      + Add option
+                      + {t('Add option')}
                     </button>
                   )}
                 </div>
                 <div className="grid grid-cols-[1fr,100px] gap-3">
                   <input
                     className={inputClass}
-                    placeholder="Explanation (shown after answering)"
+                    placeholder={t('Explanation (shown after answering)')}
                     value={q.explanation}
                     onChange={(e) => updateQuestion(qIdx, { explanation: e.target.value })}
                   />
@@ -546,7 +608,7 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
                     type="number"
                     min="1"
                     className={inputClass}
-                    placeholder="Marks"
+                    placeholder={t('Marks')}
                     value={q.marks}
                     onChange={(e) => updateQuestion(qIdx, { marks: e.target.value })}
                   />
@@ -556,7 +618,7 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
           </div>
 
           <button type="button" onClick={addQuestion} className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800">
-            <Plus className="w-4 h-4" /> Add question
+            <Plus className="w-4 h-4" /> {t('Add question')}
           </button>
 
           {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
@@ -569,7 +631,7 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
             onClick={(e) => handleSubmit(e, false)}
             className="flex-1 px-4 py-3 rounded-xl font-bold text-black bg-slate-100 hover:bg-slate-200 disabled:opacity-60 transition-colors"
           >
-            Save as Draft
+            {t('Save as Draft')}
           </button>
           <button
             type="button"
@@ -578,7 +640,7 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 transition-colors"
           >
             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-            Publish
+            {t('Publish')}
           </button>
         </div>
       </form>
@@ -586,40 +648,185 @@ function QuizForm({ classCode, memberToken, existing, onClose, onSaved }) {
   );
 }
 
+// The lesson-picker for "Generate from Lesson" — lists this
+// teacher's own saved AMIVI lessons (from their personal Library,
+// same one Library.jsx's own "Create Quiz" reads from) so they can
+// pick which one's Microbits to ground the quiz in, then calls the
+// draft endpoint and hands the unsaved result up to QuizzesTab to
+// open in QuizForm for review.
+function GenerateQuizModal({ classCode, memberToken, onClose, onGenerated }) {
+  const { t } = useLanguage();
+  const [lessons, setLessons] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [selectedId, setSelectedId] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getLibrary()
+      .then((res) => {
+        if (cancelled) return;
+        setLessons((res.projects || []).filter((p) => p.type === 'amivi'));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoadError(t('Unable to load your AMIVI lessons.'));
+      });
+    return () => { cancelled = true; };
+  }, [t]);
+
+  const handleGenerate = async () => {
+    if (!selectedId) return;
+    setGenerating(true);
+    setGenError(null);
+    try {
+      // The backend always grounds this in the lesson's OWN saved
+      // language regardless of what's sent here — this is just a
+      // best-effort fallback for the rare case it can't resolve one.
+      const selectedLesson = (lessons || []).find((l) => String(l.id) === String(selectedId));
+      const draft = await generateQuizDraftFromLesson(classCode, {
+        memberToken,
+        sourceProjectId: Number(selectedId),
+        language: selectedLesson?.language || 'en',
+      });
+      onGenerated(draft);
+    } catch (err) {
+      setGenError(err?.message || t('Failed to generate a quiz from that lesson.'));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h2 className="font-extrabold text-lg text-black flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-purple-600" /> {t('Generate from Lesson')}
+          </h2>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-black/70 font-medium">
+            {t("Pick a saved AMIVI lesson. Five questions get generated strictly from that lesson's own Microbits — nothing it didn't actually teach — for you to review before saving.")}
+          </p>
+
+          {loadError && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{loadError}</p>}
+
+          {!loadError && lessons === null && (
+            <div className="py-8 flex items-center justify-center">
+              <Loader2 className="w-5 h-5 text-black animate-spin" />
+            </div>
+          )}
+
+          {!loadError && lessons && lessons.length === 0 && (
+            <p className="text-sm text-black/60 font-medium bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+              {t('No AMIVI lessons in your Library yet — create one in AMIVI first, then come back here.')}
+            </p>
+          )}
+
+          {!loadError && lessons && lessons.length > 0 && (
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {lessons.map((lesson) => (
+                <label
+                  key={lesson.id}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors ${
+                    String(selectedId) === String(lesson.id)
+                      ? 'border-purple-400 bg-purple-50'
+                      : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="lesson"
+                    checked={String(selectedId) === String(lesson.id)}
+                    onChange={() => setSelectedId(lesson.id)}
+                    className="shrink-0 accent-purple-600"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-bold text-black text-sm truncate">{lesson.title}</p>
+                    {lesson.language && <p className="text-xs text-black/50 font-semibold uppercase">{lesson.language}</p>}
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {genError && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{genError}</p>}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100">
+          <button
+            type="button"
+            disabled={!selectedId || generating}
+            onClick={handleGenerate}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 transition-colors"
+          >
+            {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+            {generating ? t('Generating…') : t('Generate Quiz')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function QuizzesTab({ classCode, memberToken, onAssign }) {
+  const { t } = useLanguage();
   const [quizzes, setQuizzes] = useState(null);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [draft, setDraft] = useState(null);
 
   const load = useCallback(() => {
     setError(null);
     listManualQuizzes(classCode, memberToken)
       .then((data) => setQuizzes(data.quizzes || []))
-      .catch((err) => setError(err?.message || 'Unable to load quizzes.'));
+      .catch((err) => setError(err?.message || t('Unable to load quizzes.')));
   }, [classCode, memberToken]);
 
   useEffect(() => { load(); }, [load]);
 
   const handleDelete = async (projectId) => {
-    if (!window.confirm('Delete this quiz? Any homework using it will keep the homework but lose the quiz.')) return;
+    if (!window.confirm(t('Delete this quiz? Any homework using it will keep the homework but lose the quiz.'))) return;
     try {
       await deleteManualQuiz(classCode, projectId, memberToken);
       load();
     } catch (err) {
-      setError(err?.message || 'Failed to delete.');
+      setError(err?.message || t('Failed to delete.'));
     }
+  };
+
+  const startBlank = () => { setEditing(null); setDraft(null); setShowForm(true); };
+
+  const handleGenerated = (generatedDraft) => {
+    setEditing(null);
+    setDraft(generatedDraft);
+    setShowGenerateModal(false);
+    setShowForm(true);
   };
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h2 className="font-extrabold text-black text-lg flex items-center gap-2">
-          <Puzzle className="w-5 h-5" /> Quiz Builder
+          <Puzzle className="w-5 h-5" /> {t('Quiz Builder')}
         </h2>
-        <button onClick={() => { setEditing(null); setShowForm(true); }} className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800">
-          <Plus className="w-4 h-4" /> New quiz
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowGenerateModal(true)} className="inline-flex items-center gap-1.5 text-sm font-bold text-purple-700 hover:text-purple-800">
+            <Sparkles className="w-4 h-4" /> {t('Generate from Lesson')}
+          </button>
+          <span className="text-black/20">|</span>
+          <button onClick={startBlank} className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800">
+            <Plus className="w-4 h-4" /> {t('Start Blank')}
+          </button>
+        </div>
       </div>
 
       {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">{error}</p>}
@@ -633,12 +840,17 @@ function QuizzesTab({ classCode, memberToken, onAssign }) {
       {!error && quizzes && quizzes.length === 0 && (
         <EmptyState
           icon={Puzzle}
-          title="No quizzes yet"
-          subtitle="Build a quiz by hand — no AI generation needed — then assign it as homework."
+          title={t('No quizzes yet')}
+          subtitle={t('Generate one from a saved AMIVI lesson, or build one by hand — then assign it as homework.')}
           action={
-            <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 transition-colors">
-              <Plus className="w-4 h-4" /> New quiz
-            </button>
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <button onClick={() => setShowGenerateModal(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 transition-colors">
+                <Sparkles className="w-4 h-4" /> {t('Generate from Lesson')}
+              </button>
+              <button onClick={startBlank} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 transition-colors">
+                <Plus className="w-4 h-4" /> {t('Start Blank')}
+              </button>
+            </div>
           }
         />
       )}
@@ -650,25 +862,32 @@ function QuizzesTab({ classCode, memberToken, onAssign }) {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h3 className="font-extrabold text-black leading-snug">{q.title}</h3>
                 <span className={`shrink-0 text-xs font-bold rounded-full px-2.5 py-1 ${q.data?.status === 'published' ? 'text-teal-700 bg-teal-50 border border-teal-100' : 'text-amber-700 bg-amber-50 border border-amber-100'}`}>
-                  {q.data?.status === 'published' ? 'Published' : 'Draft'}
+                  {q.data?.status === 'published' ? t('Published') : t('Draft')}
                 </span>
               </div>
-              <p className="text-sm text-black/70 font-medium mb-3">
-                {(q.data?.questions || []).length} question{(q.data?.questions || []).length === 1 ? '' : 's'}
-                {q.data?.duration_minutes ? ` · ${q.data.duration_minutes} min` : ''}
+              <p className="text-sm text-black/70 font-medium mb-3 flex items-center gap-2 flex-wrap">
+                <span>
+                  {(q.data?.questions || []).length} {t((q.data?.questions || []).length === 1 ? 'question' : 'questions')}
+                  {q.data?.duration_minutes ? ` · ${q.data.duration_minutes} min` : ''}
+                </span>
+                {q.created_via === 'generated' && (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-2 py-0.5">
+                    <Sparkles className="w-3 h-3" /> {t('Generated')}
+                  </span>
+                )}
               </p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => { setEditing({ project_id: q.project_id, ...q.data }); setShowForm(true); }}
+                  onClick={() => { setDraft(null); setEditing({ project_id: q.project_id, ...q.data }); setShowForm(true); }}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-black/70 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-slate-100"
                 >
-                  <Pencil className="w-3 h-3" /> Edit
+                  <Pencil className="w-3 h-3" /> {t('Edit')}
                 </button>
                 <button
                   onClick={() => onAssign(q)}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-100 rounded-full px-3 py-1.5 hover:bg-teal-100"
                 >
-                  <ClipboardList className="w-3 h-3" /> Assign as homework
+                  <ClipboardList className="w-3 h-3" /> {t('Assign as homework')}
                 </button>
                 <button onClick={() => handleDelete(q.project_id)} className="ml-auto p-1.5 rounded-lg hover:bg-red-50 text-black/40 hover:text-red-500">
                   <Trash2 className="w-4 h-4" />
@@ -679,13 +898,23 @@ function QuizzesTab({ classCode, memberToken, onAssign }) {
         </div>
       )}
 
+      {showGenerateModal && (
+        <GenerateQuizModal
+          classCode={classCode}
+          memberToken={memberToken}
+          onClose={() => setShowGenerateModal(false)}
+          onGenerated={handleGenerated}
+        />
+      )}
+
       {showForm && (
         <QuizForm
           classCode={classCode}
           memberToken={memberToken}
           existing={editing}
-          onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); load(); }}
+          initialDraft={draft}
+          onClose={() => { setShowForm(false); setDraft(null); }}
+          onSaved={() => { setShowForm(false); setDraft(null); load(); }}
         />
       )}
     </div>
@@ -697,6 +926,7 @@ function QuizzesTab({ classCode, memberToken, onAssign }) {
 // ---------------------------------------------------------------
 
 function AssignmentForm({ classCode, memberToken, quizzes, prefillQuiz, onClose, onSaved }) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState(prefillQuiz ? prefillQuiz.title : '');
   const [instructions, setInstructions] = useState('');
   const [quizProjectId, setQuizProjectId] = useState(prefillQuiz ? prefillQuiz.project_id : '');
@@ -708,11 +938,11 @@ function AssignmentForm({ classCode, memberToken, quizzes, prefillQuiz, onClose,
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Title is required.');
+      setError(t('Title is required.'));
       return;
     }
     if (!quizProjectId && attachments.length === 0) {
-      setError('Pick a quiz or attach at least one file.');
+      setError(t('Pick a quiz or attach at least one file.'));
       return;
     }
     setSubmitting(true);
@@ -728,7 +958,7 @@ function AssignmentForm({ classCode, memberToken, quizzes, prefillQuiz, onClose,
       });
       onSaved();
     } catch (err) {
-      setError(err?.message || 'Failed to create assignment.');
+      setError(err?.message || t('Failed to create assignment.'));
     } finally {
       setSubmitting(false);
     }
@@ -742,30 +972,30 @@ function AssignmentForm({ classCode, memberToken, quizzes, prefillQuiz, onClose,
         className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-extrabold text-lg text-black">New Assignment</h2>
+          <h2 className="font-extrabold text-lg text-black">{t('New Assignment')}</h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="p-6 space-y-4">
-          <Field label="Title">
-            <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder="e.g. Homework 4" />
+          <Field label={t('Title')}>
+            <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder={t('e.g. Homework 4')} />
           </Field>
-          <Field label="Instructions">
-            <textarea className={`${inputClass} resize-none`} rows={3} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="What should students do?" />
+          <Field label={t('Instructions')}>
+            <textarea className={`${inputClass} resize-none`} rows={3} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder={t('What should students do?')} />
           </Field>
-          <Field label="Quiz (optional)" hint="Pick one of this class's manually-built quizzes">
+          <Field label={t('Quiz (optional)')} hint={t("Pick one of this class's manually-built quizzes")}>
             <select className={inputClass} value={quizProjectId} onChange={(e) => setQuizProjectId(e.target.value ? Number(e.target.value) : '')}>
-              <option value="">No quiz — files only</option>
+              <option value="">{t('No quiz — files only')}</option>
               {quizzes.map((q) => (
                 <option key={q.project_id} value={q.project_id}>{q.title}</option>
               ))}
             </select>
           </Field>
-          <Field label="Attach files (optional)">
+          <Field label={t('Attach files (optional)')}>
             <AttachmentPicker classCode={classCode} memberToken={memberToken} attachments={attachments} setAttachments={setAttachments} />
           </Field>
-          <Field label="Due date (optional)">
+          <Field label={t('Due date (optional)')}>
             <input type="datetime-local" className={inputClass} value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
           </Field>
           {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
@@ -777,7 +1007,7 @@ function AssignmentForm({ classCode, memberToken, quizzes, prefillQuiz, onClose,
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 transition-colors"
           >
             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-            {submitting ? 'Creating…' : 'Create Assignment'}
+            {submitting ? t('Creating…') : t('Create Assignment')}
           </button>
         </div>
       </form>
@@ -786,6 +1016,7 @@ function AssignmentForm({ classCode, memberToken, quizzes, prefillQuiz, onClose,
 }
 
 function AssignmentsTab({ classCode, memberToken, assignments, studentCount, onRefresh, prefillQuiz, clearPrefillQuiz }) {
+  const { t } = useLanguage();
   const [quizzes, setQuizzes] = useState([]);
   const [showForm, setShowForm] = useState(false);
 
@@ -806,21 +1037,21 @@ function AssignmentsTab({ classCode, memberToken, assignments, studentCount, onR
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-extrabold text-black text-lg flex items-center gap-2">
-          <ClipboardList className="w-5 h-5" /> Assignments
+          <ClipboardList className="w-5 h-5" /> {t('Assignments')}
         </h2>
         <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800">
-          <Plus className="w-4 h-4" /> New assignment
+          <Plus className="w-4 h-4" /> {t('New assignment')}
         </button>
       </div>
 
       {(!assignments || assignments.length === 0) && (
         <EmptyState
           icon={ClipboardList}
-          title="No assignments yet"
-          subtitle="Assign a quiz you built, or attach files for students to work through."
+          title={t('No assignments yet')}
+          subtitle={t('Assign a quiz you built, or attach files for students to work through.')}
           action={
             <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 transition-colors">
-              <Plus className="w-4 h-4" /> New assignment
+              <Plus className="w-4 h-4" /> {t('New assignment')}
             </button>
           }
         />
@@ -833,15 +1064,15 @@ function AssignmentsTab({ classCode, memberToken, assignments, studentCount, onR
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-extrabold text-black leading-snug">{a.title}</h3>
                 <span className="shrink-0 text-xs font-bold text-black/60 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
-                  {a.submitted_count}/{studentCount ?? a.student_count} submitted
+                  {a.submitted_count}/{studentCount ?? a.student_count} {t('submitted')}
                 </span>
               </div>
               {a.instructions && <p className="text-sm text-black/70 font-medium mt-1">{a.instructions}</p>}
               <div className="flex items-center gap-3 mt-3 text-xs font-bold text-black/50">
                 {a.due_at && (
-                  <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> Due {new Date(a.due_at).toLocaleString()}</span>
+                  <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> {t('Due')} {new Date(a.due_at).toLocaleString()}</span>
                 )}
-                {a.quiz_project_id && <span className="inline-flex items-center gap-1"><Puzzle className="w-3 h-3" /> Quiz attached</span>}
+                {a.quiz_project_id && <span className="inline-flex items-center gap-1"><Puzzle className="w-3 h-3" /> {t('Quiz attached')}</span>}
               </div>
               <AttachmentList attachments={a.attachments} />
             </div>
@@ -868,19 +1099,20 @@ function AssignmentsTab({ classCode, memberToken, assignments, studentCount, onR
 // ---------------------------------------------------------------
 
 function StudentsTab({ classCode, memberToken }) {
+  const { t } = useLanguage();
   const [students, setStudents] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     getClassroomStudents(classCode, memberToken)
       .then((data) => setStudents(data.students || []))
-      .catch((err) => setError(err?.message || 'Unable to load students.'));
-  }, [classCode, memberToken]);
+      .catch((err) => setError(err?.message || t('Unable to load students.')));
+  }, [classCode, memberToken, t]);
 
   return (
     <div>
       <h2 className="font-extrabold text-black text-lg flex items-center gap-2 mb-4">
-        <Users className="w-5 h-5" /> Students
+        <Users className="w-5 h-5" /> {t('Students')}
       </h2>
 
       {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>}
@@ -892,7 +1124,7 @@ function StudentsTab({ classCode, memberToken }) {
       )}
 
       {!error && students && students.length === 0 && (
-        <EmptyState icon={Users} title="No students enrolled yet" subtitle="Share this class's joining code to get students in." />
+        <EmptyState icon={Users} title={t('No students enrolled yet')} subtitle={t("Share this class's joining code to get students in.")} />
       )}
 
       {!error && students && students.length > 0 && (
@@ -900,10 +1132,10 @@ function StudentsTab({ classCode, memberToken }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 text-left text-black/60 font-bold">
-                <th className="px-5 py-3">Student</th>
-                <th className="px-5 py-3">Assignments</th>
-                <th className="px-5 py-3">Quiz attempts</th>
-                <th className="px-5 py-3">Avg. score</th>
+                <th className="px-5 py-3">{t('Student')}</th>
+                <th className="px-5 py-3">{t('Assignments')}</th>
+                <th className="px-5 py-3">{t('Quiz attempts')}</th>
+                <th className="px-5 py-3">{t('Avg. score')}</th>
               </tr>
             </thead>
             <tbody>
@@ -928,6 +1160,7 @@ function StudentsTab({ classCode, memberToken }) {
 // ---------------------------------------------------------------
 
 function OverviewTab({ classroom }) {
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const copyCode = async () => {
@@ -943,15 +1176,15 @@ function OverviewTab({ classroom }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <p className="text-xs font-bold text-black/50 mb-1">Class details</p>
+        <p className="text-xs font-bold text-black/50 mb-1">{t('Class details')}</p>
         <p className="font-extrabold text-black mb-1">{classroom.name}</p>
         <p className="text-sm text-black/70 font-medium">
-          {[classroom.subject, classroom.grade_level, classroom.topic].filter(Boolean).join(' · ') || 'No details set'}
+          {[classroom.subject, classroom.grade_level, classroom.topic].filter(Boolean).join(' · ') || t('No details set')}
         </p>
         {classroom.description && <p className="text-sm text-black/60 font-medium mt-2">{classroom.description}</p>}
       </div>
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <p className="text-xs font-bold text-black/50 mb-2">Joining code</p>
+        <p className="text-xs font-bold text-black/50 mb-2">{t('Joining code')}</p>
         <div className="flex items-center gap-2">
           <span className="text-xl font-extrabold tracking-[0.25em] text-black">{classroom.class_code}</span>
           <button onClick={copyCode} className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-black">
@@ -959,8 +1192,8 @@ function OverviewTab({ classroom }) {
           </button>
         </div>
         <p className="text-sm text-black/60 font-medium mt-3">
-          {(classroom.members || []).filter((m) => m.role === 'student').length} student(s) enrolled ·{' '}
-          {(classroom.assignments || []).length} assignment(s)
+          {(classroom.members || []).filter((m) => m.role === 'student').length} {t('student(s) enrolled')} ·{' '}
+          {(classroom.assignments || []).length} {t('assignment(s)')}
         </p>
       </div>
     </div>
@@ -971,6 +1204,10 @@ function OverviewTab({ classroom }) {
 // Page shell
 // ---------------------------------------------------------------
 
+// Labels are translation keys, looked up with t() at render time (see
+// the TABS.map below) rather than translated here, since this array
+// is built once at module load — before any component, and its t(),
+// exists.
 const TABS = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
   { key: 'materials', label: 'Teaching Materials', icon: FileText },
@@ -983,6 +1220,7 @@ export default function ClassWorkspace() {
   const { classCode } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const [memberToken, setMemberToken] = useState(location.state?.enterAs?.memberToken || null);
   const [classroom, setClassroom] = useState(null);
@@ -993,8 +1231,8 @@ export default function ClassWorkspace() {
   const [leaving, setLeaving] = useState(false);
 
   const loadClassroom = useCallback(() => {
-    getClassroom(classCode).then(setClassroom).catch((err) => setError(err?.message || 'Unable to load this class.'));
-  }, [classCode]);
+    getClassroom(classCode).then(setClassroom).catch((err) => setError(err?.message || t('Unable to load this class.')));
+  }, [classCode, t]);
 
   useEffect(() => {
     let active = true;
@@ -1007,12 +1245,12 @@ export default function ClassWorkspace() {
           const { classrooms } = await getMyClassrooms();
           const match = (classrooms || []).find((c) => c.class_code === classCode && c.role === 'teacher');
           if (!match) {
-            if (active) setError("You're not the teacher of this class.");
+            if (active) setError(t("You're not the teacher of this class."));
             return;
           }
           token = match.member_token;
         } catch (err) {
-          if (active) setError(err?.message || 'Unable to load this class.');
+          if (active) setError(err?.message || t('Unable to load this class.'));
           return;
         }
       }
@@ -1049,7 +1287,7 @@ export default function ClassWorkspace() {
     return (
       <div className="py-12 text-center">
         <p className="font-bold text-red-600 mb-4">{error}</p>
-        <Link to="/teacher-workspace" className="font-bold text-teal-700 hover:text-teal-800">Back to Teacher Workspace</Link>
+        <Link to="/teacher-workspace" className="font-bold text-teal-700 hover:text-teal-800">{t('Back to Teacher Workspace')}</Link>
       </div>
     );
   }
@@ -1070,7 +1308,7 @@ export default function ClassWorkspace() {
         onClick={() => navigate('/teacher-workspace')}
         className="inline-flex items-center gap-1.5 text-sm font-bold text-black/60 hover:text-black"
       >
-        <ArrowLeft className="w-4 h-4" /> Teacher Workspace
+        <ArrowLeft className="w-4 h-4" /> {t('Teacher Workspace')}
       </button>
 
       <div
@@ -1085,7 +1323,7 @@ export default function ClassWorkspace() {
             <div>
               <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">{classroom.name}</h1>
               <p className="text-white/80 text-sm font-semibold">
-                {[classroom.subject, classroom.grade_level].filter(Boolean).join(' · ') || 'Class Workspace'}
+                {[classroom.subject, classroom.grade_level].filter(Boolean).join(' · ') || t('Class Workspace')}
               </p>
             </div>
           </div>
@@ -1097,7 +1335,7 @@ export default function ClassWorkspace() {
               onClick={() => setShowLeaveConfirm(true)}
               className="inline-flex items-center gap-1.5 text-sm font-bold bg-white/10 hover:bg-white/20 border border-white/25 rounded-full px-4 py-1.5 transition-colors"
             >
-              <LogOut className="w-4 h-4" /> Leave Classroom
+              <LogOut className="w-4 h-4" /> {t('Leave Classroom')}
             </button>
           </div>
         </div>
@@ -1113,18 +1351,18 @@ export default function ClassWorkspace() {
       )}
 
       <div className="flex gap-1.5 overflow-x-auto border-b border-slate-200 pb-0.5">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.key;
+        {TABS.map((tabDef) => {
+          const Icon = tabDef.icon;
+          const active = tab === tabDef.key;
           return (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={tabDef.key}
+              onClick={() => setTab(tabDef.key)}
               className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-t-xl font-bold text-sm whitespace-nowrap transition-colors border-b-2 ${
                 active ? 'text-teal-700 border-teal-600 bg-teal-50/50' : 'text-black/60 border-transparent hover:text-black'
               }`}
             >
-              <Icon className="w-4 h-4" /> {t.label}
+              <Icon className="w-4 h-4" /> {t(tabDef.label)}
             </button>
           );
         })}

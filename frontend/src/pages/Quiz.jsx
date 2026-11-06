@@ -116,6 +116,7 @@ const QUIZ_DECKS = [
 ];
 
 function DeckPicker({ onSelect }) {
+  const { t } = useLanguage();
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -130,14 +131,14 @@ function DeckPicker({ onSelect }) {
               <div className={`h-32 ${deck.tint} flex items-center justify-center relative`}>
                 <Icon className={`w-14 h-14 ${deck.iconColor}`} />
                 <div className="absolute top-3 right-3 bg-white/90 text-black text-sm font-bold px-2.5 py-1 rounded-full shadow-sm">
-                  {deck.questions.length} questions
+                  {deck.questions.length} {t('questions')}
                 </div>
               </div>
               <div className="p-6">
                 <h3 className="font-bold text-black text-xl mb-1.5 group-hover:text-indigo-700 transition-colors">{deck.name}</h3>
                 <p className="text-base text-black font-medium mb-4 leading-relaxed">{deck.description}</p>
                 <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-base text-white bg-gradient-to-r ${deck.accent}`}>
-                  Start Quiz <ArrowRight className="w-4 h-4" />
+                  {t('Start Quiz')} <ArrowRight className="w-4 h-4" />
                 </span>
               </div>
             </button>
@@ -149,6 +150,7 @@ function DeckPicker({ onSelect }) {
 }
 
 function DeckQuizPlayer({ deck, onExit }) {
+  const { t } = useLanguage();
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
   const [score, setScore] = useState(0);
@@ -186,22 +188,22 @@ function DeckQuizPlayer({ deck, onExit }) {
         <div className="w-20 h-20 mx-auto rounded-full bg-indigo-50 flex items-center justify-center">
           <Trophy className="w-10 h-10 text-indigo-600" />
         </div>
-        <h2 className="text-3xl font-extrabold text-black">Quiz complete!</h2>
+        <h2 className="text-3xl font-extrabold text-black">{t('Quiz complete!')}</h2>
         <p className="text-black font-medium">
-          You scored <span className="font-bold text-black">{score}</span> out of <span className="font-bold text-black">{questions.length}</span> on {deck.name}.
+          {t('You scored')} <span className="font-bold text-black">{score}</span> {t('out of')} <span className="font-bold text-black">{questions.length}</span> {t('on')} {deck.name}.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={handleRestart}
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base bg-indigo-600 text-white hover:bg-indigo-700 transition-all"
           >
-            <RotateCcw className="w-4 h-4" /> Play again
+            <RotateCcw className="w-4 h-4" /> {t('Play again')}
           </button>
           <button
             onClick={onExit}
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base bg-slate-100 text-black hover:bg-slate-200 transition-all"
           >
-            Back to decks
+            {t('Back to decks')}
           </button>
         </div>
       </div>
@@ -216,11 +218,11 @@ function DeckQuizPlayer({ deck, onExit }) {
           onClick={onExit}
           className="flex items-center gap-1.5 text-base font-bold text-black hover:text-indigo-700 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to decks
+          <ArrowLeft className="w-4 h-4" /> {t('Back to decks')}
         </button>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-bold text-black">Question {index + 1} of {questions.length}</span>
-          <span className="text-sm font-bold text-indigo-600">Score: {score}</span>
+          <span className="text-sm font-bold text-black">{t('Question')} {index + 1} {t('of')} {questions.length}</span>
+          <span className="text-sm font-bold text-indigo-600">{t('Score')}: {score}</span>
         </div>
       </div>
 
@@ -278,7 +280,7 @@ function DeckQuizPlayer({ deck, onExit }) {
           {/* Prompt / Explanation */}
           {!answered ? (
             <div className="bg-yellow-100 text-black text-center font-bold text-base rounded-xl px-4 py-3">
-              Click the box with the correct answer choice
+              {t('Click the box with the correct answer choice')}
             </div>
           ) : (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 space-y-4 animate-in fade-in duration-300">
@@ -304,7 +306,7 @@ function DeckQuizPlayer({ deck, onExit }) {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-base font-bold text-indigo-600 hover:underline"
                   >
-                    <ExternalLink className="w-4 h-4" /> Click to view
+                    <ExternalLink className="w-4 h-4" /> {t('Click to view')}
                   </a>
                 </div>
               )}
@@ -319,7 +321,7 @@ function DeckQuizPlayer({ deck, onExit }) {
               onClick={handleNext}
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base text-white bg-gradient-to-r ${deck.accent} hover:-translate-y-0.5 transition-all`}
             >
-              {index + 1 >= questions.length ? 'See results' : 'Next question'} <ArrowRight className="w-4 h-4" />
+              {index + 1 >= questions.length ? t('See results') : t('Next question')} <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -405,7 +407,7 @@ export default function Quiz() {
         setFixImagesDone(true);
       })
       .catch((err) => {
-        setFixImagesError(err?.message || "Unable to fix this quiz's images.");
+        setFixImagesError(err?.message || t("Unable to fix this quiz's images."));
       })
       .finally(() => {
         setFixingImages(false);
@@ -430,7 +432,7 @@ export default function Quiz() {
         if (cancelled) return;
 
         if (!project?.data?.questions?.length) {
-          throw new Error('This quiz has no questions to show.');
+          throw new Error(t('This quiz has no questions to show.'));
         }
 
         setQuiz({ ...project.data, quizId: project.id });
@@ -447,7 +449,7 @@ export default function Quiz() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setOpenProjectError(err?.message || 'Unable to load this quiz.');
+        setOpenProjectError(err?.message || t('Unable to load this quiz.'));
       })
       .finally(() => {
         if (!cancelled) setIsOpeningProject(false);
@@ -1064,7 +1066,7 @@ export default function Quiz() {
             {percentage >= 80 ? '🏆' : percentage >= 60 ? '⭐' : '💪'}
           </div>
           <h1 className="text-4xl sm:text-6xl font-bold text-purple-700">
-            {percentage >= 80 ? 'Amazing! 🎉' : percentage >= 60 ? 'Well Done! ⭐' : 'Keep Going! 💪'}
+            {percentage >= 80 ? t('Amazing! 🎉') : percentage >= 60 ? t('Well Done! ⭐') : t('Keep Going! 💪')}
           </h1>
         </div>
 

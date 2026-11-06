@@ -1161,7 +1161,7 @@ export async function deleteMaterial(classCode, materialId, memberToken) {
   return response.json();
 }
 
-export async function createManualQuiz(classCode, { memberToken, title, description = '', durationMinutes = null, status = 'draft', questions = [] }) {
+export async function createManualQuiz(classCode, { memberToken, title, description = '', durationMinutes = null, status = 'draft', questions = [], createdVia = 'manual', language = 'en' }) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/quizzes/manual`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1172,9 +1172,36 @@ export async function createManualQuiz(classCode, { memberToken, title, descript
       duration_minutes: durationMinutes,
       status,
       questions,
+      created_via: createdVia,
+      // The quiz's own content language — for a "Generate from
+      // Lesson" draft this must be the source lesson's language
+      // (threaded through from generateQuizDraftFromLesson's
+      // response), never left to default, so a Spanish lesson's
+      // quiz is never silently saved as English.
+      language,
     }),
   });
   if (!response.ok) throw await parseClassroomError(response, 'Failed to save that quiz.');
+  return response.json();
+}
+
+// Teacher Quiz Workflow, Phase 1 — generates a draft quiz strictly
+// from an AMIVI lesson's own Microbits (never the lesson's raw
+// source text), five questions, each tagged with which Microbit it
+// came from. Nothing is saved by this call — the teacher reviews it
+// in the same QuizForm as "Start Blank" and createManualQuiz (with
+// createdVia: 'generated') is what actually persists it.
+export async function generateQuizDraftFromLesson(classCode, { memberToken, sourceProjectId, language = 'en' }) {
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/quizzes/generate_draft`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      member_token: memberToken,
+      source_project_id: sourceProjectId,
+      language,
+    }),
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to generate a quiz from that lesson.');
   return response.json();
 }
 

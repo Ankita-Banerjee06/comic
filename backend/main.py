@@ -576,6 +576,12 @@ class ManualQuizQuestion(BaseModel):
     explanation: str = ""
     image_media_id: int | None = None
     marks: int = 1
+    # Set only on a question that came from "Generate from Lesson" —
+    # which Microbit it was drawn from (e.g. "Microbit 2"), shown to
+    # the teacher on the review screen so an answer/explanation can
+    # be checked against the actual lesson content. Never set (and
+    # never shown) on a question typed by hand via Start Blank.
+    microbit_reference: str | None = None
 
 
 class ManualQuizCreateRequest(BaseModel):
@@ -585,6 +591,19 @@ class ManualQuizCreateRequest(BaseModel):
     duration_minutes: int | None = None
     status: str = "draft"  # "draft" | "published"
     questions: list[ManualQuizQuestion] = []
+    # "manual" (Start Blank, hand-typed) or "generated" (reviewed
+    # from an AI draft built off a lesson's Microbits). Anything
+    # else collapses to "manual" below rather than erroring, so an
+    # older client that never sends this field keeps working exactly
+    # as before.
+    created_via: str = "manual"
+    # The quiz's own content language — "en" or "es". For a
+    # generated quiz this must be the source lesson's language (see
+    # generate_quiz_draft's response above); for Start Blank it's
+    # whatever language the teacher is currently working in. Anything
+    # unrecognized (including an older client that never sends this
+    # field) collapses to "en" below, same pattern as created_via.
+    language: str = "en"
 
 
 class ManualQuizUpdateRequest(BaseModel):
@@ -594,6 +613,13 @@ class ManualQuizUpdateRequest(BaseModel):
     duration_minutes: int | None = None
     status: str | None = None
     questions: list[ManualQuizQuestion] | None = None
+
+
+class GenerateQuizDraftRequest(BaseModel):
+    member_token: str
+    # An AMIVI lesson already saved to this teacher's Library.
+    source_project_id: int
+    language: str = "en"
 
 
 # ============================================================
@@ -3070,6 +3096,7 @@ def generate_quiz_from_source(
     topic,
     language="en",
     num_questions=5,
+    require_microbit_reference=False,
 ):
     """
     Standalone Quiz generator.
@@ -3083,6 +3110,15 @@ def generate_quiz_from_source(
     one that depicts, labels, or hints at which option is correct,
     since that would let a learner guess the answer from the
     picture alone instead of actually working it out.
+
+    require_microbit_reference=True additionally asks for a
+    `microbit_reference` field per question — used only by the
+    Teacher Quiz Workflow's "Generate from Lesson" path, where
+    `source_text` has already been assembled by the caller as
+    numbered "Microbit 1: ...", "Microbit 2: ..." blocks, so the
+    model can cite exactly which one each question came from. Off
+    by default so every other existing caller (the personal
+    Library/Courses quiz generator) is completely unaffected.
     """
 
     num_questions = max(
@@ -3132,7 +3168,19 @@ def generate_quiz_from_source(
         "never 5 — one correct and three plausible but wrong), "
         "correct (integer index of the right option), "
         "explanation (1-2 short, simple sentences explaining "
-        "why the correct answer is right), and "
+        "why the correct answer is right), "
+
+        + (
+            "microbit_reference (copy the exact heading of the "
+            "single \"Microbit N\" section above — e.g. "
+            "\"Microbit 2\" — that this question is drawn from; "
+            "every question must be traceable to exactly one "
+            "Microbit this way), "
+            if require_microbit_reference
+            else ""
+        )
+
+        + "and "
         "image_prompt (a short description of a simple, clear, "
         "NEUTRAL illustration that sets the scene for the "
         "question's general subject only. It must NOT depict, "
@@ -9961,6 +10009,7 @@ def build_manual_quiz_data(title, description, duration_minutes, status, questio
             ),
             "video_id": None,
             "video_url": None,
+            "microbit_reference": (q.microbit_reference or "").strip() or None,
         })
 
     return {
@@ -10534,6 +10583,147 @@ def delete_material(class_code: str, material_id: int, member_token: str):
         db.close()
 
 
+# ---- Teacher Quiz Workflow: Generate from Lesson --------------
+# Phase 1 — a teacher-only draft generator that grounds every
+# question strictly in one AMIVI lesson's own Microbits (never the
+# raw uploaded/pasted source), so nothing the lesson didn't actually
+# teach can show up in a question. Nothing is saved here: the
+# response is a plain draft for the SAME QuizForm review screen
+# (keep/edit/remove/add) that "Start Blank" already uses, and it
+# only becomes a real, assignable quiz once the teacher reviews it
+# and hits Save — which goes through the existing, unmodified
+# create_manual_quiz endpoint below (now tagged created_via=
+# "generated" instead of "manual").
+
+@app.post("/api/classrooms/{class_code}/quizzes/generate_draft")
+def generate_quiz_draft(
+    class_code: str,
+    payload: GenerateQuizDraftRequest,
+    current_user=Depends(get_current_user),
+):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        source_project = get_project(payload.source_project_id)
+
+        # Must be an AMIVI lesson, and must actually belong to the
+        # teacher who's asking — current_user is always a real,
+        # logged-in platform account here (Teacher Workspace sits
+        # entirely behind the normal JWT login, unlike the classroom-
+        # code-only login on the older standalone Classroom page), so
+        # this is a real ownership check, not just a type check.
+        if (
+            not source_project
+            or source_project.project_type != "amivi"
+            or source_project.user_id != current_user.id
+        ):
+
+            raise HTTPException(
+                status_code=404,
+                detail="AMIVI lesson not found in your Library.",
+            )
+
+        chunks = list_amivi_chunks_for_project(payload.source_project_id)
+
+        microbit_blocks = []
+
+        for index, chunk in enumerate(chunks):
+
+            headline = (chunk.key_point or chunk.text or "").strip()
+            block_lines = [headline] if headline else []
+
+            if chunk.slogan and chunk.slogan.strip():
+                block_lines.append(chunk.slogan.strip())
+
+            if chunk.description and chunk.description.strip():
+                block_lines.append(chunk.description.strip())
+
+            if block_lines:
+                microbit_blocks.append(
+                    f"Microbit {index + 1}:\n" + "\n".join(block_lines)
+                )
+
+        if not microbit_blocks:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "This lesson doesn't have any Microbits yet to "
+                    "generate a quiz from — open it in AMIVI first."
+                ),
+            )
+
+        source_text = "\n\n".join(microbit_blocks)
+
+        # Always generate in the LESSON's own saved language, not
+        # whatever the request happened to send (the frontend doesn't
+        # even know this lesson's language at the point it calls this
+        # endpoint) — this is what makes a Spanish lesson reliably
+        # produce a Spanish quiz regardless of the caller. payload.
+        # language is only a fallback for the unexpected case where
+        # the source project somehow has no language on it at all.
+        language = getattr(source_project, "language", None) or payload.language or "en"
+        if language not in ("en", "es"):
+            language = "en"
+
+        # Exactly five questions, grounded strictly in the Microbits
+        # above, each tagged with the Microbit it came from.
+        result = generate_quiz_from_source(
+            source_text,
+            "",
+            language,
+            5,
+            require_microbit_reference=True,
+        )
+
+        quiz = result.get("quiz", result)
+        questions = quiz.get("questions", [])
+
+        for question in questions:
+            _ensure_four_quiz_options(question, language)
+
+        return {
+            "status": "success",
+            "source_project_id": payload.source_project_id,
+            "source_title": source_project.title,
+            "title": quiz.get("title") or f"{source_project.title} Quiz",
+            # Handed back so the review screen can save the quiz with
+            # this SAME language rather than silently defaulting to
+            # English — see create_manual_quiz below.
+            "language": language,
+            "questions": [
+                {
+                    "question": q.get("q", ""),
+                    "options": q.get("options", []),
+                    "correct": q.get("correct", 0),
+                    "explanation": q.get("explanation", ""),
+                    "microbit_reference": q.get("microbit_reference", ""),
+                    "marks": 1,
+                }
+                for q in questions
+            ],
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        import traceback
+        traceback.print_exc()
+
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    finally:
+        db.close()
+
+
 # ---- Manual Quiz Builder -------------------------------------
 
 @app.post("/api/classrooms/{class_code}/quizzes/manual")
@@ -10567,7 +10757,16 @@ def create_manual_quiz(class_code: str, payload: ManualQuizCreateRequest):
             project_type="quiz",
             title=title,
             data=quiz_data,
-            created_via="manual",
+            created_via=(
+                payload.created_via
+                if payload.created_via in ("manual", "generated")
+                else "manual"
+            ),
+            language=(
+                payload.language
+                if payload.language in ("en", "es")
+                else "en"
+            ),
             classroom_id=classroom.id,
         )
 
@@ -10599,7 +10798,11 @@ def update_manual_quiz(class_code: str, project_id: int, payload: ManualQuizUpda
                 Project.id == project_id,
                 Project.classroom_id == classroom.id,
                 Project.project_type == "quiz",
-                Project.created_via == "manual",
+                # Both "Start Blank" quizzes and a saved,
+                # teacher-reviewed "Generate from Lesson" draft are
+                # editable the same way from here on — only an
+                # import/legacy quiz type would be excluded.
+                Project.created_via.in_(["manual", "generated"]),
             )
             .first()
         )
@@ -10676,6 +10879,12 @@ def list_manual_quizzes(class_code: str, member_token: str):
     serialize_library_project), so this list must never be reachable
     by a student. Students see a quiz only through the existing
     per-assignment assignment_project_view endpoint.
+
+    Despite the name/route (kept as-is so nothing that already calls
+    it needs to change), this also returns "generated" quizzes — a
+    saved, teacher-reviewed draft from "Generate from Lesson" is a
+    normal quiz by the time it's here, same as one built by hand via
+    Start Blank, and belongs in the same list/picker as either.
     """
 
     db = SessionLocal()
@@ -10690,7 +10899,7 @@ def list_manual_quizzes(class_code: str, member_token: str):
             .filter(
                 Project.classroom_id == classroom.id,
                 Project.project_type == "quiz",
-                Project.created_via == "manual",
+                Project.created_via.in_(["manual", "generated"]),
             )
             .order_by(Project.created_at.desc())
             .all()
@@ -10702,6 +10911,8 @@ def list_manual_quizzes(class_code: str, member_token: str):
                     "project_id": p.id,
                     "title": p.title,
                     "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "created_via": p.created_via,
+                    "language": p.language,
                     "data": dict(p.data or {}),
                 }
                 for p in projects
@@ -10728,7 +10939,7 @@ def delete_manual_quiz(class_code: str, project_id: int, member_token: str):
                 Project.id == project_id,
                 Project.classroom_id == classroom.id,
                 Project.project_type == "quiz",
-                Project.created_via == "manual",
+                Project.created_via.in_(["manual", "generated"]),
             )
             .first()
         )
@@ -11725,7 +11936,7 @@ def teacher_workspace_summary(current_user=Depends(get_current_user)):
             .filter(
                 Project.user_id == current_user.id,
                 Project.project_type == "quiz",
-                Project.created_via == "manual",
+                Project.created_via.in_(["manual", "generated"]),
             )
             .count()
         )
