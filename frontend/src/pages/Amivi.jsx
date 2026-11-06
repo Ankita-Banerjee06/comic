@@ -255,6 +255,9 @@ export default function Amivi() {
       .then((project) => {
         if (cancelled) return;
         setResult({ ...project.data, project_id: project.id });
+        // Restore a previously generated Complete Visual so its
+        // view/download buttons show again on reopen.
+        setCompleteVisualUrl(project.data?.complete_visual_image_url || null);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -1378,7 +1381,7 @@ export default function Amivi() {
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-black font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
                   >
                     <Download size={18} />
-                    Download
+                    {t('Download')}
                   </button>
                 </div>
               </div>
@@ -1593,15 +1596,25 @@ export default function Amivi() {
                   className="w-full object-contain bg-white"
                 />
               </div>
-              <a
-                href={getMediaUrl(completeVisualUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl transition-colors shadow-lg"
-              >
-                <Sparkles size={18} />
-                {t('Click here to see the complete visual')}
-              </a>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <a
+                  href={getMediaUrl(completeVisualUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl transition-colors shadow-lg"
+                >
+                  <Sparkles size={18} />
+                  {t('Click here to see the complete visual')}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleDownload(getMediaUrl(completeVisualUrl), 'amivi-complete-visual.png')}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-black font-bold rounded-2xl transition-colors shadow-lg"
+                >
+                  <Download size={18} />
+                  {t('Download')}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/40 py-10 flex flex-col items-center justify-center text-center gap-1">
@@ -1713,26 +1726,38 @@ export default function Amivi() {
                 clicking Generate Video a teacher saw nothing change
                 in this box and had no way to tell the video was
                 actually ready, or where to go look for it. */}
-            {result?.video_url && !isGeneratingVideo && (
-              <div className="flex flex-wrap items-center gap-3 mt-2">
-                <a
-                  href={getMediaUrl(result.video_url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-colors shadow-lg"
-                >
-                  <Video size={18} />
-                  {t('Click here to see the video')}
-                </a>
-                <button
-                  onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-black font-bold rounded-2xl transition-colors shadow-lg"
-                >
-                  <Download size={18} />
-                  {t('Download')}
-                </button>
-              </div>
-            )}
+            {/* Always rendered so a teacher can see where the video
+                will appear; disabled until one has been generated. */}
+            {(() => {
+              const videoReady = !!result?.video_url && !isGeneratingVideo;
+
+              return (
+                <div className="flex flex-wrap items-center gap-3 mt-4">
+                  <a
+                    href={videoReady ? getMediaUrl(result.video_url) : undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-disabled={!videoReady}
+                    onClick={(e) => { if (!videoReady) e.preventDefault(); }}
+                    className={`inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl transition-colors shadow-lg ${
+                      videoReady ? 'hover:bg-slate-800' : 'opacity-40 cursor-not-allowed'
+                    }`}
+                  >
+                    <Video size={18} />
+                    {t('Click here to see the video')}
+                  </a>
+                  <button
+                    type="button"
+                    disabled={!videoReady}
+                    onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-indigo-100 text-black font-bold rounded-2xl transition-colors shadow-lg"
+                  >
+                    <Download size={18} />
+                    {t('Download')}
+                  </button>
+                </div>
+              );
+            })()}
 
           </div>
 

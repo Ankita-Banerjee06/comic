@@ -1151,7 +1151,7 @@ export default function Quiz() {
   // ============================================================
 
   return (
-    <div className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-8 py-8 animate-in fade-in slide-in-from-right-8 duration-500">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 py-8 animate-in fade-in slide-in-from-right-8 duration-500">
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
         <div className="bg-purple-100 text-purple-700 rounded-2xl px-3 sm:px-5 py-2 sm:py-2.5 font-bold text-base sm:text-xl">
@@ -1171,145 +1171,131 @@ export default function Quiz() {
         />
       </div>
 
-      {/* Question card */}
-      <div className="bg-white rounded-2xl border-2 border-white shadow-md p-5 sm:p-8 lg:p-10 mb-6">
-        <h3 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-black leading-tight mb-5">
-          {q.q}
-        </h3>
+      {/* Two-column layout: question, picture, options and
+          explanation on the left; the explanation video on the right
+          (stacks into one column on small screens). */}
+      <div className={`grid grid-cols-1 gap-6 ${q.video_url ? 'lg:grid-cols-2' : ''}`}>
+        {/* LEFT — question card */}
+        <div className="bg-white rounded-3xl border-2 border-purple-50 shadow-md overflow-hidden">
+          <div className="flex items-start gap-4 p-5 sm:p-6 bg-purple-50/40 border-b border-purple-50">
+            <span className="shrink-0 bg-purple-600 text-white font-bold rounded-xl px-3 py-1.5 text-lg sm:text-xl">
+              Q{currentQuestion + 1}
+            </span>
+            <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-black leading-snug">
+              {q.q}
+            </h3>
+          </div>
 
-        {q.image_url && (
-          // The source images are roughly square, so a `w-full` box
-          // in this wide card was being height-capped and left
-          // sitting small in the middle of a lot of empty white
-          // space. Letting width come from the image itself
-          // (`w-auto`, centered) with a tall height cap makes the
-          // picture itself grow to fill the card instead.
-          <img
-            src={q.image_url.startsWith('/quiz-decks/') ? q.image_url : mediaUrl(q.image_url)}
-            alt={q.q}
-            className="mx-auto w-auto max-w-full max-h-[420px] sm:max-h-[560px] lg:max-h-[720px] xl:max-h-[820px] object-contain rounded-2xl border-2 border-purple-50"
-          />
+          <div className="p-5 sm:p-6 space-y-5">
+            {q.image_url && (
+              <img
+                src={q.image_url.startsWith('/quiz-decks/') ? q.image_url : mediaUrl(q.image_url)}
+                alt={q.q}
+                className="w-full h-auto max-h-[360px] sm:max-h-[420px] lg:max-h-[460px] object-contain rounded-2xl bg-purple-50/40"
+              />
+            )}
+
+            {/* Options — 2 x 2 grid under the picture */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {q.options.map((opt, idx) => {
+                let cls = 'bg-white border-gray-200 text-black hover:border-purple-400 hover:bg-purple-50';
+                if (isAnswered) {
+                  if (idx === q.correct) cls = 'bg-green-50 border-green-500 text-black';
+                  else if (idx === selectedAnswer) cls = 'bg-red-50 border-red-500 text-black';
+                  else cls = 'bg-white border-gray-200 text-black opacity-60';
+                } else if (selectedAnswer === idx) {
+                  cls = 'bg-purple-50 border-purple-500 text-purple-700';
+                }
+
+                const badgeCls =
+                  isAnswered && idx === q.correct
+                    ? 'bg-green-100 text-green-700'
+                    : isAnswered && idx === selectedAnswer
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-purple-100 text-purple-700';
+
+                return (
+                  <button
+                    key={idx}
+                    disabled={isAnswered}
+                    onClick={() => handleSelect(idx)}
+                    className={`w-full h-full text-left px-4 py-3 sm:py-4 rounded-2xl border-2 transition-all duration-200 flex justify-between items-center gap-3 ${cls} font-bold text-base sm:text-lg shadow-sm hover:shadow-md`}
+                  >
+                    <span className="flex items-center gap-3 min-w-0">
+                      <span className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-bold text-base shrink-0 ${badgeCls}`}>
+                        {optionLabel(idx)}
+                      </span>
+                      {opt}
+                    </span>
+                    {isAnswered && idx === q.correct && <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />}
+                    {isAnswered && idx === selectedAnswer && idx !== q.correct && <XCircle className="w-6 h-6 text-red-600 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Explanation — under the options, once answered */}
+            {isAnswered && q.explanation && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 p-4 sm:p-5 bg-green-50 rounded-2xl border border-green-100 flex items-start gap-3">
+                <span className="text-3xl">💡</span>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-green-700 font-bold mb-1 text-lg sm:text-xl">{t('Explanation')}</h4>
+                  <p className="text-black font-medium leading-relaxed text-base sm:text-lg">{q.explanation}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT — explanation video. Locked until the question is
+            answered so it can't give the answer away, then stays
+            collapsed behind a play prompt until the learner asks. */}
+        {q.video_url && (
+          <div className="bg-white rounded-3xl border-2 border-purple-50 shadow-md p-5 sm:p-6 self-start lg:sticky lg:top-6">
+            <h4 className="flex items-center gap-3 text-xl sm:text-2xl font-bold text-black mb-4">
+              <PlayCircle className="w-8 h-8 text-purple-600" />
+              {t('Explanation Video')}
+            </h4>
+
+            {!isAnswered ? (
+              <div className="aspect-video rounded-2xl bg-purple-50 border-2 border-dashed border-purple-200 flex items-center justify-center text-center p-4">
+                <p className="text-black/70 font-semibold">{t('Answer the question to unlock the video.')}</p>
+              </div>
+            ) : videoRevealed ? (
+              <video
+                controls
+                autoPlay
+                className="w-full h-auto max-h-[560px] object-contain rounded-2xl bg-black"
+                src={mediaUrl(q.video_url)}
+              >
+                {t('Your browser does not support the video element.')}
+              </video>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setVideoRevealed(true)}
+                className="w-full aspect-video rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold text-base sm:text-lg flex flex-col items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all"
+              >
+                <PlayCircle className="w-16 h-16" />
+                {t('Click to view Video')}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Answer options — wrapped in its own bordered box, matching
-          the Question/Explanation/Video boxes around it, instead of
-          the option buttons just sitting loose on the page. Laid out
-          as a grid (up to 4 across on wide screens) so the full
-          width of the panel is used, instead of one narrow
-          full-width button per row. */}
-      <div className="bg-white rounded-2xl border-2 border-white shadow-md p-4 sm:p-6 lg:p-8 mb-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {q.options.map((opt, idx) => {
-          let cls = 'bg-white border-2 border-gray-200 text-black hover:border-purple-400 hover:bg-purple-50';
-          if (isAnswered) {
-            if (idx === q.correct) cls = 'bg-green-500 border-2 border-green-500 text-white';
-            else if (idx === selectedAnswer) cls = 'bg-red-500 border-2 border-red-500 text-white';
-            else cls = 'bg-gray-50 border-2 border-gray-200 text-black opacity-60';
-          } else if (selectedAnswer === idx) {
-            cls = 'bg-purple-50 border-2 border-purple-500 text-purple-700';
-          }
-
-          return (
-            <button
-              key={idx}
-              disabled={isAnswered}
-              onClick={() => handleSelect(idx)}
-              className={`w-full h-full text-left px-4 sm:px-6 py-4 sm:py-6 rounded-3xl transition-all duration-200 flex justify-between items-center gap-3 ${cls} font-bold text-lg sm:text-xl lg:text-2xl shadow-sm hover:shadow-md`}
-            >
-              <span className="flex items-center gap-3 sm:gap-4 min-w-0">
-                <span
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-bold text-base sm:text-lg shrink-0"
-                  style={{
-                    backgroundColor:
-                      isAnswered && idx === q.correct
-                        ? '#ffffff'
-                        : isAnswered && idx === selectedAnswer
-                        ? '#ffffff'
-                        : '#f3e8ff',
-                    color:
-                      isAnswered && idx === q.correct
-                        ? '#16a34a'
-                        : isAnswered && idx === selectedAnswer
-                        ? '#dc2626'
-                        : undefined,
-                  }}
-                >
-                  {optionLabel(idx)}
-                </span>
-                {opt}
-              </span>
-              {isAnswered && idx === q.correct && <CheckCircle2 className="w-6 h-6 text-white shrink-0" />}
-              {isAnswered && idx === selectedAnswer && idx !== q.correct && <XCircle className="w-6 h-6 text-white shrink-0" />}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Explanation + Video + Next */}
+      {/* Result + Next */}
       {isAnswered && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 space-y-4">
-          {/* Explanation — its own box, thin white border */}
-          <div className="p-4 sm:p-6 bg-blue-50 rounded-3xl border-2 border-white shadow-md">
-            <div className="flex items-start space-x-3">
-              <span className="text-3xl">💡</span>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-blue-800 font-bold mb-2 text-lg sm:text-xl">{t('Explanation')}</h4>
-                {/* The explanation picture — the same illustration
-                    shown above the question — stays visible here on
-                    its own, separate from the video below, instead
-                    of being replaced by it. */}
-                {q.image_url && (
-                  <img
-                    src={q.image_url.startsWith('/quiz-decks/') ? q.image_url : mediaUrl(q.image_url)}
-                    alt=""
-                    className="max-h-56 w-auto max-w-full rounded-2xl border-2 border-blue-200 mb-3 object-contain"
-                  />
-                )}
-                <p className="text-blue-700 font-semibold leading-relaxed">{q.explanation}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Video — its own sibling box with a thin white border,
-              not nested inside the Explanation box above, so the
-              two read as two clearly separate cards. Stays collapsed
-              behind a bold "Click to view Video" prompt until the
-              learner asks for it, instead of auto-playing inline. */}
-          {q.video_url && (
-            <div className="p-4 sm:p-6 bg-blue-50 rounded-3xl border-2 border-white shadow-md">
-              {videoRevealed ? (
-                <video
-                  controls
-                  autoPlay
-                  className="w-full min-h-[280px] sm:min-h-[420px] rounded-2xl border-2 border-blue-200 bg-black"
-                  src={mediaUrl(q.video_url)}
-                >
-                  {t('Your browser does not support the video element.')}
-                </video>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setVideoRevealed(true)}
-                  className="w-full flex items-center justify-center gap-3 py-5 rounded-2xl border-2 border-indigo-300 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-base sm:text-lg shadow-lg hover:scale-[1.01] hover:shadow-xl transition-all"
-                >
-                  <PlayCircle className="w-7 h-7" />
-                  {t('Click to view Video')}
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-between items-center flex-wrap gap-3">
-            <span className={`font-bold px-4 py-2 rounded-2xl text-base sm:text-lg ${selectedAnswer === q.correct ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-              {selectedAnswer === q.correct ? '✅ ' + t('Correct Answer') : '❌ ' + t('Wrong Answer')}
-            </span>
-            <button
-              onClick={handleNext}
-              className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl hover:scale-105 transition-transform shadow-lg flex items-center gap-2 text-lg sm:text-xl"
-            >
-              {currentQuestion === quiz.questions.length - 1 ? '🏆 ' + t('Final Score') : t('Next') + ' →'}
-            </button>
-          </div>
+        <div className="mt-6 flex justify-between items-center flex-wrap gap-3">
+          <span className={`font-bold px-4 py-2 rounded-2xl text-base sm:text-lg ${selectedAnswer === q.correct ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+            {selectedAnswer === q.correct ? '✅ ' + t('Correct Answer') : '❌ ' + t('Wrong Answer')}
+          </span>
+          <button
+            onClick={handleNext}
+            className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold rounded-3xl hover:scale-105 transition-transform shadow-lg flex items-center gap-2 text-lg sm:text-xl"
+          >
+            {currentQuestion === quiz.questions.length - 1 ? '🏆 ' + t('Final Score') : t('Next') + ' →'}
+          </button>
         </div>
       )}
     </div>
