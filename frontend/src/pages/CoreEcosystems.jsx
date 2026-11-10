@@ -8,8 +8,8 @@
 // were cropped from the reference mockup supplied in chat. They
 // are screenshot-resolution, not the original source files — if
 // higher-resolution originals of these two graphics exist, swap
-// them in at /ecosystems/amivi-overview.png and
-// /ecosystems/amico-overview.png for a sharper result.
+// them in at /ecosystems/amivi-overview.webp and
+// /ecosystems/amico-overview.webp for a sharper result.
 // ============================================================
 
 import { Sparkles, BarChart3, Globe } from 'lucide-react';
@@ -44,14 +44,14 @@ export default function CoreEcosystems() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <div className="rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white/50 aspect-[5/4]">
           <img
-            src="/ecosystems/amivi-overview.png"
+            src="/ecosystems/amivi-overview.webp"
             alt="AMIVI — VLQ's Central Transformer: turns long text, video transcripts and complex content into VLQ micro-lessons and chunks. From Information to Inspiration."
             className="w-full h-full object-cover block"
           />
         </div>
         <div className="rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white/50 aspect-[5/4]">
           <img
-            src="/ecosystems/amico-overview.png"
+            src="/ecosystems/amico-overview.webp"
             alt="AMICO — Your Visual Storytelling Engine: turns life into visual stories through comics, photos, photo stories, memories, visual diaries and biographies."
             className="w-full h-full object-cover block"
           />
@@ -114,7 +114,7 @@ export default function CoreEcosystems() {
           </div>
           <div className="rounded-2xl overflow-hidden shadow-lg ring-4 ring-white/50">
             <img
-              src="/ecosystems/vlq-one-vision-banner.jpg"
+              src="/ecosystems/vlq-one-vision-banner.webp"
               alt="VLQ — One Vision, Three Powerful Ecosystems: AMIVI breaks the big ideas down for visual learning; AMICO turns learning into creative storytelling; AMILYTICS analyzes and visualizes data for smart analytics. Multiple markets, global potential."
               className="w-full h-auto block"
             />

@@ -1894,7 +1894,7 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
                   </p>
 
                   {q.image_url && (
-                    <img src={mediaUrl(q.image_url)} alt={q.question} className="w-full max-h-40 object-contain rounded-lg border border-slate-100 mb-3" />
+                    <img loading="lazy" src={mediaUrl(q.image_url)} alt={q.question} className="w-full max-h-40 object-contain rounded-lg border border-slate-100 mb-3" />
                   )}
 
                   <div className="space-y-1.5">
@@ -2048,7 +2048,7 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
                     <p className="font-bold text-black text-2xl sm:text-3xl leading-tight mb-5">{q.q}</p>
 
                     {q.image_url && (
-                      <img src={mediaUrl(q.image_url)} alt={q.q} className="w-full max-h-80 object-contain rounded-2xl border-2 border-purple-50 mb-5" />
+                      <img loading="lazy" src={mediaUrl(q.image_url)} alt={q.q} className="w-full max-h-80 object-contain rounded-2xl border-2 border-purple-50 mb-5" />
                     )}
 
                     <div className="space-y-3 mb-6">

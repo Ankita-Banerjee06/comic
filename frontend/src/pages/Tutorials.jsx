@@ -81,6 +81,7 @@ const tutorials = [
     tint: 'bg-yellow-50',
     iconColor: 'text-yellow-600',
     videoUrl: '/videos/the power of visual learning.mp4',
+    thumbnail: '/videos/the power of visual learning-thumb.jpg',
     steps: ['Understand why visual learning works', 'See real examples', 'Apply it to your own studies', 'Retain more information'],
     description: 'Discover the science and impact behind visual learning, and how it can completely transform the way you study.'
   },
@@ -94,6 +95,7 @@ const tutorials = [
     tint: 'bg-emerald-50',
     iconColor: 'text-emerald-600',
     videoUrl: '/videos/THE VLQ LEARNING EXPERIENCE.mp4',
+    thumbnail: '/videos/THE VLQ LEARNING EXPERIENCE-thumb.jpg',
     steps: ['Discover personalized learning', 'Retain complex ideas easily', 'Use quizzes for active recall', 'Learn faster with visuals'],
     description: 'See how VLQ helps learners stay engaged, remember more, and master difficult subjects through interactive visual tools.'
   },
@@ -107,6 +109,7 @@ const tutorials = [
     tint: 'bg-blue-50',
     iconColor: 'text-blue-600',
     videoUrl: '/videos/BENEFITS TO LEARNERS.mp4',
+    thumbnail: '/videos/BENEFITS TO LEARNERS-thumb.jpg',
     steps: ['Understand learning outcomes', 'Improve memory retention', 'Build confidence', 'Track your progress'],
     description: 'A deep dive into exactly how and why the VLQ methodology benefits every kind of learner.'
   },
@@ -133,7 +136,7 @@ export default function Tutorials() {
       {/* Header */}
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8" style={{ minHeight: 190, background: '#eef2ff' }}>
         <img
-          src="/vlq-see-tool.png"
+          src="/vlq-see-tool.webp"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"
@@ -182,6 +185,7 @@ export default function Tutorials() {
                 key={featured.id}
                 controls
                 poster={featured.thumbnail}
+                preload="none"
                 className="w-full h-full object-cover"
               >
                 <source src={featured.videoUrl} type="video/mp4" />

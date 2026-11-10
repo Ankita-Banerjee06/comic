@@ -76,7 +76,7 @@ export default function AmiviDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {result.slides && result.slides.map((slide, idx) => (
               <div key={idx} className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition-colors">
-                <img src={`${API_URL}${slide.image_path}`} alt={`Slide ${idx + 1}`} className="w-full h-48 object-cover" />
+                <img loading="lazy" src={`${API_URL}${slide.image_path}`} alt={`Slide ${idx + 1}`} className="w-full h-48 object-cover" />
                 <div className="p-4">
                   <p className="text-sm text-gray-300 font-semibold">{slide.text}</p>
                   {slide.audio_path && (

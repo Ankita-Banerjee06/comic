@@ -22,7 +22,7 @@ const WAYS = [
     n: 1,
     label: 'Knowledge Base',
     desc: 'Transform complex information into clear, accessible visual knowledge, helping learners understand, remember and apply what matters.',
-    image: '/vlq-way-knowledge-base.png',
+    image: '/vlq-way-knowledge-base.webp',
     icon: GraduationCap,
     color: '#2563eb',
     tint: '#eff6ff',
@@ -32,7 +32,7 @@ const WAYS = [
     n: 2,
     label: 'Teacher Platform',
     desc: 'Empower teachers with AI-assisted visual lessons, creative teaching materials and learning tools designed to make teaching more effective and engaging.',
-    image: '/vlq-way-teacher-platform.png',
+    image: '/vlq-way-teacher-platform.webp',
     icon: BarChart3,
     color: '#7c3aed',
     tint: '#f5f3ff',
@@ -42,7 +42,7 @@ const WAYS = [
     n: 3,
     label: 'Global Workforce',
     desc: 'Support workforce development through visual learning, practical knowledge and skills enhancement across industries and professions.',
-    image: '/vlq-way-global-workforce.png',
+    image: '/vlq-way-global-workforce.webp',
     icon: TrendingUp,
     color: '#0891b2',
     tint: '#ecfeff',
@@ -52,7 +52,7 @@ const WAYS = [
     n: 4,
     label: 'Blue to White Collar Aspirants',
     desc: 'Help ambitious workers acquire new knowledge, develop professional skills and pursue greater career opportunities.',
-    image: '/vlq-way-blue-to-white-collar.png',
+    image: '/vlq-way-blue-to-white-collar.webp',
     icon: TrendingUp,
     color: '#ea580c',
     tint: '#fff7ed',
@@ -62,7 +62,7 @@ const WAYS = [
     n: 5,
     label: 'VLQ Quizzes',
     desc: 'Make learning enjoyable through image-based quizzes that encourage curiosity, strengthen knowledge and reinforce memory.',
-    image: '/vlq-way-quizzes.png',
+    image: '/vlq-way-quizzes.webp',
     icon: CheckCircle2,
     color: '#db2777',
     tint: '#fdf2f8',
@@ -72,7 +72,7 @@ const WAYS = [
     n: 6,
     label: 'Family Learning',
     desc: 'Bring generations together through engaging visual activities, shared discovery and learning experiences for the whole family.',
-    image: '/vlq-way-family-learning.png',
+    image: '/vlq-way-family-learning.webp',
     icon: Sparkles,
     color: '#16a34a',
     tint: '#f0fdf4',
@@ -108,7 +108,7 @@ export default function HowWeDoIt() {
         <div className="w-full max-w-6xl mx-auto">
           <div className="rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white/50">
             <img
-              src="/vlq-how-we-do-it-graphic-v2.jpg"
+              src="/vlq-how-we-do-it-graphic-v2.webp"
               alt="THE VLQ PLATFORM: AMIVI, AMICO, Essential Learning, and Mastery"
               className="w-full h-auto block"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}

@@ -6,7 +6,7 @@ export default function AuthLayout() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center mb-6">
           <img
-            src="/vlq-logo-clean.png"
+            src="/vlq-logo-clean.webp"
             alt="VLQ"
             className="h-14 w-auto object-contain"
           />

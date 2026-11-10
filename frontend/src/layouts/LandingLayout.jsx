@@ -16,7 +16,7 @@ export default function LandingLayout() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
             <div>
               <div className="flex items-center gap-2.5 mb-4">
-                <img src="/vlq-logo-clean.png" alt="VLQ" className="h-8 w-auto object-contain" />
+                <img src="/vlq-logo-clean.webp" alt="VLQ" className="h-8 w-auto object-contain" />
                 <div>
                   <div className="text-xl font-extrabold leading-none" style={{ color: '#000000' }}>VLQ</div>
                   <div className="text-sm font-medium mt-0.5" style={{ color: '#000000' }}>Visual Learning Platform</div>

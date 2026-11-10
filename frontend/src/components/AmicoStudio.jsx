@@ -68,7 +68,7 @@ export default function AmicoStudio() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl shadow-inner">
             {result.panels && result.panels.map((panel, idx) => (
               <div key={idx} className="relative border-4 border-black rounded-sm overflow-hidden bg-white">
-                <img src={`${API_URL}${panel.image_url}`} alt={`Panel ${idx+1}`} className="w-full h-64 object-cover filter contrast-125" />
+                <img loading="lazy" src={`${API_URL}${panel.image_url}`} alt={`Panel ${idx+1}`} className="w-full h-64 object-cover filter contrast-125" />
                 
                 {/* Speech Bubble */}
                 {panel.dialogue && (

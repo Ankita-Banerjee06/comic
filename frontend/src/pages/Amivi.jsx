@@ -790,7 +790,7 @@ export default function Amivi() {
 
       <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
         <img
-          src="/amivi-journey/amivi-journey-strip.png"
+          src="/amivi-journey/amivi-journey-strip.webp"
           alt="The AMIVI-AMICO learning journey: a learner overwhelmed by information, AMIVI breaking it into learning chunks (seed, stem, leaf, flower), AMICO putting them in order, AMICO turning them into 'The Journey of a Plant' story, and the learner understanding and remembering."
           className="w-full h-auto block"
         />
@@ -1590,7 +1590,7 @@ export default function Amivi() {
           {completeVisualUrl ? (
             <div className="flex flex-col items-center gap-5">
               <div className="rounded-2xl overflow-hidden border-2 border-purple-200 shadow-sm w-full">
-                <img
+                <img loading="lazy"
                   src={getMediaUrl(completeVisualUrl)}
                   alt={t('Complete Visual')}
                   className="w-full object-contain bg-white"
@@ -2015,7 +2015,7 @@ export default function Amivi() {
             </button>
           )}
 
-          <img
+          <img loading="lazy"
             src={getMediaUrl(result.chunks[lightboxIndex].image_url)}
             alt={result.chunks[lightboxIndex].text || `Chunk ${lightboxIndex + 1}`}
             className="max-w-full max-h-[85vh] object-contain"
@@ -2121,7 +2121,7 @@ export default function Amivi() {
                 aria-hidden="true"
               />
               <div className="relative bg-white p-3 sm:p-5 rounded-xl shadow-[0_0_90px_20px_rgba(255,255,255,0.18)] ring-1 ring-white/50">
-                <img
+                <img loading="lazy"
                   src={getMediaUrl(chunk.image_url)}
                   alt={chunk.key_point || chunk.text || `Chunk ${presentMode.index + 1}`}
                   className="max-w-[92vw] max-h-[60vh] sm:max-h-[72vh] object-contain rounded-sm"

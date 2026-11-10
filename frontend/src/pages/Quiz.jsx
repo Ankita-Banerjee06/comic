@@ -737,7 +737,7 @@ export default function Quiz() {
         <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
           <div className="w-full h-44 sm:h-56" style={{ background: '#f5f3ff' }}>
             <img
-              src="/vlq-quiz-tool.png"
+              src="/vlq-quiz-tool.webp"
               alt=""
               aria-hidden="true"
               className="w-full h-full object-cover"
@@ -858,7 +858,7 @@ export default function Quiz() {
                       className="bg-orange-50 border-2 border-orange-100 rounded-2xl p-4 flex gap-4"
                     >
                       {item.image_url && (
-                        <img
+                        <img loading="lazy"
                           src={mediaUrl(item.image_url)}
                           alt={item.q}
                           className="w-20 h-20 object-cover rounded-xl border-2 border-orange-200 shrink-0"
@@ -1188,7 +1188,7 @@ export default function Quiz() {
 
           <div className="p-5 sm:p-6 space-y-5">
             {q.image_url && (
-              <img
+              <img loading="lazy"
                 src={q.image_url.startsWith('/quiz-decks/') ? q.image_url : mediaUrl(q.image_url)}
                 alt={q.q}
                 className="w-full h-auto max-h-[360px] sm:max-h-[420px] lg:max-h-[460px] object-contain rounded-2xl bg-purple-50/40"

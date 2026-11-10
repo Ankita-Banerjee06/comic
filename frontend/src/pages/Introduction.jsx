@@ -48,7 +48,7 @@ export default function Introduction() {
           {/* THE PROBLEM */}
           <div className="rounded-3xl overflow-hidden shadow-lg">
             <img
-              src="/vlq-the-problem-panel-v2.jpg"
+              src="/vlq-the-problem-panel-v2.webp"
               alt="THE PROBLEM: Why traditional learning is failing"
               className="w-full h-auto"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -58,7 +58,7 @@ export default function Introduction() {
           {/* THE SOLUTION */}
           <div className="rounded-3xl overflow-hidden shadow-lg">
             <img
-              src="/vlq-the-solution-panel-v2.jpg"
+              src="/vlq-the-solution-panel-v2.webp"
               alt="THE SOLUTION: Why the VLQ platform succeeds"
               className="w-full h-auto"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -81,7 +81,7 @@ export default function Introduction() {
           {/* The Impact of AI panel — decorative, not linked to tutorials */}
           <div className="relative w-full max-w-4xl rounded-3xl overflow-hidden shadow-lg">
             <img
-              src="/vlq-impact-of-ai-panel-v2.jpg"
+              src="/vlq-impact-of-ai-panel-v2.webp"
               alt="The Impact of AI: From Information to Mastery with VLQ"
               className="w-full h-auto block"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}

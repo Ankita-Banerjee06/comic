@@ -95,7 +95,7 @@ export default function Explore() {
             >
               <div className="aspect-[2171/724] bg-blue-50 overflow-hidden relative">
                 <img
-                  src="/vlq-amivi-overview.png"
+                  src="/vlq-amivi-overview.webp"
                   alt="AMIVI"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -117,7 +117,7 @@ export default function Explore() {
             >
               <div className="aspect-[2172/724] bg-purple-50 overflow-hidden relative">
                 <img
-                  src="/vlq-amico-overview.png"
+                  src="/vlq-amico-overview.webp"
                   alt="AMICO"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}

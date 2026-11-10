@@ -45,7 +45,7 @@ const features = [
     border: '#6861e6',
     to: '/amivi',
     cta: 'Create Visuals',
-    image: '/vlq-see-tool.png',
+    image: '/vlq-see-tool.webp',
   },
   {
     tag: 'AMICO',
@@ -57,7 +57,7 @@ const features = [
     border: '#fc6ac8',
     to: '/amico',
     cta: 'Create Comic',
-    image: '/vlq-understand-tool.png',
+    image: '/vlq-understand-tool.webp',
   },
   {
     tag: 'QUIZ',
@@ -69,7 +69,7 @@ const features = [
     border: '#59cc8d',
     to: '/quiz',
     cta: 'Start Quiz',
-    image: '/vlq-quiz-tool.png',
+    image: '/vlq-quiz-tool.webp',
   },
 ];
 

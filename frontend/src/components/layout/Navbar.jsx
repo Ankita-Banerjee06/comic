@@ -90,7 +90,7 @@ export default function Navbar() {
                 pixel size stayed the same — so the rendered height here
                 is scaled up by the same ratio (105 = 98 * newCanvasH/oldCanvasH)
                 to keep the mark's on-screen size (and position) unchanged. */}
-            <img src="/vlq-logo-navbar.png" alt="VLQ — Learn at the Speed of Sight" className="h-[105px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.png'; }} />
+            <img src="/vlq-logo-navbar.webp" alt="VLQ — Learn at the Speed of Sight" className="h-[105px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.webp'; }} />
           </Link>
 
           {/* Desktop actions */}
@@ -147,7 +147,7 @@ export default function Navbar() {
 
         <Link to="/" className="flex items-center flex-shrink-0 py-2">
           {/* See matching comment in the signed-out header above re: sizing. */}
-          <img src="/vlq-logo-navbar.png" alt="VLQ — Learn at the Speed of Sight" className="h-[105px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.png'; }} />
+          <img src="/vlq-logo-navbar.webp" alt="VLQ — Learn at the Speed of Sight" className="h-[105px] w-auto object-contain" onError={(e) => { e.currentTarget.src = '/vlq-logo-clean.webp'; }} />
         </Link>
 
         {/* Desktop Nav */}

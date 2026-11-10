@@ -1042,7 +1042,7 @@ function QuizPanel({ session, room, onRoomUpdate }) {
         <p className="font-bold text-slate-800 mb-4">{q.q}</p>
 
         {q.image_url && (
-          <img
+          <img loading="lazy"
             src={mediaUrl(q.image_url)}
             alt={q.q}
             className="w-full max-h-52 object-contain rounded-xl border border-slate-100 mb-4"

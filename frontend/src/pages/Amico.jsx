@@ -696,7 +696,7 @@ export default function Amico() {
 
       <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
         <img
-          src="/amivi-journey/amivi-journey-strip.png"
+          src="/amivi-journey/amivi-journey-strip.webp"
           alt="The AMIVI-AMICO learning journey: a learner overwhelmed by information, AMIVI breaking it into learning chunks (seed, stem, leaf, flower), AMICO putting them in order, AMICO turning them into 'The Journey of a Plant' story, and the learner understanding and remembering."
           className="w-full h-auto block"
         />
@@ -1238,7 +1238,7 @@ export default function Amico() {
                 )}
 
                 {currentPage && (
-                  <img
+                  <img loading="lazy"
                     src={mediaUrl(currentPage.comic_image_url)}
                     alt={`Page ${currentPage.page_number}`}
                     onClick={() => setIsFullscreen(true)}
@@ -1527,7 +1527,7 @@ export default function Amico() {
                 )}
 
                 {psCurrentPage && (
-                  <img
+                  <img loading="lazy"
                     src={mediaUrl(psCurrentPage.comic_image_url)}
                     alt={`Page ${psCurrentPage.page_number}`}
                     onClick={() => setPsFullscreen(true)}
@@ -1571,7 +1571,7 @@ export default function Amico() {
             </button>
           )}
 
-          <img
+          <img loading="lazy"
             src={mediaUrl(currentPage.comic_image_url)}
             alt={`Page ${currentPage.page_number}`}
             className="max-w-full max-h-full object-contain"
@@ -1616,7 +1616,7 @@ export default function Amico() {
             </button>
           )}
 
-          <img
+          <img loading="lazy"
             src={mediaUrl(psCurrentPage.comic_image_url)}
             alt={`Page ${psCurrentPage.page_number}`}
             className="max-w-full max-h-full object-contain"

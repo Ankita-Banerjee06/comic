@@ -211,7 +211,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-amber-50',
       iconColor: 'text-amber-600',
       accentColor: 'text-amber-600',
-      image: '/dashboard-homework.png',
+      image: '/dashboard-homework.webp',
     },
     {
       to: '/amivi',
@@ -221,7 +221,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-blue-50',
       iconColor: 'text-blue-600',
       accentColor: 'text-blue-600',
-      image: '/dashboard-amivi.png',
+      image: '/dashboard-amivi.webp',
     },
     {
       to: '/quiz',
@@ -231,7 +231,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-purple-50',
       iconColor: 'text-purple-600',
       accentColor: 'text-purple-600',
-      image: '/dashboard-quiz.png',
+      image: '/dashboard-quiz.webp',
     },
     {
       to: '/amico',
@@ -241,7 +241,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-pink-50',
       iconColor: 'text-pink-600',
       accentColor: 'text-pink-600',
-      image: '/dashboard-comics.png',
+      image: '/dashboard-comics.webp',
     },
     {
       to: '/library',
@@ -251,7 +251,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-slate-100',
       iconColor: 'text-black',
       accentColor: 'text-black',
-      image: '/dashboard-library.png',
+      image: '/dashboard-library.webp',
     },
     {
       to: '/collaborate',
@@ -261,7 +261,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-teal-50',
       iconColor: 'text-teal-600',
       accentColor: 'text-teal-600',
-      image: '/dashboard-collaboration.png',
+      image: '/dashboard-collaboration.webp',
     },
     {
       to: '/help',
@@ -271,7 +271,7 @@ function StudentDashboard({ user }) {
       tint: 'bg-rose-50',
       iconColor: 'text-rose-600',
       accentColor: 'text-rose-600',
-      image: '/dashboard-help.png',
+      image: '/dashboard-help.webp',
     },
   ];
 
@@ -294,7 +294,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-teal-50',
       iconColor: 'text-teal-600',
       accentColor: 'text-teal-600',
-      image: '/dashboard-teacher-workspace.png',
+      image: '/dashboard-teacher-workspace.webp',
     },
     {
       to: '/classroom',
@@ -304,7 +304,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-amber-50',
       iconColor: 'text-amber-600',
       accentColor: 'text-amber-600',
-      image: '/dashboard-homework.png',
+      image: '/dashboard-homework.webp',
     },
     {
       to: '/amivi',
@@ -314,7 +314,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-blue-50',
       iconColor: 'text-blue-600',
       accentColor: 'text-blue-600',
-      image: '/dashboard-amivi.png',
+      image: '/dashboard-amivi.webp',
     },
     {
       to: '/amico',
@@ -324,7 +324,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-pink-50',
       iconColor: 'text-pink-600',
       accentColor: 'text-pink-600',
-      image: '/dashboard-comics.png',
+      image: '/dashboard-comics.webp',
     },
     {
       to: '/quiz',
@@ -334,7 +334,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-purple-50',
       iconColor: 'text-purple-600',
       accentColor: 'text-purple-600',
-      image: '/dashboard-quiz.png',
+      image: '/dashboard-quiz.webp',
     },
     {
       to: '/classroom',
@@ -344,7 +344,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-teal-50',
       iconColor: 'text-teal-600',
       accentColor: 'text-teal-600',
-      image: '/dashboard-student-progress.png',
+      image: '/dashboard-student-progress.webp',
     },
     {
       to: '/collaborate',
@@ -354,7 +354,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-indigo-50',
       iconColor: 'text-indigo-600',
       accentColor: 'text-indigo-600',
-      image: '/dashboard-collaboration.png',
+      image: '/dashboard-collaboration.webp',
     },
     {
       to: '/help',
@@ -364,7 +364,7 @@ function TeacherDashboard({ user }) {
       tint: 'bg-rose-50',
       iconColor: 'text-rose-600',
       accentColor: 'text-rose-600',
-      image: '/dashboard-help.png',
+      image: '/dashboard-help.webp',
     },
   ];
 

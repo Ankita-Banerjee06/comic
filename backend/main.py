@@ -3401,10 +3401,36 @@ def generate_image(
         result.data[0].b64_json
     )
 
+    # The model returns a 1-2MB lossless PNG; re-encoding as JPEG
+    # (these illustrations are always opaque) cuts that to ~150-250KB
+    # with no visible difference, which is what every /api/media
+    # request then sends to the browser.
+    mime_type = "image/png"
+
+    try:
+
+        with Image.open(io.BytesIO(image_data)) as img:
+
+            buffer = io.BytesIO()
+            img.convert("RGB").save(
+                buffer,
+                "JPEG",
+                quality=85,
+                optimize=True,
+            )
+
+        image_data = buffer.getvalue()
+        mime_type = "image/jpeg"
+        filename = os.path.splitext(filename)[0] + ".jpg"
+
+    except Exception as exc:
+
+        print(f"JPEG re-encode failed, keeping PNG: {exc}")
+
     return save_media(
         data=image_data,
         filename=filename,
-        mime_type="image/png",
+        mime_type=mime_type,
         asset_type="image",
         project_id=project_id,
     )
@@ -3783,7 +3809,11 @@ def create_amivi_video(
                 )
 
                 image_file = tempfile.NamedTemporaryFile(
-                    suffix=".png",
+                    suffix=(
+                        ".jpg"
+                        if image_asset.mime_type == "image/jpeg"
+                        else ".png"
+                    ),
                     delete=False,
                 )
 
@@ -3921,7 +3951,13 @@ def create_amivi_video(
             fps=24,
             codec="libx264",
             audio_codec="aac",
-            preset="ultrafast",
+            # "ultrafast" produced files several times larger than
+            # needed — every byte of which is re-sent each time the
+            # video is watched. These are still-image slides with
+            # spoken narration, so "veryfast" + CRF 30 + 64k speech
+            # audio is visually identical at a fraction of the size.
+            preset="veryfast",
+            audio_bitrate="64k",
             threads=4,
             logger=None,
             # Without this, ffmpeg writes the MP4's metadata (the
@@ -3934,7 +3970,7 @@ def create_amivi_video(
             # media endpoint now supports can both fail. This moves
             # that metadata to the front, which is the standard fix
             # (same "faststart" flag you'd pass ffmpeg directly).
-            ffmpeg_params=["-movflags", "+faststart"],
+            ffmpeg_params=["-movflags", "+faststart", "-crf", "30"],
         )
 
         with open(

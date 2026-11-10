@@ -837,7 +837,7 @@ function AmiviPreview({ item, data }) {
   return (
     <div className="space-y-5">
       {hasThumbnail && (
-        <img
+        <img loading="lazy"
           src={mediaUrl(item.thumbnail_url)}
           alt={item.title || 'AMIVI Preview'}
           onError={() => setImgFailed(true)}
@@ -984,7 +984,7 @@ function AmiviPreview({ item, data }) {
           <div className="relative bg-white rounded-2xl overflow-hidden shadow-xl max-w-6xl w-full max-h-[92vh] flex flex-col">
             <div className="bg-slate-50 flex items-center justify-center overflow-hidden flex-1">
               {lightboxChunk.image_url ? (
-                <img
+                <img loading="lazy"
                   src={mediaUrl(lightboxChunk.image_url)}
                   alt={lightboxChunk.text || `Chunk ${lightboxIndex + 1}`}
                   className="w-full max-h-[78vh] object-contain"
@@ -1103,7 +1103,7 @@ function AmicoPreview({ item, data, onRepaired, onToast }) {
 
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
         {currentPage?.comic_image_url ? (
-          <img
+          <img loading="lazy"
             key={currentPage.comic_image_url}
             src={mediaUrl(currentPage.comic_image_url)}
             alt={`Page ${pageIndex + 1}`}

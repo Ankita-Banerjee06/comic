@@ -85,7 +85,7 @@ export default function ComicReader({
 
         {/* The Comic Panel */}
         <div className="w-full max-w-3xl max-h-full aspect-[4/3] bg-white rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] border-4 border-white flex flex-col relative overflow-hidden group">
-          <img
+          <img loading="lazy"
             src={imageUrl}
             alt={`Panel ${safeIndex + 1}`}
             className="w-full h-full object-cover"

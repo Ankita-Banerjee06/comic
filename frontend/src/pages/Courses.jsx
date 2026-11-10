@@ -295,7 +295,7 @@ export default function Courses() {
             </p>
             <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-extrabold text-sm sm:text-base shadow-sm">
               <img
-                src="/vlq-logo-clean.png"
+                src="/vlq-logo-clean.webp"
                 alt=""
                 className="h-5 w-auto object-contain"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -488,7 +488,7 @@ function ChaptersGrid({ chapters, onOpen, onBack }) {
           >
             <div className="h-36 bg-slate-100 flex items-center justify-center overflow-hidden">
               {previewUrl ? (
-                <img
+                <img loading="lazy"
                   src={mediaUrl(previewUrl)}
                   alt=""
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -557,7 +557,7 @@ function ChapterHub({ hub, generating, onGenerate, onOpenProject, onBack }) {
               >
                 <div className={`h-32 ${meta.tint} flex items-center justify-center relative overflow-hidden`}>
                   {item?.thumbnail_url ? (
-                    <img
+                    <img loading="lazy"
                       src={mediaUrl(item.thumbnail_url)}
                       alt=""
                       className="w-full h-full object-cover"
