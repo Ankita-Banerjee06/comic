@@ -49,6 +49,9 @@ import {
   mediaUrl,
 } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
+import PresentLiveButton from '../components/live/PresentLiveButton';
+import PresentLivePanel from '../components/live/PresentLivePanel';
+import LiveJoinBanner from '../components/live/LiveJoinBanner';
 
 const SESSION_KEY = 'vlq_classroom_session';
 
@@ -965,10 +968,17 @@ function ClassroomView({ session, classroom, myMember, role, loading, error, onR
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
+        {role === 'student' && (
+          <LiveJoinBanner classCode={classroom.class_code} memberToken={session.memberToken} />
+        )}
+
         <ClassCodeCard classroom={classroom} />
 
         {role === 'teacher' ? (
-          <CreateAssignmentPanel session={session} classroom={classroom} onUpdate={onUpdate} />
+          <>
+            <PresentLivePanel classCode={classroom.class_code} memberToken={session.memberToken} />
+            <CreateAssignmentPanel session={session} classroom={classroom} onUpdate={onUpdate} />
+          </>
         ) : null}
 
         <AssignmentsPanel session={session} classroom={classroom} role={role} onUpdate={onUpdate} navigate={navigate} />
@@ -1314,6 +1324,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
       }
 
       setGenerated((g) => ({ ...g, [kind]: { projectId, title: projTitle } }));
+      window.dispatchEvent(new Event('vlq-library-changed'));
       if (kind === 'quiz' && !title) setTitle(projTitle || '');
     } catch (err) {
       const kindLabel = kind === 'amivi' ? t('AMIVI') : kind === 'amico' ? t('AMICO') : t('Quiz');
@@ -1422,6 +1433,17 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
             kind="quiz"
             onPick={(project) => applyLibraryPick('quiz', project)}
           />
+          {generated.quiz && (
+            <div className="mt-2 flex justify-center">
+              <PresentLiveButton
+                kind="quiz"
+                projectId={generated.quiz.projectId}
+                classCode={classroom.class_code}
+                memberToken={session.memberToken}
+                className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg px-3 py-1.5"
+              />
+            </div>
+          )}
         </div>
         <div>
           <GenerateChip
@@ -1439,6 +1461,17 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
             kind="amivi"
             onPick={(project) => applyLibraryPick('amivi', project)}
           />
+          {generated.amivi && (
+            <div className="mt-2 flex justify-center">
+              <PresentLiveButton
+                kind="amivi"
+                projectId={generated.amivi.projectId}
+                classCode={classroom.class_code}
+                memberToken={session.memberToken}
+                className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg px-3 py-1.5"
+              />
+            </div>
+          )}
         </div>
         <div>
           <GenerateChip
@@ -1456,6 +1489,17 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
             kind="amico"
             onPick={(project) => applyLibraryPick('amico', project)}
           />
+          {generated.amico && (
+            <div className="mt-2 flex justify-center">
+              <PresentLiveButton
+                kind="amico"
+                projectId={generated.amico.projectId}
+                classCode={classroom.class_code}
+                memberToken={session.memberToken}
+                className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg px-3 py-1.5"
+              />
+            </div>
+          )}
         </div>
       </div>
       <p className="text-xs text-black -mt-1">

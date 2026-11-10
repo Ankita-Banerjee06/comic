@@ -19,6 +19,7 @@ import {
   Clock,
   Copy,
   LogOut,
+  Palette,
   Sparkles,
   BookMarked,
 } from 'lucide-react';
@@ -41,6 +42,8 @@ import {
   mediaUrl,
 } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
+import PresentLivePanel from '../components/live/PresentLivePanel';
+import ClassroomDesigner from '../components/designer/ClassroomDesigner';
 
 // ============================================================
 // Class Workspace — the per-class home inside Teacher Workspace.
@@ -61,9 +64,9 @@ const inputClass =
 function Field({ label, hint, children }) {
   return (
     <label className="block">
-      <span className="block text-sm font-bold text-black mb-1.5">{label}</span>
+      <span className="block text-base font-bold text-black mb-1.5">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-black/50 font-medium mt-1">{hint}</span>}
+      {hint && <span className="block text-sm text-black font-medium mt-1">{hint}</span>}
     </label>
   );
 }
@@ -72,10 +75,10 @@ function EmptyState({ icon: Icon, title, subtitle, action }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
       <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-        <Icon className="w-6 h-6 text-slate-400" />
+        <Icon className="w-6 h-6 text-black" />
       </div>
       <p className="font-bold text-black mb-1">{title}</p>
-      {subtitle && <p className="text-sm text-black/60 font-medium mb-4">{subtitle}</p>}
+      {subtitle && <p className="text-base text-black font-medium mb-4">{subtitle}</p>}
       {action}
     </div>
   );
@@ -96,15 +99,15 @@ function LeaveClassConfirmModal({ className, busy, onCancel, onConfirm }) {
         <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mb-4">
           <LogOut className="w-6 h-6 text-amber-500" />
         </div>
-        <h3 className="text-lg font-extrabold text-black mb-1.5">{t('Leave')} {className || t('this classroom')}?</h3>
-        <p className="text-sm text-black font-medium mb-6 leading-relaxed">
+        <h3 className="text-xl font-extrabold text-black mb-1.5">{t('Leave')} {className || t('this classroom')}?</h3>
+        <p className="text-base text-black font-medium mb-6 leading-relaxed">
           {t("You'll lose teacher access to this class from Teacher Workspace. Nothing about the class itself — students, materials, or assignments — is deleted, and you can rejoin anytime with the class code.")}
         </p>
         <div className="flex items-center gap-3">
-          <button onClick={onCancel} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50">
+          <button onClick={onCancel} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-base text-black bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50">
             {t('Cancel')}
           </button>
-          <button onClick={onConfirm} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-500 hover:bg-amber-600 transition-colors disabled:opacity-60">
+          <button onClick={onConfirm} disabled={busy} className="flex-1 py-2.5 rounded-xl font-bold text-base text-white bg-amber-500 hover:bg-amber-600 transition-colors disabled:opacity-60">
             {busy ? t('Leaving…') : t('Leave Classroom')}
           </button>
         </div>
@@ -124,7 +127,7 @@ function AttachmentList({ attachments }) {
           href={mediaUrl(`/api/media/${a.media_asset_id}`, { download: true })}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-slate-100"
+          className="inline-flex items-center gap-1.5 text-sm font-bold text-black bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-slate-100"
         >
           <Paperclip className="w-3 h-3" /> {a.filename || t('file')}
         </a>
@@ -164,7 +167,7 @@ function AttachmentPicker({ classCode, memberToken, attachments, setAttachments 
 
   return (
     <div>
-      <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 text-sm font-bold text-black/70 hover:bg-slate-50 cursor-pointer transition-colors">
+      <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 text-base font-bold text-black hover:bg-slate-50 cursor-pointer transition-colors">
         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
         {uploading ? t('Uploading…') : t('Upload files (PDF, image, doc)')}
         <input
@@ -175,19 +178,19 @@ function AttachmentPicker({ classCode, memberToken, attachments, setAttachments 
           onChange={(e) => e.target.files?.length && handleFiles(e.target.files)}
         />
       </label>
-      {error && <p className="text-xs font-bold text-red-600 mt-2">{error}</p>}
+      {error && <p className="text-sm font-bold text-red-600 mt-2">{error}</p>}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-3">
           {attachments.map((a, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5"
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-black bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5"
             >
               <Paperclip className="w-3 h-3" /> {a.filename}
               <button
                 type="button"
                 onClick={() => setAttachments(attachments.filter((_, idx) => idx !== i))}
-                className="text-slate-400 hover:text-red-500"
+                className="text-black hover:text-red-500"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -242,7 +245,7 @@ function MaterialForm({ classCode, memberToken, onClose, onSaved }) {
         className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-extrabold text-lg text-black">{t('Add Teaching Material')}</h2>
+          <h2 className="font-extrabold text-xl text-black">{t('Add Teaching Material')}</h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
             <X className="w-5 h-5" />
           </button>
@@ -257,7 +260,7 @@ function MaterialForm({ classCode, memberToken, onClose, onSaved }) {
           <Field label={t('Files')}>
             <AttachmentPicker classCode={classCode} memberToken={memberToken} attachments={attachments} setAttachments={setAttachments} />
           </Field>
-          {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
+          {error && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
         </div>
         <div className="px-6 py-4 border-t border-slate-100">
           <button
@@ -302,18 +305,18 @@ function MaterialsTab({ classCode, memberToken }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-extrabold text-black text-lg flex items-center gap-2">
+        <h2 className="font-extrabold text-black text-xl flex items-center gap-2">
           <FileText className="w-5 h-5" /> {t('Teaching Materials')}
         </h2>
         <button
           onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800"
+          className="inline-flex items-center gap-1.5 text-base font-bold text-teal-700 hover:text-teal-800"
         >
           <Plus className="w-4 h-4" /> {t('Add material')}
         </button>
       </div>
 
-      {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">{error}</p>}
+      {error && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">{error}</p>}
 
       {!error && materials === null && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 flex items-center justify-center">
@@ -337,14 +340,14 @@ function MaterialsTab({ classCode, memberToken }) {
       {!error && materials && materials.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {materials.map((m) => (
-            <div key={m.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <div key={m.id} className="bg-white rounded-2xl border-2 border-blue-100 border-l-8 border-l-blue-500 shadow-sm p-5">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-extrabold text-black leading-snug">{m.title}</h3>
-                <button onClick={() => handleDelete(m.id)} className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 text-black/40 hover:text-red-500">
+                <button onClick={() => handleDelete(m.id)} className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 text-black hover:text-red-500">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
-              {m.description && <p className="text-sm text-black/70 font-medium mt-1">{m.description}</p>}
+              {m.description && <p className="text-base text-black font-medium mt-1">{m.description}</p>}
               <AttachmentList attachments={m.attachments} />
             </div>
           ))}
@@ -510,7 +513,7 @@ function QuizForm({ classCode, memberToken, existing, initialDraft, onClose, onS
         className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
-          <h2 className="font-extrabold text-lg text-black">
+          <h2 className="font-extrabold text-xl text-black">
             {existing ? t('Edit Quiz') : isReviewingDraft ? t('Review Generated Quiz') : t('New Quiz')}
           </h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
@@ -519,7 +522,7 @@ function QuizForm({ classCode, memberToken, existing, initialDraft, onClose, onS
         </div>
 
         {isReviewingDraft && (
-          <div className="mx-6 mt-4 px-4 py-3 bg-purple-50 border border-purple-100 rounded-xl text-sm font-semibold text-purple-900">
+          <div className="mx-6 mt-4 px-4 py-3 bg-purple-50 border border-purple-100 rounded-xl text-base font-semibold text-purple-900">
             {t('Generated from')} <span className="font-extrabold">{initialDraft.source_title}</span> —{' '}
             {t("each question below is tagged with the Microbit it came from. Review the answers and explanations, edit or remove anything that's off, add more if you want, then save.")}
           </div>
@@ -549,15 +552,15 @@ function QuizForm({ classCode, memberToken, existing, initialDraft, onClose, onS
               <div key={qIdx} className="border border-slate-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-extrabold text-teal-700 bg-teal-50 rounded-full px-2.5 py-1">Q{qIdx + 1}</span>
+                    <span className="text-sm font-extrabold text-teal-700 bg-teal-50 rounded-full px-2.5 py-1">Q{qIdx + 1}</span>
                     {q.microbit_reference && (
-                      <span className="text-xs font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-2.5 py-1">
+                      <span className="text-sm font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-2.5 py-1">
                         📍 {q.microbit_reference}
                       </span>
                     )}
                   </div>
                   {questions.length > 1 && (
-                    <button type="button" onClick={() => removeQuestion(qIdx)} className="p-1 rounded-lg hover:bg-red-50 text-black/40 hover:text-red-500">
+                    <button type="button" onClick={() => removeQuestion(qIdx)} className="p-1 rounded-lg hover:bg-red-50 text-black hover:text-red-500">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -585,14 +588,14 @@ function QuizForm({ classCode, memberToken, existing, initialDraft, onClose, onS
                         onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
                       />
                       {q.options.length > 2 && (
-                        <button type="button" onClick={() => removeOption(qIdx, optIdx)} className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 text-black/40 hover:text-red-500">
+                        <button type="button" onClick={() => removeOption(qIdx, optIdx)} className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 text-black hover:text-red-500">
                           <X className="w-4 h-4" />
                         </button>
                       )}
                     </div>
                   ))}
                   {q.options.length < 6 && (
-                    <button type="button" onClick={() => addOption(qIdx)} className="text-xs font-bold text-teal-700 hover:text-teal-800">
+                    <button type="button" onClick={() => addOption(qIdx)} className="text-sm font-bold text-teal-700 hover:text-teal-800">
                       + {t('Add option')}
                     </button>
                   )}
@@ -617,11 +620,11 @@ function QuizForm({ classCode, memberToken, existing, initialDraft, onClose, onS
             ))}
           </div>
 
-          <button type="button" onClick={addQuestion} className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800">
+          <button type="button" onClick={addQuestion} className="inline-flex items-center gap-1.5 text-base font-bold text-teal-700 hover:text-teal-800">
             <Plus className="w-4 h-4" /> {t('Add question')}
           </button>
 
-          {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
+          {error && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100 flex gap-3 sticky bottom-0 bg-white">
@@ -702,7 +705,7 @@ function GenerateQuizModal({ classCode, memberToken, onClose, onGenerated }) {
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-extrabold text-lg text-black flex items-center gap-2">
+          <h2 className="font-extrabold text-xl text-black flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-purple-600" /> {t('Generate from Lesson')}
           </h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
@@ -711,11 +714,11 @@ function GenerateQuizModal({ classCode, memberToken, onClose, onGenerated }) {
         </div>
 
         <div className="p-6 space-y-4">
-          <p className="text-sm text-black/70 font-medium">
+          <p className="text-base text-black font-medium">
             {t("Pick a saved AMIVI lesson. Five questions get generated strictly from that lesson's own Microbits — nothing it didn't actually teach — for you to review before saving.")}
           </p>
 
-          {loadError && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{loadError}</p>}
+          {loadError && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{loadError}</p>}
 
           {!loadError && lessons === null && (
             <div className="py-8 flex items-center justify-center">
@@ -724,7 +727,7 @@ function GenerateQuizModal({ classCode, memberToken, onClose, onGenerated }) {
           )}
 
           {!loadError && lessons && lessons.length === 0 && (
-            <p className="text-sm text-black/60 font-medium bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+            <p className="text-base text-black font-medium bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
               {t('No AMIVI lessons in your Library yet — create one in AMIVI first, then come back here.')}
             </p>
           )}
@@ -748,15 +751,15 @@ function GenerateQuizModal({ classCode, memberToken, onClose, onGenerated }) {
                     className="shrink-0 accent-purple-600"
                   />
                   <div className="min-w-0">
-                    <p className="font-bold text-black text-sm truncate">{lesson.title}</p>
-                    {lesson.language && <p className="text-xs text-black/50 font-semibold uppercase">{lesson.language}</p>}
+                    <p className="font-bold text-black text-base truncate">{lesson.title}</p>
+                    {lesson.language && <p className="text-sm text-black font-semibold uppercase">{lesson.language}</p>}
                   </div>
                 </label>
               ))}
             </div>
           )}
 
-          {genError && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{genError}</p>}
+          {genError && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{genError}</p>}
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100">
@@ -815,21 +818,21 @@ function QuizzesTab({ classCode, memberToken, onAssign }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="font-extrabold text-black text-lg flex items-center gap-2">
+        <h2 className="font-extrabold text-black text-xl flex items-center gap-2">
           <Puzzle className="w-5 h-5" /> {t('Quiz Builder')}
         </h2>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowGenerateModal(true)} className="inline-flex items-center gap-1.5 text-sm font-bold text-purple-700 hover:text-purple-800">
+          <button onClick={() => setShowGenerateModal(true)} className="inline-flex items-center gap-1.5 text-base font-bold text-purple-700 hover:text-purple-800">
             <Sparkles className="w-4 h-4" /> {t('Generate from Lesson')}
           </button>
           <span className="text-black/20">|</span>
-          <button onClick={startBlank} className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800">
+          <button onClick={startBlank} className="inline-flex items-center gap-1.5 text-base font-bold text-teal-700 hover:text-teal-800">
             <Plus className="w-4 h-4" /> {t('Start Blank')}
           </button>
         </div>
       </div>
 
-      {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">{error}</p>}
+      {error && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">{error}</p>}
 
       {!error && quizzes === null && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 flex items-center justify-center">
@@ -858,20 +861,20 @@ function QuizzesTab({ classCode, memberToken, onAssign }) {
       {!error && quizzes && quizzes.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {quizzes.map((q) => (
-            <div key={q.project_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <div key={q.project_id} className="bg-white rounded-2xl border-2 border-purple-100 border-l-8 border-l-purple-500 shadow-sm p-5">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h3 className="font-extrabold text-black leading-snug">{q.title}</h3>
-                <span className={`shrink-0 text-xs font-bold rounded-full px-2.5 py-1 ${q.data?.status === 'published' ? 'text-teal-700 bg-teal-50 border border-teal-100' : 'text-amber-700 bg-amber-50 border border-amber-100'}`}>
+                <span className={`shrink-0 text-sm font-bold rounded-full px-2.5 py-1 ${q.data?.status === 'published' ? 'text-teal-700 bg-teal-50 border border-teal-100' : 'text-amber-700 bg-amber-50 border border-amber-100'}`}>
                   {q.data?.status === 'published' ? t('Published') : t('Draft')}
                 </span>
               </div>
-              <p className="text-sm text-black/70 font-medium mb-3 flex items-center gap-2 flex-wrap">
+              <p className="text-base text-black font-medium mb-3 flex items-center gap-2 flex-wrap">
                 <span>
                   {(q.data?.questions || []).length} {t((q.data?.questions || []).length === 1 ? 'question' : 'questions')}
                   {q.data?.duration_minutes ? ` · ${q.data.duration_minutes} min` : ''}
                 </span>
                 {q.created_via === 'generated' && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-2 py-0.5">
+                  <span className="inline-flex items-center gap-1 text-sm font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-2 py-0.5">
                     <Sparkles className="w-3 h-3" /> {t('Generated')}
                   </span>
                 )}
@@ -879,17 +882,17 @@ function QuizzesTab({ classCode, memberToken, onAssign }) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { setDraft(null); setEditing({ project_id: q.project_id, ...q.data }); setShowForm(true); }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-black/70 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-slate-100"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-black bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-slate-100"
                 >
                   <Pencil className="w-3 h-3" /> {t('Edit')}
                 </button>
                 <button
                   onClick={() => onAssign(q)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-100 rounded-full px-3 py-1.5 hover:bg-teal-100"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 bg-teal-50 border border-teal-100 rounded-full px-3 py-1.5 hover:bg-teal-100"
                 >
                   <ClipboardList className="w-3 h-3" /> {t('Assign as homework')}
                 </button>
-                <button onClick={() => handleDelete(q.project_id)} className="ml-auto p-1.5 rounded-lg hover:bg-red-50 text-black/40 hover:text-red-500">
+                <button onClick={() => handleDelete(q.project_id)} className="ml-auto p-1.5 rounded-lg hover:bg-red-50 text-black hover:text-red-500">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -972,7 +975,7 @@ function AssignmentForm({ classCode, memberToken, quizzes, prefillQuiz, onClose,
         className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-extrabold text-lg text-black">{t('New Assignment')}</h2>
+          <h2 className="font-extrabold text-xl text-black">{t('New Assignment')}</h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
             <X className="w-5 h-5" />
           </button>
@@ -998,7 +1001,7 @@ function AssignmentForm({ classCode, memberToken, quizzes, prefillQuiz, onClose,
           <Field label={t('Due date (optional)')}>
             <input type="datetime-local" className={inputClass} value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
           </Field>
-          {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
+          {error && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
         </div>
         <div className="px-6 py-4 border-t border-slate-100">
           <button
@@ -1036,10 +1039,10 @@ function AssignmentsTab({ classCode, memberToken, assignments, studentCount, onR
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-extrabold text-black text-lg flex items-center gap-2">
+        <h2 className="font-extrabold text-black text-xl flex items-center gap-2">
           <ClipboardList className="w-5 h-5" /> {t('Assignments')}
         </h2>
-        <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800">
+        <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 text-base font-bold text-teal-700 hover:text-teal-800">
           <Plus className="w-4 h-4" /> {t('New assignment')}
         </button>
       </div>
@@ -1060,15 +1063,15 @@ function AssignmentsTab({ classCode, memberToken, assignments, studentCount, onR
       {assignments && assignments.length > 0 && (
         <div className="space-y-3">
           {assignments.map((a) => (
-            <div key={a.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <div key={a.id} className="bg-white rounded-2xl border-2 border-amber-100 border-l-8 border-l-amber-500 shadow-sm p-5">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-extrabold text-black leading-snug">{a.title}</h3>
-                <span className="shrink-0 text-xs font-bold text-black/60 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
+                <span className="shrink-0 text-sm font-bold text-black bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
                   {a.submitted_count}/{studentCount ?? a.student_count} {t('submitted')}
                 </span>
               </div>
-              {a.instructions && <p className="text-sm text-black/70 font-medium mt-1">{a.instructions}</p>}
-              <div className="flex items-center gap-3 mt-3 text-xs font-bold text-black/50">
+              {a.instructions && <p className="text-base text-black font-medium mt-1">{a.instructions}</p>}
+              <div className="flex items-center gap-3 mt-3 text-sm font-bold text-black">
                 {a.due_at && (
                   <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> {t('Due')} {new Date(a.due_at).toLocaleString()}</span>
                 )}
@@ -1111,11 +1114,11 @@ function StudentsTab({ classCode, memberToken }) {
 
   return (
     <div>
-      <h2 className="font-extrabold text-black text-lg flex items-center gap-2 mb-4">
+      <h2 className="font-extrabold text-black text-xl flex items-center gap-2 mb-4">
         <Users className="w-5 h-5" /> {t('Students')}
       </h2>
 
-      {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>}
+      {error && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>}
 
       {!error && students === null && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 flex items-center justify-center">
@@ -1128,10 +1131,10 @@ function StudentsTab({ classCode, memberToken }) {
       )}
 
       {!error && students && students.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-2xl border-2 border-pink-200 border-t-8 border-t-pink-500 shadow-sm overflow-hidden">
+          <table className="w-full text-base">
             <thead>
-              <tr className="bg-slate-50 text-left text-black/60 font-bold">
+              <tr className="bg-slate-50 text-left text-black font-bold">
                 <th className="px-5 py-3">{t('Student')}</th>
                 <th className="px-5 py-3">{t('Assignments')}</th>
                 <th className="px-5 py-3">{t('Quiz attempts')}</th>
@@ -1142,9 +1145,9 @@ function StudentsTab({ classCode, memberToken }) {
               {students.map((s) => (
                 <tr key={s.id} className="border-t border-slate-100">
                   <td className="px-5 py-3 font-bold text-black">{s.display_name}</td>
-                  <td className="px-5 py-3 text-black/80 font-medium">{s.assignments_completed}/{s.assignments_total}</td>
-                  <td className="px-5 py-3 text-black/80 font-medium">{s.quiz_attempts}</td>
-                  <td className="px-5 py-3 text-black/80 font-medium">{s.average_score_percent != null ? `${s.average_score_percent}%` : '—'}</td>
+                  <td className="px-5 py-3 text-black font-medium">{s.assignments_completed}/{s.assignments_total}</td>
+                  <td className="px-5 py-3 text-black font-medium">{s.quiz_attempts}</td>
+                  <td className="px-5 py-3 text-black font-medium">{s.average_score_percent != null ? `${s.average_score_percent}%` : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -1175,23 +1178,23 @@ function OverviewTab({ classroom }) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <p className="text-xs font-bold text-black/50 mb-1">{t('Class details')}</p>
-        <p className="font-extrabold text-black mb-1">{classroom.name}</p>
-        <p className="text-sm text-black/70 font-medium">
+      <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl border-2 border-indigo-200 border-l-8 border-l-indigo-500 shadow-sm p-5">
+        <p className="text-sm font-extrabold uppercase tracking-wide text-indigo-700 mb-1">{t('Class details')}</p>
+        <p className="text-xl font-extrabold text-black mb-1">{classroom.name}</p>
+        <p className="text-base text-black font-medium">
           {[classroom.subject, classroom.grade_level, classroom.topic].filter(Boolean).join(' · ') || t('No details set')}
         </p>
-        {classroom.description && <p className="text-sm text-black/60 font-medium mt-2">{classroom.description}</p>}
+        {classroom.description && <p className="text-base text-black font-medium mt-2">{classroom.description}</p>}
       </div>
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <p className="text-xs font-bold text-black/50 mb-2">{t('Joining code')}</p>
+      <div className="bg-gradient-to-br from-teal-50 to-white rounded-2xl border-2 border-teal-200 border-l-8 border-l-teal-500 shadow-sm p-5">
+        <p className="text-sm font-extrabold uppercase tracking-wide text-teal-700 mb-2">{t('Joining code')}</p>
         <div className="flex items-center gap-2">
-          <span className="text-xl font-extrabold tracking-[0.25em] text-black">{classroom.class_code}</span>
+          <span className="text-2xl font-extrabold tracking-[0.25em] text-black">{classroom.class_code}</span>
           <button onClick={copyCode} className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-black">
             {copied ? <Check className="w-4 h-4 text-teal-600" /> : <Copy className="w-4 h-4" />}
           </button>
         </div>
-        <p className="text-sm text-black/60 font-medium mt-3">
+        <p className="text-base text-black font-medium mt-3">
           {(classroom.members || []).filter((m) => m.role === 'student').length} {t('student(s) enrolled')} ·{' '}
           {(classroom.assignments || []).length} {t('assignment(s)')}
         </p>
@@ -1209,11 +1212,12 @@ function OverviewTab({ classroom }) {
 // is built once at module load — before any component, and its t(),
 // exists.
 const TABS = [
-  { key: 'overview', label: 'Overview', icon: LayoutGrid },
-  { key: 'materials', label: 'Teaching Materials', icon: FileText },
-  { key: 'quizzes', label: 'Quiz Builder', icon: Puzzle },
-  { key: 'assignments', label: 'Assignments', icon: ClipboardList },
-  { key: 'students', label: 'Students', icon: Users },
+  { key: 'overview', label: 'Overview', icon: LayoutGrid, active: 'bg-teal-500 border-teal-500 text-white', iconColor: 'text-teal-600' },
+  { key: 'designer', label: 'Classroom Designer', icon: Palette, active: 'bg-fuchsia-500 border-fuchsia-500 text-white', iconColor: 'text-fuchsia-600' },
+  { key: 'materials', label: 'Teaching Materials', icon: FileText, active: 'bg-blue-500 border-blue-500 text-white', iconColor: 'text-blue-600' },
+  { key: 'quizzes', label: 'Quiz Builder', icon: Puzzle, active: 'bg-purple-500 border-purple-500 text-white', iconColor: 'text-purple-600' },
+  { key: 'assignments', label: 'Assignments', icon: ClipboardList, active: 'bg-amber-500 border-amber-500 text-white', iconColor: 'text-amber-600' },
+  { key: 'students', label: 'Students', icon: Users, active: 'bg-pink-500 border-pink-500 text-white', iconColor: 'text-pink-600' },
 ];
 
 export default function ClassWorkspace() {
@@ -1306,7 +1310,7 @@ export default function ClassWorkspace() {
     <div className="space-y-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <button
         onClick={() => navigate('/teacher-workspace')}
-        className="inline-flex items-center gap-1.5 text-sm font-bold text-black/60 hover:text-black"
+        className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black"
       >
         <ArrowLeft className="w-4 h-4" /> {t('Teacher Workspace')}
       </button>
@@ -1314,26 +1318,26 @@ export default function ClassWorkspace() {
       <div
         className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-7 text-white"
       >
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(120deg, #1e293b 0%, #334155 60%, #0d9488 130%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(120deg, #4f46e5 0%, #7c3aed 45%, #db2777 80%, #f59e0b 130%)' }} />
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">{classroom.name}</h1>
-              <p className="text-white/80 text-sm font-semibold">
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">{classroom.name}</h1>
+              <p className="text-white text-lg font-semibold">
                 {[classroom.subject, classroom.grade_level].filter(Boolean).join(' · ') || t('Class Workspace')}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-extrabold tracking-[0.2em] bg-white/15 border border-white/25 rounded-full px-4 py-1.5">
+            <span className="text-base font-extrabold tracking-[0.2em] bg-white/15 border border-white/25 rounded-full px-4 py-1.5">
               {classroom.class_code}
             </span>
             <button
               onClick={() => setShowLeaveConfirm(true)}
-              className="inline-flex items-center gap-1.5 text-sm font-bold bg-white/10 hover:bg-white/20 border border-white/25 rounded-full px-4 py-1.5 transition-colors"
+              className="inline-flex items-center gap-1.5 text-base font-bold bg-white/10 hover:bg-white/20 border border-white/25 rounded-full px-4 py-1.5 transition-colors"
             >
               <LogOut className="w-4 h-4" /> {t('Leave Classroom')}
             </button>
@@ -1350,7 +1354,7 @@ export default function ClassWorkspace() {
         />
       )}
 
-      <div className="flex gap-1.5 overflow-x-auto border-b border-slate-200 pb-0.5">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map((tabDef) => {
           const Icon = tabDef.icon;
           const active = tab === tabDef.key;
@@ -1358,18 +1362,24 @@ export default function ClassWorkspace() {
             <button
               key={tabDef.key}
               onClick={() => setTab(tabDef.key)}
-              className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-t-xl font-bold text-sm whitespace-nowrap transition-colors border-b-2 ${
-                active ? 'text-teal-700 border-teal-600 bg-teal-50/50' : 'text-black/60 border-transparent hover:text-black'
+              className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-lg whitespace-nowrap transition-colors border-2 shadow-sm ${
+                active ? tabDef.active : 'bg-white border-slate-200 text-black hover:bg-slate-50'
               }`}
             >
-              <Icon className="w-4 h-4" /> {t(tabDef.label)}
+              <Icon className={`w-5 h-5 ${active ? 'text-white' : tabDef.iconColor}`} /> {t(tabDef.label)}
             </button>
           );
         })}
       </div>
 
       <div>
-        {tab === 'overview' && <OverviewTab classroom={classroom} />}
+        {tab === 'overview' && (
+          <div className="space-y-6">
+            <PresentLivePanel classCode={classCode} memberToken={memberToken} />
+            <OverviewTab classroom={classroom} />
+          </div>
+        )}
+        {tab === 'designer' && <ClassroomDesigner classCode={classCode} memberToken={memberToken} />}
         {tab === 'materials' && <MaterialsTab classCode={classCode} memberToken={memberToken} />}
         {tab === 'quizzes' && (
           <QuizzesTab

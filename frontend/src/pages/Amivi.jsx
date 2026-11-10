@@ -35,6 +35,7 @@ import {
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import PresentLiveButton from '../components/live/PresentLiveButton';
 
 // Shared pager for the Microbit grids (Box 1 / Box 2) — 6 Microbits
 // per page, 3 per row x 2 rows; only rendered when there's more
@@ -1775,14 +1776,17 @@ export default function Amivi() {
                     : 'Select visual cards above to use them in other activities.'}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={resetAmivi}
-                className="px-4 py-2 border-2 border-slate-300 hover:border-black text-black rounded-xl font-bold text-base flex items-center gap-2 transition-colors"
-              >
-                <RefreshCw size={16} />
-                Create Again
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <PresentLiveButton kind="amivi" projectId={result?.project_id} />
+                <button
+                  type="button"
+                  onClick={resetAmivi}
+                  className="px-4 py-2 border-2 border-slate-300 hover:border-black text-black rounded-xl font-bold text-base flex items-center gap-2 transition-colors"
+                >
+                  <RefreshCw size={16} />
+                  Create Again
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

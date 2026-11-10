@@ -1,11 +1,13 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import GlobalLiveBanner from '../components/live/GlobalLiveBanner';
 
 export default function MainLayout() {
   return (
     <div className="min-h-screen bg-sky-50 text-gray-900 font-sans flex flex-col selection:bg-yellow-200/60">
       <Navbar />
+      <GlobalLiveBanner />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 scroll-smooth">
         <div className="max-w-[96rem] mx-auto h-full">
           <Outlet />

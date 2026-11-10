@@ -48,6 +48,7 @@ import {
   Coffee,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import PresentLiveButton from '../components/live/PresentLiveButton';
 
 // Quick-pick avatars so a Comic Story can start right away without
 // needing an uploaded photo first. Keys must match backend
@@ -1189,9 +1190,16 @@ export default function Amico() {
                 </p>
               </div>
             </div>
-            <button onClick={resetAmico} className="text-base font-bold text-pink-100 hover:text-white underline">
-              {t('Create Another Comic')}
-            </button>
+            <div className="flex flex-wrap items-center gap-4">
+              <PresentLiveButton
+                kind="amico"
+                projectId={result?.project_id}
+                className="inline-flex items-center gap-2 bg-white text-red-600 hover:bg-red-50 font-bold rounded-xl px-4 py-2.5 shadow-sm disabled:opacity-50"
+              />
+              <button onClick={resetAmico} className="text-base font-bold text-pink-100 hover:text-white underline">
+                {t('Create Another Comic')}
+              </button>
+            </div>
           </div>
 
           {/* Complete comic page preview */}

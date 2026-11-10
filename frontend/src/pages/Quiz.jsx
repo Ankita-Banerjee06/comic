@@ -35,6 +35,7 @@ import {
 } from '../services/api';
 import indiaDeckQuestions from '../data/quizDecks/india.json';
 import medicalDeckQuestions from '../data/quizDecks/medical.json';
+import PresentLiveButton from '../components/live/PresentLiveButton';
 
 // ============================================================
 // HELPERS
@@ -435,7 +436,7 @@ export default function Quiz() {
           throw new Error(t('This quiz has no questions to show.'));
         }
 
-        setQuiz({ ...project.data, quizId: project.id });
+        setQuiz({ ...project.data, quizId: project.id, projectId: project.id });
         setIsRetake(false);
         setIsBankSession(false);
         setMasteredBankIds([]);
@@ -573,7 +574,7 @@ export default function Quiz() {
         throw new Error(t('No quiz questions were generated.'));
       }
 
-      setQuiz({ ...data.quiz, quizId: data.quiz_id || null });
+      setQuiz({ ...data.quiz, quizId: data.quiz_id || null, projectId: data.project_id || null });
       setIsRetake(false);
       setIsBankSession(false);
       setMasteredBankIds([]);
@@ -1039,6 +1040,9 @@ export default function Quiz() {
           >
             🚀 {t('Start Quiz')}!
           </button>
+        </div>
+        <div className="mb-6">
+          <PresentLiveButton kind="quiz" projectId={isBankSession ? null : (quiz.projectId || projectId)} />
         </div>
         <button
           onClick={startNewQuiz}

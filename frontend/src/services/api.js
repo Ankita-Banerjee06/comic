@@ -1246,3 +1246,96 @@ export async function getClassroomStudents(classCode, memberToken) {
   if (!response.ok) throw await parseClassroomError(response, 'Unable to load students.');
   return response.json();
 }
+
+// ============================================================
+// LIVE PRESENT — teacher presents, the whole class follows along
+// ============================================================
+
+async function postLive(classCode, action, body, fallback) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/live/${action}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) throw await parseClassroomError(response, fallback);
+  return response.json();
+}
+
+export function startLive(classCode, { memberToken, kind, projectId }) {
+  return postLive(
+    classCode,
+    'start',
+    { member_token: memberToken, kind, project_id: projectId },
+    'Unable to start presenting.'
+  );
+}
+
+export function updateLive(classCode, { memberToken, position, reveal = false }) {
+  return postLive(
+    classCode,
+    'update',
+    { member_token: memberToken, position, reveal },
+    'Unable to update the live slide.'
+  );
+}
+
+export function stopLive(classCode, { memberToken }) {
+  return postLive(classCode, 'stop', { member_token: memberToken }, 'Unable to end the presentation.');
+}
+
+// Long-poll: with `since`, the server holds the request until the
+// teacher changes something (or ~25s pass), so callers can simply
+// loop on it.
+export async function getLiveState(classCode, memberToken, since = null, signal) {
+  const params = new URLSearchParams({ member_token: memberToken });
+  if (since !== null && since !== undefined) params.set('since', String(since));
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/live?${params}`,
+    { signal }
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to check the live presentation.');
+  return response.json();
+}
+
+export async function getLiveProject(classCode, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/live/project?member_token=${encodeURIComponent(memberToken)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load the presentation.');
+  return response.json();
+}
+
+// ============================================================
+// CLASSROOM DESIGNER — teacher-built boards (image cards + layout +
+// colours + text size) stored per class, presentable live.
+// ============================================================
+
+export async function listDesigns(classCode, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/designs?member_token=${encodeURIComponent(memberToken)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load your designs.');
+  return response.json();
+}
+
+export async function saveDesign(classCode, { memberToken, designId = null, title, data }) {
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/designs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ member_token: memberToken, design_id: designId, title, data }),
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to save this design.');
+  return response.json();
+}
+
+export async function deleteDesign(classCode, designId, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/designs/${designId}?member_token=${encodeURIComponent(memberToken)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to delete this design.');
+  return response.json();
+}

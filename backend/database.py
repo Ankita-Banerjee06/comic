@@ -60,6 +60,7 @@ def create_tables():
         AssignmentSubmission,
         Lesson,
         TeachingMaterial,
+        ClassroomLiveSession,
     )
 
     Base.metadata.create_all(bind=engine)

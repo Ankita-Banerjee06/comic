@@ -34,15 +34,15 @@ import {
 
 function SummaryCard({ icon: Icon, label, value, tint, iconColor, loading }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
-      <div className={`w-11 h-11 rounded-xl ${tint} flex items-center justify-center shrink-0`}>
-        <Icon className={`w-5 h-5 ${iconColor}`} />
+    <div className={`rounded-2xl border-2 shadow-sm p-5 flex items-center gap-4 ${tint}`}>
+      <div className={`w-14 h-14 rounded-2xl ${iconColor} flex items-center justify-center shrink-0 shadow-md`}>
+        <Icon className="w-7 h-7 text-white" />
       </div>
       <div>
-        <p className="text-2xl font-extrabold text-black leading-tight">
+        <p className="text-3xl font-extrabold text-black leading-tight">
           {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-300" /> : value}
         </p>
-        <p className="text-sm font-semibold text-black/70">{label}</p>
+        <p className="text-base font-semibold text-black">{label}</p>
       </div>
     </div>
   );
@@ -51,7 +51,7 @@ function SummaryCard({ icon: Icon, label, value, tint, iconColor, loading }) {
 function Field({ label, children }) {
   return (
     <label className="block">
-      <span className="block text-sm font-bold text-black mb-1.5">{label}</span>
+      <span className="block text-base font-bold text-black mb-1.5">{label}</span>
       {children}
     </label>
   );
@@ -116,7 +116,7 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-extrabold text-lg text-black">
+          <h2 className="font-extrabold text-xl text-black">
             {created ? t('Class created') : t('Create New Class')}
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
@@ -197,11 +197,11 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
                 placeholder={t('What is this class about?')}
               />
             </Field>
-            <p className="text-xs text-black/60 font-medium">
+            <p className="text-sm text-black font-medium">
               {t('A unique joining code is generated automatically once the class is created — your students use it to enroll.')}
             </p>
             {error && (
-              <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+              <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
                 {error}
               </p>
             )}
@@ -220,29 +220,39 @@ function CreateClassModal({ displayName, onClose, onCreated }) {
   );
 }
 
-function ClassCard({ classroom, onOpen }) {
+const CLASS_COLORS = [
+  { card: 'from-teal-50 border-teal-300', badge: 'bg-teal-500', link: 'text-teal-700' },
+  { card: 'from-indigo-50 border-indigo-300', badge: 'bg-indigo-500', link: 'text-indigo-700' },
+  { card: 'from-pink-50 border-pink-300', badge: 'bg-pink-500', link: 'text-pink-700' },
+  { card: 'from-amber-50 border-amber-300', badge: 'bg-amber-500', link: 'text-amber-700' },
+  { card: 'from-purple-50 border-purple-300', badge: 'bg-purple-500', link: 'text-purple-700' },
+  { card: 'from-sky-50 border-sky-300', badge: 'bg-sky-500', link: 'text-sky-700' },
+];
+
+function ClassCard({ classroom, onOpen, index = 0 }) {
   const { t } = useLanguage();
+  const color = CLASS_COLORS[index % CLASS_COLORS.length];
   return (
     <button
       onClick={() => onOpen(classroom)}
-      className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+      className={`text-left bg-gradient-to-br ${color.card} to-white rounded-2xl border-2 border-t-8 shadow-sm p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all group`}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
-        <h3 className="font-extrabold text-black leading-snug">{classroom.name}</h3>
-        <span className="shrink-0 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-100 rounded-full px-2.5 py-1">
+        <h3 className="text-xl font-extrabold text-black leading-snug">{classroom.name}</h3>
+        <span className={`shrink-0 text-sm font-bold text-white ${color.badge} rounded-full px-3 py-1`}>
           {classroom.class_code}
         </span>
       </div>
-      <p className="text-sm font-semibold text-black/70 mb-4">
+      <p className="text-base font-semibold text-black mb-4">
         {[classroom.subject, classroom.grade_level, classroom.topic].filter(Boolean).join(' · ') ||
           t('No details set')}
       </p>
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-black/60">
+        <p className="text-sm font-bold text-black">
           {classroom.student_count ?? 0} {t(classroom.student_count === 1 ? 'student' : 'students')} ·{' '}
           {classroom.assignment_count} {t(classroom.assignment_count === 1 ? 'assignment' : 'assignments')}
         </p>
-        <span className="inline-flex items-center gap-1 text-sm font-bold text-teal-700 opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className={`inline-flex items-center gap-1 text-base font-bold ${color.link}`}>
           {t('Open')} <ArrowRight className="w-3.5 h-3.5" />
         </span>
       </div>
@@ -309,17 +319,17 @@ export default function TeacherWorkspace() {
       >
         <div
           className="absolute inset-0"
-          style={{ background: 'linear-gradient(120deg, #1e293b 0%, #334155 60%, #0d9488 130%)' }}
+          style={{ background: 'linear-gradient(120deg, #4f46e5 0%, #7c3aed 45%, #db2777 80%, #f59e0b 130%)' }}
         />
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5 text-xs font-bold mb-4">
+            <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5 text-sm font-bold mb-4">
               👩‍🏫 {t('Teacher Workspace')}
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">
+            <h1 className="text-3xl md:text-4xl font-extrabold mb-2 tracking-tight">
               {t('Your classes, your content')}
             </h1>
-            <p className="text-white/90 font-medium max-w-lg">
+            <p className="text-white text-lg font-semibold max-w-lg">
               {t('Build classes, lessons, quizzes, and assignments yourself — no AI generation needed.')}
             </p>
           </div>
@@ -337,51 +347,51 @@ export default function TeacherWorkspace() {
           icon={School}
           label={t('Total Classes')}
           value={summary?.total_classes ?? 0}
-          tint="bg-teal-50"
-          iconColor="text-teal-600"
+          tint="bg-gradient-to-br from-teal-50 to-emerald-100 border-teal-200"
+          iconColor="bg-teal-500"
           loading={!summary && !error}
         />
         <SummaryCard
           icon={Users}
           label={t('Total Students')}
           value={summary?.total_students ?? 0}
-          tint="bg-blue-50"
-          iconColor="text-blue-600"
+          tint="bg-gradient-to-br from-sky-50 to-blue-100 border-blue-200"
+          iconColor="bg-blue-500"
           loading={!summary && !error}
         />
         <SummaryCard
           icon={Puzzle}
           label={t('Total Quizzes')}
           value={summary?.total_quizzes ?? 0}
-          tint="bg-purple-50"
-          iconColor="text-purple-600"
+          tint="bg-gradient-to-br from-violet-50 to-purple-100 border-purple-200"
+          iconColor="bg-purple-500"
           loading={!summary && !error}
         />
         <SummaryCard
           icon={ClipboardList}
           label={t('Pending Assignments')}
           value={summary?.pending_assignments ?? 0}
-          tint="bg-amber-50"
-          iconColor="text-amber-600"
+          tint="bg-gradient-to-br from-amber-50 to-orange-100 border-amber-200"
+          iconColor="bg-amber-500"
           loading={!summary && !error}
         />
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-extrabold text-black text-lg flex items-center gap-2">
-            <School className="w-5 h-5" /> {t('My Classes')}
+          <h2 className="font-extrabold text-black text-2xl flex items-center gap-2">
+            <span className="w-9 h-9 rounded-xl bg-indigo-500 text-white flex items-center justify-center"><School className="w-5 h-5" /></span> {t('My Classes')}
           </h2>
           <button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800"
+            className="inline-flex items-center gap-1.5 text-base font-bold text-teal-700 hover:text-teal-800"
           >
             <Plus className="w-4 h-4" /> {t('New class')}
           </button>
         </div>
 
         {error && (
-          <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+          <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
             {error}
           </p>
         )}
@@ -395,7 +405,7 @@ export default function TeacherWorkspace() {
         {!error && classrooms && classrooms.length === 0 && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
             <p className="font-bold text-black mb-1">{t('No classes yet')}</p>
-            <p className="text-sm text-black/70 font-medium mb-4">
+            <p className="text-base text-black font-medium mb-4">
               {t('Create your first class to start building lessons, quizzes, and assignments.')}
             </p>
             <button
@@ -409,8 +419,8 @@ export default function TeacherWorkspace() {
 
         {!error && classrooms && classrooms.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {classrooms.map((c) => (
-              <ClassCard key={c.classroom_id} classroom={c} onOpen={openClassroom} />
+            {classrooms.map((c, i) => (
+              <ClassCard key={c.classroom_id} classroom={c} index={i} onOpen={openClassroom} />
             ))}
           </div>
         )}

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
@@ -24,6 +25,7 @@ import shutil
 import uuid
 import textwrap
 import time
+import asyncio
 
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor
@@ -67,6 +69,7 @@ from models import (
     AssignmentSubmission,
     Lesson,
     TeachingMaterial,
+    ClassroomLiveSession,
 )
 
 
@@ -524,6 +527,35 @@ class StudentCodeRequest(BaseModel):
 
 class StudentLoginRequest(BaseModel):
     student_code: str
+
+
+# ------------------------------------------------------------
+# LIVE PRESENT — the teacher presents an AMIVI lesson / AMICO
+# comic / quiz and every student in the class follows along on
+# their own screen, slide for slide.
+# ------------------------------------------------------------
+
+class LiveStartRequest(BaseModel):
+    member_token: str
+    kind: str  # "amivi" | "amico" | "quiz"
+    project_id: int
+
+
+class LiveUpdateRequest(BaseModel):
+    member_token: str
+    position: int
+    reveal: bool = False
+
+
+class LiveStopRequest(BaseModel):
+    member_token: str
+
+
+class DesignSaveRequest(BaseModel):
+    member_token: str
+    title: str = ""
+    data: dict = {}
+    design_id: int | None = None
 
 
 # ------------------------------------------------------------
@@ -11119,6 +11151,445 @@ def classroom_library_projects(
                 for p in projects
             ]
         }
+
+    finally:
+        db.close()
+
+
+# ============================================================
+# LIVE PRESENT
+#
+# The teacher's current slide is stored on ClassroomLiveSession.
+# Students long-poll GET .../live?since=<version>: the request
+# waits (without holding a worker thread) until the version moves
+# past what they already have, or ~25s pass, so a slide change
+# reaches every student within about half a second while an idle
+# class costs one tiny request per student every 25 seconds.
+# ============================================================
+
+LIVE_KINDS = ("amivi", "amico", "quiz", "design")
+LIVE_POLL_SECONDS = 25
+
+# classroom_id -> latest version, so waiting students can check
+# for a change without hitting the database every half second.
+# The database stays the source of truth (re-read periodically
+# below), so this still works if more than one worker is running.
+LIVE_VERSIONS: dict[int, int] = {}
+
+
+def serialize_live_session(live) -> dict:
+
+    if not live:
+        return {
+            "is_live": False,
+            "kind": None,
+            "project_id": None,
+            "position": 0,
+            "reveal": False,
+            "version": 0,
+        }
+
+    return {
+        "is_live": bool(live.is_live),
+        "kind": live.kind,
+        "project_id": live.project_id,
+        "position": live.position or 0,
+        "reveal": bool(live.reveal),
+        "version": live.version or 0,
+    }
+
+
+def get_live_session(db, classroom_id: int):
+
+    return (
+        db.query(ClassroomLiveSession)
+        .filter(ClassroomLiveSession.classroom_id == classroom_id)
+        .first()
+    )
+
+
+def _bump_live(db, live) -> dict:
+
+    live.version = (live.version or 0) + 1
+    db.commit()
+    db.refresh(live)
+    LIVE_VERSIONS[live.classroom_id] = live.version
+
+    return serialize_live_session(live)
+
+
+@app.post("/api/classrooms/{class_code}/live/start")
+def live_start(class_code: str, payload: LiveStartRequest):
+
+    if payload.kind not in LIVE_KINDS:
+
+        raise HTTPException(
+            status_code=400,
+            detail='kind must be "amivi", "amico", "quiz", or "design".',
+        )
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        # Classroom designs belong to one class — never present
+        # another class's design here.
+        if payload.kind == "design":
+            design = (
+                db.query(Project)
+                .filter(Project.id == payload.project_id, Project.project_type == "design")
+                .first()
+            )
+            if not design or design.classroom_id != classroom.id:
+                raise HTTPException(status_code=404, detail="Design not found.")
+
+        project = (
+            db.query(Project)
+            .filter(
+                Project.id == payload.project_id,
+                Project.project_type == payload.kind,
+            )
+            .first()
+        )
+
+        # Same visibility rule as the teacher's Library picker:
+        # their own projects plus legacy ones with no owner.
+        if not project or (
+            member.user_id is not None
+            and project.user_id is not None
+            and project.user_id != member.user_id
+        ):
+            raise HTTPException(status_code=404, detail="Project not found.")
+
+        live = get_live_session(db, classroom.id)
+
+        if not live:
+            live = ClassroomLiveSession(classroom_id=classroom.id, version=0)
+            db.add(live)
+
+        live.is_live = True
+        live.kind = payload.kind
+        live.project_id = project.id
+        live.position = 0
+        live.reveal = False
+
+        return _bump_live(db, live)
+
+    finally:
+        db.close()
+
+
+@app.post("/api/classrooms/{class_code}/live/update")
+def live_update(class_code: str, payload: LiveUpdateRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        live = get_live_session(db, classroom.id)
+
+        if not live or not live.is_live:
+            raise HTTPException(status_code=409, detail="You are not presenting live right now.")
+
+        live.position = max(0, payload.position)
+        live.reveal = bool(payload.reveal)
+
+        return _bump_live(db, live)
+
+    finally:
+        db.close()
+
+
+@app.post("/api/classrooms/{class_code}/live/stop")
+def live_stop(class_code: str, payload: LiveStopRequest):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        live = get_live_session(db, classroom.id)
+
+        if not live:
+            return serialize_live_session(None)
+
+        live.is_live = False
+        live.reveal = False
+
+        return _bump_live(db, live)
+
+    finally:
+        db.close()
+
+
+def _live_classroom_id_for_member(class_code: str, member_token: str) -> int:
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        get_classroom_member_by_token(db, classroom.id, member_token)
+        return classroom.id
+
+    finally:
+        db.close()
+
+
+def _read_live_state(classroom_id: int) -> dict:
+
+    db = SessionLocal()
+
+    try:
+        state = serialize_live_session(get_live_session(db, classroom_id))
+        LIVE_VERSIONS[classroom_id] = state["version"]
+        return state
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/live")
+async def live_state(class_code: str, member_token: str, since: int | None = None):
+
+    classroom_id = await run_in_threadpool(
+        _live_classroom_id_for_member, class_code, member_token
+    )
+
+    state = await run_in_threadpool(_read_live_state, classroom_id)
+
+    if since is None or state["version"] != since:
+        return state
+
+    # Nothing new yet — wait for the teacher's next change.
+    ticks = int(LIVE_POLL_SECONDS / 0.5)
+
+    for tick in range(1, ticks + 1):
+
+        await asyncio.sleep(0.5)
+
+        cached = LIVE_VERSIONS.get(classroom_id)
+        recheck_db = tick % 6 == 0  # every 3s, in case another worker changed it
+
+        if (cached is not None and cached != since) or recheck_db:
+
+            state = await run_in_threadpool(_read_live_state, classroom_id)
+
+            if state["version"] != since:
+                return state
+
+    return state
+
+
+@app.get("/api/classrooms/{class_code}/live/project")
+def live_project(class_code: str, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        get_classroom_member_by_token(db, classroom.id, member_token)
+
+        live = get_live_session(db, classroom.id)
+
+        # Only ever the one project the teacher is presenting right
+        # now, to members of this class — never an arbitrary id.
+        if not live or not live.is_live or not live.project_id:
+            raise HTTPException(status_code=404, detail="Nothing is being presented right now.")
+
+        project = db.query(Project).filter(Project.id == live.project_id).first()
+
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found.")
+
+        return serialize_library_project(project)
+
+    finally:
+        db.close()
+
+
+# ============================================================
+# CLASSROOM DESIGNER
+#
+# A teacher-built presentation board: up to five image cards in
+# a chosen layout, with background colour, text colour and text
+# size. Stored as a Project (project_type "design") tied to one
+# classroom, so Live Present can show it with no new storage.
+# ============================================================
+
+DESIGN_LAYOUTS = ("row5", "3-2", "2-3", "spotlight")
+DESIGN_MAX_CARDS = 5
+HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def clean_design_data(raw: dict) -> dict:
+
+    raw = raw or {}
+
+    layout = raw.get("layout")
+    if layout not in DESIGN_LAYOUTS:
+        layout = "row5"
+
+    def color(value, fallback):
+        return value if isinstance(value, str) and HEX_COLOR_RE.match(value) else fallback
+
+    try:
+        text_size = int(raw.get("textSize", 24))
+    except (TypeError, ValueError):
+        text_size = 24
+    text_size = max(12, min(text_size, 72))
+
+    cards = []
+    for card in (raw.get("cards") or [])[:DESIGN_MAX_CARDS]:
+        card = card if isinstance(card, dict) else {}
+        image_url = card.get("image_url") or ""
+        # Only images this app serves (uploaded media or bundled
+        # files) — never arbitrary external URLs.
+        if not isinstance(image_url, str) or not (
+            image_url.startswith("/api/media/") or image_url.startswith("/")
+        ) or image_url.startswith("//"):
+            image_url = ""
+        cards.append(
+            {
+                "image_url": image_url[:500],
+                "caption": str(card.get("caption") or "")[:200],
+            }
+        )
+    while len(cards) < DESIGN_MAX_CARDS:
+        cards.append({"image_url": "", "caption": ""})
+
+    return {
+        "layout": layout,
+        "background": color(raw.get("background"), "#0f172a"),
+        "textColor": color(raw.get("textColor"), "#ffffff"),
+        "textSize": text_size,
+        "heading": str(raw.get("heading") or "")[:200],
+        "cards": cards,
+    }
+
+
+def serialize_design(project) -> dict:
+
+    return {
+        "id": project.id,
+        "title": project.title or "Untitled design",
+        "data": clean_design_data(project.data),
+        "created_at": project.created_at.isoformat() if project.created_at else None,
+    }
+
+
+@app.get("/api/classrooms/{class_code}/designs")
+def list_designs(class_code: str, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+
+        designs = (
+            db.query(Project)
+            .filter(Project.project_type == "design", Project.classroom_id == classroom.id)
+            .order_by(Project.id.desc())
+            .all()
+        )
+
+        return {"designs": [serialize_design(d) for d in designs]}
+
+    finally:
+        db.close()
+
+
+@app.post("/api/classrooms/{class_code}/designs")
+def save_design(class_code: str, payload: DesignSaveRequest):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        title = (payload.title or "").strip()[:255] or "Untitled design"
+        data = clean_design_data(payload.data)
+
+        if payload.design_id:
+            design = (
+                db.query(Project)
+                .filter(
+                    Project.id == payload.design_id,
+                    Project.project_type == "design",
+                    Project.classroom_id == classroom.id,
+                )
+                .first()
+            )
+            if not design:
+                raise HTTPException(status_code=404, detail="Design not found.")
+        else:
+            design = Project(
+                project_type="design",
+                user_id=member.user_id,
+                classroom_id=classroom.id,
+                created_via="designer",
+            )
+            db.add(design)
+
+        design.title = title
+        design.data = data
+        db.commit()
+        db.refresh(design)
+
+        return serialize_design(design)
+
+    finally:
+        db.close()
+
+
+@app.delete("/api/classrooms/{class_code}/designs/{design_id}")
+def delete_design(class_code: str, design_id: int, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+
+        design = (
+            db.query(Project)
+            .filter(
+                Project.id == design_id,
+                Project.project_type == "design",
+                Project.classroom_id == classroom.id,
+            )
+            .first()
+        )
+        if not design:
+            raise HTTPException(status_code=404, detail="Design not found.")
+
+        live = get_live_session(db, classroom.id)
+        if live and live.project_id == design.id:
+            live.is_live = False
+            live.project_id = None
+            live.version = (live.version or 0) + 1
+            LIVE_VERSIONS[classroom.id] = live.version
+
+        db.delete(design)
+        db.commit()
+
+        return {"status": "success"}
 
     finally:
         db.close()

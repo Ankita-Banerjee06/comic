@@ -981,3 +981,52 @@ class TeachingMaterial(Base):
     )
 
     classroom = relationship("Classroom")
+
+class ClassroomLiveSession(Base):
+    """
+    The teacher's live presentation state for one classroom — which
+    AMIVI lesson / AMICO comic / quiz is on screen, and which slide.
+    Students' browsers follow this row so everyone in the class sees
+    the same slide the teacher is on. One row per classroom, reused
+    every time the teacher goes live again.
+    """
+
+    __tablename__ = "classroom_live_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    classroom_id = Column(
+        Integer,
+        ForeignKey("classrooms.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    is_live = Column(Boolean, nullable=False, default=False)
+
+    # "amivi" | "amico" | "quiz"
+    kind = Column(String(20), nullable=True)
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Zero-based slide index the teacher is currently on.
+    position = Column(Integer, nullable=False, default=0)
+
+    # Quiz only: whether the teacher has revealed the answer.
+    reveal = Column(Boolean, nullable=False, default=False)
+
+    # Bumped on every change so students can ask "anything newer
+    # than version N?" instead of re-downloading the same state.
+    version = Column(Integer, nullable=False, default=0)
+
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
