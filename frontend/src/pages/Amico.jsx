@@ -215,6 +215,19 @@ export default function Amico() {
   // as the source instead of the learner re-picking it manually.
   const incomingSourceProjectId = location.state?.sourceProjectId || null;
 
+  // The button that sent us here (AMIVI's "Send to AMICO", or the
+  // same button in the Library) also passes the lesson's own title
+  // along in route state, so the "ready to generate" banner below
+  // can name it instead of saying only "the material you opened
+  // this from". Older callers that only pass sourceProjectId (or a
+  // page refresh, which loses route state entirely) fall back to
+  // looking the title up in this account's own AMIVI projects once
+  // that list has loaded — though for a project opened via a
+  // classroom assignment, which never appears in this account's own
+  // list, there's nothing to fall back to and the generic banner
+  // text is kept instead.
+  const incomingSourceTitle = location.state?.sourceTitle || null;
+
   useEffect(() => {
     listAvatars()
       .then((data) => setAvatars(data.avatars || []))
@@ -278,6 +291,17 @@ export default function Amico() {
       return { ...project, label };
     });
   }, [amiviProjects]);
+
+  // Resolved title for the "ready to generate" banner: prefer what
+  // the sending page already told us, and only fall back to a
+  // lookup in this account's own AMIVI projects (e.g. an older
+  // caller, or a route-state-losing page refresh) once that list
+  // has had a chance to load.
+  const resolvedIncomingTitle =
+    incomingSourceTitle ||
+    (incomingSourceProjectId
+      ? amiviProjects.find((p) => String(p.project_id) === String(incomingSourceProjectId))?.title || null
+      : null);
 
   // ============================================================
   // OPEN FROM LIBRARY (load a previously saved AMICO comic
@@ -828,7 +852,13 @@ export default function Amico() {
                 {incomingSourceProjectId ? (
                   <p className="text-black font-semibold bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-4 flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-pink-500 flex-shrink-0" />
-                    {t('Using the material you opened this from — ready to generate below.')}
+                    {resolvedIncomingTitle ? (
+                      <span>
+                        {t('Using')} <span className="font-extrabold">"{resolvedIncomingTitle}"</span> — {t('ready to generate below.')}
+                      </span>
+                    ) : (
+                      t('Using the material you opened this from — ready to generate below.')
+                    )}
                   </p>
                 ) : amiviProjects.length === 0 ? (
                   <p className="text-black font-semibold bg-pink-50 border-2 border-pink-200 rounded-2xl p-4 mb-4">

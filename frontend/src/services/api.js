@@ -613,6 +613,7 @@ export async function generateAvatar(file, name = '', style = '') {
 
   const response = await fetch(`${API_URL}/api/avatar/generate`, {
     method: 'POST',
+    headers: { ...authHeaders() },
     body: formData,
   });
 
@@ -625,7 +626,9 @@ export async function generateAvatar(file, name = '', style = '') {
 }
 
 export async function listAvatars() {
-  const response = await fetch(`${API_URL}/api/avatars`);
+  const response = await fetch(`${API_URL}/api/avatars`, {
+    headers: { ...authHeaders() },
+  });
   if (!response.ok) throw new Error('Failed to load avatars.');
   return response.json();
 }
@@ -633,6 +636,7 @@ export async function listAvatars() {
 export async function deleteAvatar(avatarId) {
   const response = await fetch(`${API_URL}/api/avatar/${avatarId}`, {
     method: 'DELETE',
+    headers: { ...authHeaders() },
   });
   if (!response.ok) throw new Error('Failed to delete avatar.');
   return response.json();

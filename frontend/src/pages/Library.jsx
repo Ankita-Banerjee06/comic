@@ -761,7 +761,7 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
           {item.type === 'amivi' && (
             <button
               onClick={() =>
-                navigate('/amico', { state: { sourceProjectId: item.id } })
+                navigate('/amico', { state: { sourceProjectId: item.id, sourceTitle: item.title } })
               }
               title="Sends this AMIVI package (Key Points, slogans, visuals and explanations) straight to AMICO — nothing needs retyping, and the original AMIVI stays exactly as it is."
               className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-pink-700 bg-pink-50 border border-pink-200 hover:bg-pink-100 transition-colors"
@@ -837,7 +837,7 @@ function AmiviPreview({ item, data }) {
   return (
     <div className="space-y-5">
       {hasThumbnail && (
-        <img loading="lazy"
+        <img
           src={mediaUrl(item.thumbnail_url)}
           alt={item.title || 'AMIVI Preview'}
           onError={() => setImgFailed(true)}
@@ -984,7 +984,7 @@ function AmiviPreview({ item, data }) {
           <div className="relative bg-white rounded-2xl overflow-hidden shadow-xl max-w-6xl w-full max-h-[92vh] flex flex-col">
             <div className="bg-slate-50 flex items-center justify-center overflow-hidden flex-1">
               {lightboxChunk.image_url ? (
-                <img loading="lazy"
+                <img
                   src={mediaUrl(lightboxChunk.image_url)}
                   alt={lightboxChunk.text || `Chunk ${lightboxIndex + 1}`}
                   className="w-full max-h-[78vh] object-contain"
@@ -1103,7 +1103,7 @@ function AmicoPreview({ item, data, onRepaired, onToast }) {
 
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
         {currentPage?.comic_image_url ? (
-          <img loading="lazy"
+          <img
             key={currentPage.comic_image_url}
             src={mediaUrl(currentPage.comic_image_url)}
             alt={`Page ${pageIndex + 1}`}

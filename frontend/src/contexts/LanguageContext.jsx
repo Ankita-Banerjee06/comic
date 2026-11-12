@@ -499,6 +499,8 @@ const translations = {
     'I\'ve saved it — Continue': 'I\'ve saved it — Continue',
     'Unable to load your Library.': 'Unable to load your Library.',
     'Unable to load this classroom.': 'Unable to load this classroom.',
+    'Using': 'Using',
+    'ready to generate below.': 'ready to generate below.',
   },
   es: {
     // Navbar
@@ -1063,6 +1065,8 @@ const translations = {
     'I\'ve saved it — Continue': 'Ya lo guardé — Continuar',
     'Unable to load your Library.': 'No se pudo cargar tu Biblioteca.',
     'Unable to load this classroom.': 'No se pudo cargar esta aula.',
+    'Using': 'Usando',
+    'ready to generate below.': 'listo para generar abajo.',
   }
 };
 

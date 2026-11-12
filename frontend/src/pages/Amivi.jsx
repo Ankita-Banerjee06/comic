@@ -1823,7 +1823,7 @@ export default function Amivi() {
 
               <button
                 type="button"
-                onClick={() => navigate('/amico', { state: { sourceProjectId: result.project_id } })}
+                onClick={() => navigate('/amico', { state: { sourceProjectId: result.project_id, sourceTitle: result.title } })}
                 disabled={!result?.project_id}
                 title="Sends this completed AMIVI package (Key Points, slogans, visuals and explanations) straight to AMICO — nothing needs retyping."
                 className="py-4 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-200 text-black disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-bold text-lg flex flex-col items-center justify-center gap-2 transition"
