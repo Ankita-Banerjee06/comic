@@ -501,6 +501,16 @@ const translations = {
     'Unable to load this classroom.': 'Unable to load this classroom.',
     'Using': 'Using',
     'ready to generate below.': 'ready to generate below.',
+    'Dashboard': 'Dashboard',
+    'Introduction': 'Introduction',
+    'Explore': 'Explore',
+    'How We Do It': 'How We Do It',
+    'Core Ecosystems': 'Core Ecosystems',
+    'Essential Learning': 'Essential Learning',
+    'Video Tutorials': 'Video Tutorials',
+    'Plans': 'Plans',
+    'Where to go': 'Where to go',
+    'Where to go?': 'Where to go?',
   },
   es: {
     // Navbar
@@ -1067,6 +1077,16 @@ const translations = {
     'Unable to load this classroom.': 'No se pudo cargar esta aula.',
     'Using': 'Usando',
     'ready to generate below.': 'listo para generar abajo.',
+    'Dashboard': 'Panel',
+    'Introduction': 'Introducción',
+    'Explore': 'Explorar',
+    'How We Do It': 'Cómo lo Hacemos',
+    'Core Ecosystems': 'Ecosistemas Centrales',
+    'Essential Learning': 'Aprendizaje Esencial',
+    'Video Tutorials': 'Tutoriales en Video',
+    'Plans': 'Planes',
+    'Where to go': 'A dónde ir',
+    'Where to go?': '¿A dónde ir?',
   }
 };
 

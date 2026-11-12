@@ -30,7 +30,7 @@ import {
   Loader2,
   LayoutGrid,
   List,
-  Home,
+  Compass,
 } from 'lucide-react';
 
 import { useLanguage } from '../contexts/LanguageContext';
@@ -756,27 +756,42 @@ export default function Amivi() {
   // RENDER
   // ============================================================
 
+  // "Back" doesn't have one fixed destination — editing a saved
+  // project goes back to the Library it was opened from, while a
+  // fresh/new lesson goes back to Explore (where AMIVI is reached
+  // from). Everything else here is a normal fixed route, same set
+  // as the main navbar's links, so this one dropdown can replace
+  // both of the separate "Back" / "Back to Home" buttons that used
+  // to sit side by side above the page.
+  const whereToGoOptions = [
+    { value: projectId ? '/library' : '/explore', label: projectId ? t('Back to Library') : t('Back') },
+    { value: '/', label: t('Back to Home') },
+    { value: '/dashboard', label: t('Dashboard') },
+    { value: '/introduction', label: t('Introduction') },
+    { value: '/explore', label: t('Explore') },
+    { value: '/how-we-do-it', label: t('How We Do It') },
+    { value: '/core-ecosystems', label: t('Core Ecosystems') },
+    { value: '/courses', label: t('Essential Learning') },
+    { value: '/tutorials', label: t('Video Tutorials') },
+    { value: '/plans', label: t('Plans') },
+  ];
+
   return (
     <div className="space-y-8 py-6 px-3 sm:px-5 -mx-3 sm:-mx-5 rounded-3xl bg-gradient-to-br from-blue-50 via-white to-purple-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      <div className="flex items-center gap-4 flex-wrap">
-        <button
-          type="button"
-          onClick={() => navigate(projectId ? '/library' : '/explore')}
-          className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
+      <div className="flex items-center gap-2">
+        <Compass className="w-4 h-4 text-black flex-shrink-0" />
+        <select
+          value=""
+          onChange={(e) => { if (e.target.value) navigate(e.target.value); }}
+          aria-label={t('Where to go')}
+          className="text-base font-bold text-black bg-transparent border-2 border-slate-200 rounded-xl px-3 py-2 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
-          {projectId ? t('Back to Library') : t('Back')}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
-        >
-          <Home className="w-4 h-4" />
-          {t('Back to Home')}
-        </button>
+          <option value="">{t('Where to go?')}</option>
+          {whereToGoOptions.map((opt) => (
+            <option key={opt.value + opt.label} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* ======================================================
