@@ -145,22 +145,32 @@ class Project(Base):
         back_populates="projects",
     )
 
+    # passive_deletes=True: deleting a Project lets PostgreSQL's own
+    # ON DELETE CASCADE (declared on each child's project_id FK)
+    # remove the children. Without it, SQLAlchemy first SELECTs
+    # every child row into Python to delete them one by one — for
+    # media that means loading every image/audio/video blob of the
+    # project into memory just to throw it away, which can OOM the
+    # server on a lesson with a narrated video.
     media = relationship(
         "MediaAsset",
         back_populates="project",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     comics = relationship(
         "Comic",
         back_populates="project",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     quizzes = relationship(
         "Quiz",
         back_populates="project",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -300,6 +310,15 @@ class WrongAnswer(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    # Owner. Rows saved before this column existed stay NULL and
+    # are hidden from everyone (no way to know who made them).
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
     quiz_id = Column(
         Integer,
         ForeignKey("quizzes.id", ondelete="SET NULL"),
@@ -362,6 +381,7 @@ class AmiviChunk(Base):
         Integer,
         ForeignKey("media_assets.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     # A second supporting illustration for the same idea (a
@@ -371,12 +391,14 @@ class AmiviChunk(Base):
         Integer,
         ForeignKey("media_assets.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     audio_id = Column(
         Integer,
         ForeignKey("media_assets.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     voice_script = Column(Text, nullable=True)
@@ -655,6 +677,7 @@ class ClassroomMember(Base):
         Integer,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     display_name = Column(String(150), nullable=False)

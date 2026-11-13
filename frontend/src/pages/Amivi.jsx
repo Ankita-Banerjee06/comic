@@ -12,6 +12,7 @@ import {
   getLibraryProject,
   getAssignmentProject,
   API_URL,
+  authHeaders,
 } from '../services/api';
 
 import {
@@ -661,6 +662,7 @@ export default function Amivi() {
         `${API_URL}/api/amivi/extract`,
         {
           method: 'POST',
+          headers: { ...authHeaders() },
           body: formData,
         }
       );
@@ -716,6 +718,7 @@ export default function Amivi() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...authHeaders(),
           },
           body: JSON.stringify({
             url,

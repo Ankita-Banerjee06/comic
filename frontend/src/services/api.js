@@ -145,6 +145,7 @@ export async function regenerateAmiviImage(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders(),
     },
     body: JSON.stringify({
       project_id: projectId,
@@ -174,6 +175,7 @@ export async function editAmiviChunk(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders(),
     },
     body: JSON.stringify({
       project_id: projectId,
@@ -239,6 +241,7 @@ export async function generateAmiviCompleteVisual(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders(),
       },
       body: JSON.stringify({
         project_id: projectId,
@@ -429,6 +432,7 @@ export async function saveWrongAnswer({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders(),
       },
       body: JSON.stringify({
         quiz_id: quizId,
@@ -452,7 +456,9 @@ export async function saveWrongAnswer({
 }
 
 export async function listWrongAnswers() {
-  const response = await fetch(`${API_URL}/api/quiz/wrong_answers`);
+  const response = await fetch(`${API_URL}/api/quiz/wrong_answers`, {
+    headers: { ...authHeaders() },
+  });
   if (!response.ok) throw new Error('Failed to load wrong answers.');
   return response.json();
 }
@@ -460,7 +466,7 @@ export async function listWrongAnswers() {
 export async function deleteWrongAnswer(id) {
   const response = await fetch(
     `${API_URL}/api/quiz/wrong_answers/${id}`,
-    { method: 'DELETE' }
+    { method: 'DELETE', headers: { ...authHeaders() } }
   );
   if (!response.ok) throw new Error('Failed to remove wrong answer.');
   return response.json();
@@ -480,6 +486,7 @@ export async function generateAmico({
   layout = 'horizontal',
   avatarId = null,
   presetAvatar = null,
+  teacherAvatar = null,
   backgroundSetting = null,
 } = {}) {
   const response = await fetch(
@@ -499,6 +506,7 @@ export async function generateAmico({
         layout,
         avatar_id: avatarId,
         preset_avatar: presetAvatar,
+        teacher_avatar: teacherAvatar,
         background_setting: backgroundSetting,
       }),
     }
@@ -521,7 +529,7 @@ export async function generateAmico({
 export async function regenerateAmicoPanel(panel, projectId = null) {
   const response = await fetch(`${API_URL}/api/amico/regenerate_panel`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       project_id: projectId,
       panel_number: panel.panel_number,
@@ -542,7 +550,7 @@ export async function regenerateAmicoPanel(panel, projectId = null) {
 export async function editAmicoPanel(projectId, panel) {
   const response = await fetch(`${API_URL}/api/amico/edit_panel`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       project_id: projectId,
       panel_number: panel.panel_number,
@@ -563,7 +571,7 @@ export async function editAmicoPanel(projectId, panel) {
 export async function addAmicoPanel(projectId, insertAfter, topicHint = '', language = 'en') {
   const response = await fetch(`${API_URL}/api/amico/add_panel`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       project_id: projectId,
       language,
@@ -583,7 +591,7 @@ export async function addAmicoPanel(projectId, insertAfter, topicHint = '', lang
 export async function recomposeAmico(projectId, panels, panelsPerPage, layout) {
   const response = await fetch(`${API_URL}/api/amico/recompose`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       project_id: projectId,
       panels,
@@ -676,13 +684,17 @@ export async function generateAmicoPhotoStory(file, language = 'en', panelCount 
 
 export async function listProjects(projectType = '') {
   const query = projectType ? `?project_type=${encodeURIComponent(projectType)}` : '';
-  const response = await fetch(`${API_URL}/api/projects${query}`);
+  const response = await fetch(`${API_URL}/api/projects${query}`, {
+    headers: { ...authHeaders() },
+  });
   if (!response.ok) throw new Error('Failed to load projects.');
   return response.json();
 }
 
 export async function listComics() {
-  const response = await fetch(`${API_URL}/api/comics`);
+  const response = await fetch(`${API_URL}/api/comics`, {
+    headers: { ...authHeaders() },
+  });
   if (!response.ok) throw new Error('Failed to load comics.');
   return response.json();
 }
@@ -969,7 +981,7 @@ export async function getMyClassrooms() {
 export async function createAssignment(classCode, { memberToken, title, instructions = '', quizProjectId, amiviProjectId = null, amicoProjectId = null, lessonId = null, attachments = [], dueAt = null }) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       member_token: memberToken,
       title,
@@ -1260,7 +1272,7 @@ async function postLive(classCode, action, body, fallback) {
     `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/live/${action}`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
     }
   );

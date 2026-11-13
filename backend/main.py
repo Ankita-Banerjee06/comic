@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import os
 import json
@@ -26,9 +26,14 @@ import uuid
 import textwrap
 import time
 import asyncio
+import threading
 
-from urllib.parse import urlparse
+import ipaddress
+import socket
+
+from urllib.parse import urlparse, urljoin, quote
 from concurrent.futures import ThreadPoolExecutor
+from collections import deque
 
 from openai import OpenAI
 
@@ -199,6 +204,13 @@ PRESET_AVATARS = {
     },
 }
 
+# Which PRESET_AVATARS are teachers (the rest are students). The
+# AMICO screen lets the user pick one teacher AND one student.
+PRESET_TEACHER_KEYS = {"amara", "priya", "daniel", "arjun"}
+
+# The individual students the "Study Team" preset stands for.
+STUDY_TEAM_KEYS = ("ananya", "rohan", "mitali")
+
 # Each value is spliced directly into the comic's setting
 # instruction (see generate_amico_comic) so every panel's scene is
 # grounded in the chosen place instead of the AI picking one freely.
@@ -291,6 +303,10 @@ class AmiviRequest(BaseModel):
     language: str = "en"
     generate_video: bool = True
     video_url: str | None = None
+    # Build the lesson from an existing AMICO/Quiz/AMIVI project's
+    # source material instead of free text (Essential Learning's
+    # "generate the missing AMIVI for this chapter" button).
+    source_project_id: int | None = None
 
 
 class AmiviRegenerateImageRequest(BaseModel):
@@ -351,6 +367,12 @@ class AmicoRequest(BaseModel):
     # alternative to avatar_id for a user who hasn't uploaded a
     # photo of their own. Checked first if both are somehow set.
     preset_avatar: str | None = None
+
+    # A quick-pick built-in TEACHER avatar (one of
+    # PRESET_TEACHER_KEYS), chosen alongside the student above.
+    # When both are set the comic gets both: the teacher explains,
+    # the student(s) react.
+    teacher_avatar: str | None = None
 
     # A quick-pick built-in story setting (see PRESET_BACKGROUNDS),
     # e.g. "garden", "lakeside", "jungle", "breakfast_table".
@@ -692,6 +714,21 @@ def serialize_user(user) -> dict:
     }
 
 
+# How long a login stays valid. Sessions used to never expire, so a
+# token left on a shared school computer (or leaked) worked forever.
+SESSION_MAX_AGE_DAYS = int(os.getenv("SESSION_MAX_AGE_DAYS", "30"))
+
+
+def session_is_expired(session) -> bool:
+
+    if not session.created_at:
+        return False
+
+    age = datetime.utcnow() - session.created_at
+
+    return age.total_seconds() > SESSION_MAX_AGE_DAYS * 86400
+
+
 def get_current_user(authorization: str | None = Header(default=None)):
 
     if not authorization or not authorization.lower().startswith("bearer "):
@@ -714,6 +751,11 @@ def get_current_user(authorization: str | None = Header(default=None)):
         )
 
         if not session:
+            raise HTTPException(status_code=401, detail="Your session has expired. Please log in again.")
+
+        if session_is_expired(session):
+            db.delete(session)
+            db.commit()
             raise HTTPException(status_code=401, detail="Your session has expired. Please log in again.")
 
         user = db.query(User).filter(User.id == session.user_id).first()
@@ -754,7 +796,7 @@ def get_current_user_optional(authorization: str | None = Header(default=None)):
             .first()
         )
 
-        if not session:
+        if not session or session_is_expired(session):
             return None
 
         return db.query(User).filter(User.id == session.user_id).first()
@@ -763,8 +805,126 @@ def get_current_user_optional(authorization: str | None = Header(default=None)):
         db.close()
 
 
+# ============================================================
+# RATE LIMITING
+#
+# In-memory sliding-window limits, per process. Enough for a single
+# Render instance; if the backend is ever scaled to several
+# instances/workers, each keeps its own counts (limits become
+# per-instance), and a shared store like Redis would be needed for
+# exact global limits.
+# ============================================================
+
+class RateLimiter:
+
+    def __init__(self):
+        self._hits = {}
+        self._lock = threading.Lock()
+
+    def _prune(self, key, window, now):
+        hits = self._hits.get(key)
+        if hits is None:
+            hits = self._hits[key] = deque()
+        while hits and hits[0] <= now - window:
+            hits.popleft()
+        return hits
+
+    def is_limited(self, key, limit, window):
+        """True if `key` already has `limit` hits in the last `window` seconds."""
+        now = time.monotonic()
+        with self._lock:
+            return len(self._prune(key, window, now)) >= limit
+
+    def hit(self, key, limit, window):
+        """Records a hit; returns False (without recording) if over the limit."""
+        now = time.monotonic()
+        with self._lock:
+            hits = self._prune(key, window, now)
+            if len(hits) >= limit:
+                return False
+            hits.append(now)
+            # Opportunistic cleanup so idle keys don't pile up forever.
+            if len(self._hits) > 50000:
+                for k in [k for k, v in self._hits.items() if not v]:
+                    del self._hits[k]
+            return True
+
+    def reset(self, key):
+        with self._lock:
+            self._hits.pop(key, None)
+
+
+rate_limiter = RateLimiter()
+
+# Login / registration. The per-IP limits are deliberately generous:
+# a whole school class often shares one public IP address.
+LOGIN_FAILS_PER_EMAIL = int(os.getenv("LOGIN_FAILS_PER_EMAIL", "10"))
+LOGIN_ATTEMPTS_PER_IP = int(os.getenv("LOGIN_ATTEMPTS_PER_IP", "100"))
+LOGIN_WINDOW_SECONDS = 15 * 60
+REGISTER_PER_IP_PER_HOUR = int(os.getenv("REGISTER_PER_IP_PER_HOUR", "60"))
+
+# Paid AI generation, per signed-in account per hour. "Heavy" = a
+# full lesson/comic/quiz/photo story/avatar; "light" = one extra
+# image, panel or narration on something already generated.
+HEAVY_GENERATIONS_PER_HOUR = int(os.getenv("HEAVY_GENERATIONS_PER_HOUR", "40"))
+LIGHT_GENERATIONS_PER_HOUR = int(os.getenv("LIGHT_GENERATIONS_PER_HOUR", "150"))
+
+
+def client_ip(request: Request) -> str:
+    """
+    Render (like most hosts) sits behind a proxy, so request.client
+    is the proxy, not the user. The proxy appends the real client
+    address as the LAST X-Forwarded-For entry; earlier entries can
+    be forged by the client, so they're ignored.
+    """
+
+    forwarded = request.headers.get("x-forwarded-for")
+
+    if forwarded:
+        last = forwarded.split(",")[-1].strip()
+        if last:
+            return last
+
+    return request.client.host if request.client else "unknown"
+
+
+def too_many_requests(detail):
+
+    return HTTPException(status_code=429, detail=detail)
+
+
+def limit_heavy_generation(current_user=Depends(get_current_user)):
+
+    if not rate_limiter.hit(
+        f"gen-heavy:{current_user.id}", HEAVY_GENERATIONS_PER_HOUR, 3600
+    ):
+        raise too_many_requests(
+            "You've reached the hourly limit for creating new content. "
+            "Please wait a little while and try again."
+        )
+
+
+def limit_light_generation(current_user=Depends(get_current_user)):
+
+    if not rate_limiter.hit(
+        f"gen-light:{current_user.id}", LIGHT_GENERATIONS_PER_HOUR, 3600
+    ):
+        raise too_many_requests(
+            "You've made a lot of edits in a short time. "
+            "Please wait a little while and try again."
+        )
+
+
 @app.post("/api/auth/register")
-def auth_register(payload: AuthRegisterRequest):
+def auth_register(payload: AuthRegisterRequest, request: Request):
+
+    if not rate_limiter.hit(
+        f"register-ip:{client_ip(request)}", REGISTER_PER_IP_PER_HOUR, 3600
+    ):
+        raise too_many_requests(
+            "Too many accounts have been created from this network "
+            "recently. Please try again later."
+        )
 
     name = payload.name.strip()
     email = payload.email.strip().lower()
@@ -822,13 +982,24 @@ def auth_register(payload: AuthRegisterRequest):
 
 
 @app.post("/api/auth/login")
-def auth_login(payload: AuthLoginRequest):
+def auth_login(payload: AuthLoginRequest, request: Request):
 
     email = payload.email.strip().lower()
     password = payload.password
 
     if not email or not password:
         raise HTTPException(status_code=400, detail="Email and password are both required.")
+
+    email_key = f"login-fail:{email}"
+
+    if not rate_limiter.hit(
+        f"login-ip:{client_ip(request)}", LOGIN_ATTEMPTS_PER_IP, LOGIN_WINDOW_SECONDS
+    ) or rate_limiter.is_limited(
+        email_key, LOGIN_FAILS_PER_EMAIL, LOGIN_WINDOW_SECONDS
+    ):
+        raise too_many_requests(
+            "Too many login attempts. Please wait 15 minutes and try again."
+        )
 
     db = SessionLocal()
 
@@ -837,7 +1008,10 @@ def auth_login(payload: AuthLoginRequest):
         user = db.query(User).filter(User.email == email).first()
 
         if not user or not user.password_hash or not verify_password(password, user.password_hash):
+            rate_limiter.hit(email_key, LOGIN_FAILS_PER_EMAIL, LOGIN_WINDOW_SECONDS)
             raise HTTPException(status_code=401, detail="Incorrect email or password.")
+
+        rate_limiter.reset(email_key)
 
         session = UserSession(
             user_id=user.id,
@@ -943,6 +1117,114 @@ def require_services():
             status_code=500,
             detail="DATABASE_URL is not set.",
         )
+
+
+class UserFacingError(Exception):
+    """
+    An error whose message is written for the end user (e.g. "Could
+    not extract enough spoken content from the video."). Raise this
+    instead of a plain Exception when the text should reach the
+    browser as-is; every other unexpected error is replaced by a
+    generic message in friendly_error_detail().
+    """
+
+
+GENERIC_ERROR_MESSAGE = (
+    "Something went wrong on our side. Please try again in a "
+    "moment — if it keeps happening, contact support"
+)
+
+
+def friendly_error_detail(exc):
+    """
+    Turns an exception caught by an endpoint's catch-all handler
+    into the text sent to the browser.
+
+    - Known OpenAI failure modes (out of credits, rate limited,
+      blocked by moderation) become short, plain-language messages
+      — this was added after a real production incident where a
+      client saw raw "insufficient_quota" SDK text.
+    - UserFacingError messages pass through unchanged.
+    - Anything else used to be sent verbatim, which could expose
+      internals (file paths, database errors, raw model output). It
+      is now logged server-side with its full traceback under a
+      short reference code, and the browser only gets a generic
+      message carrying that same code, so a report from a user can
+      still be matched to the exact log entry.
+    """
+
+    text = str(exc)
+    lowered = text.lower()
+
+    if (
+        "insufficient_quota" in lowered
+        or "credit_balance_exhausted" in lowered
+    ):
+
+        return (
+            "We're temporarily unable to generate new content — "
+            "our AI service has run out of credits. Please try "
+            "again later."
+        )
+
+    if (
+        "rate_limit_exceeded" in lowered
+        or "rate limit" in lowered
+    ):
+
+        return (
+            "We're receiving a lot of requests right now — please "
+            "wait a moment and try again."
+        )
+
+    if "moderation_blocked" in lowered:
+
+        return (
+            "That request was blocked by our content safety "
+            "system. Please try different wording or a different "
+            "photo."
+        )
+
+    if isinstance(exc, UserFacingError):
+        return text
+
+    import traceback
+
+    ref = uuid.uuid4().hex[:8]
+
+    print(
+        f"ERROR ref={ref}: unhandled {type(exc).__name__}\n"
+        + "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        )
+    )
+
+    return f"{GENERIC_ERROR_MESSAGE} (ref {ref})."
+
+
+def require_project_access(project_id, current_user):
+    """
+    Loads a project and makes sure the signed-in user may touch it.
+    Same rule as the Library endpoints: legacy (pre-auth) projects
+    with no owner stay accessible; a project owned by someone else
+    is reported as not-found rather than forbidden, so we don't
+    leak whether a given project id exists. Returns None when
+    project_id is None (an unsaved, in-progress generation).
+    """
+
+    if project_id is None:
+        return None
+
+    project = get_project(project_id)
+
+    if project.user_id is not None and project.user_id != current_user.id:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    return project
 
 
 # ============================================================
@@ -1370,6 +1652,7 @@ def save_quiz(
 
 
 def save_wrong_answer(
+    user_id,
     quiz_id,
     quiz_title,
     question_text,
@@ -1385,6 +1668,7 @@ def save_wrong_answer(
     try:
 
         row = WrongAnswer(
+            user_id=user_id,
             quiz_id=quiz_id,
             quiz_title=quiz_title,
             question_text=question_text,
@@ -1405,7 +1689,7 @@ def save_wrong_answer(
         db.close()
 
 
-def list_wrong_answers():
+def list_wrong_answers(user_id: int):
 
     db = SessionLocal()
 
@@ -1413,6 +1697,7 @@ def list_wrong_answers():
 
         return (
             db.query(WrongAnswer)
+            .filter(WrongAnswer.user_id == user_id)
             .order_by(WrongAnswer.created_at.desc())
             .all()
         )
@@ -1421,7 +1706,7 @@ def list_wrong_answers():
         db.close()
 
 
-def delete_wrong_answer(wrong_answer_id: int):
+def delete_wrong_answer(wrong_answer_id: int, user_id: int):
 
     db = SessionLocal()
 
@@ -1429,7 +1714,10 @@ def delete_wrong_answer(wrong_answer_id: int):
 
         row = (
             db.query(WrongAnswer)
-            .filter(WrongAnswer.id == wrong_answer_id)
+            .filter(
+                WrongAnswer.id == wrong_answer_id,
+                WrongAnswer.user_id == user_id,
+            )
             .first()
         )
 
@@ -1499,13 +1787,20 @@ def get_project(project_id: int):
         db.close()
 
 
-def list_projects(project_type: str | None = None):
+def list_projects(project_type: str | None = None, user_id: int | None = None):
 
     db = SessionLocal()
 
     try:
 
         query = db.query(Project)
+
+        if user_id is not None:
+            # Own projects plus legacy (pre-auth, ownerless) ones —
+            # same visibility rule as the Library.
+            query = query.filter(
+                (Project.user_id == user_id) | (Project.user_id.is_(None))
+            )
 
         if project_type:
 
@@ -1548,14 +1843,21 @@ def get_comic(comic_id: int):
         db.close()
 
 
-def list_comics():
+def list_comics(user_id: int | None = None):
 
     db = SessionLocal()
 
     try:
 
+        query = db.query(Comic)
+
+        if user_id is not None:
+            query = query.join(Project, Comic.project_id == Project.id).filter(
+                (Project.user_id == user_id) | (Project.user_id.is_(None))
+            )
+
         return (
-            db.query(Comic)
+            query
             .order_by(Comic.id.desc())
             .limit(100)
             .all()
@@ -1899,6 +2201,47 @@ def extract_text_from_file(
 # extract_text_from_file does for an uploaded document)
 # ============================================================
 
+def assert_public_url(url: str) -> None:
+    """
+    Refuses any URL whose host resolves to a private, loopback,
+    link-local or otherwise internal address, so the server can't
+    be used to read its own internal network (localhost services,
+    the cloud metadata endpoint at 169.254.169.254, etc.) through
+    the "paste a URL" features.
+    """
+
+    parsed = urlparse(url)
+
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a valid http/https URL.",
+        )
+
+    try:
+
+        infos = socket.getaddrinfo(parsed.hostname, None)
+
+    except socket.gaierror:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Couldn't find that website — check the link and try again.",
+        )
+
+    for info in infos:
+
+        ip = ipaddress.ip_address(info[4][0].split("%")[0])
+
+        if not ip.is_global or ip.is_multicast:
+
+            raise HTTPException(
+                status_code=400,
+                detail="That URL points to a private or internal address and can't be used.",
+            )
+
+
 def extract_text_from_url(url: str) -> str:
 
     if not url or not url.strip():
@@ -1916,20 +2259,45 @@ def extract_text_from_url(url: str) -> str:
 
     try:
 
-        response = requests.get(
-            url,
-            timeout=15,
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (compatible; VLQ-AMIVI/1.0; "
-                    "+https://vlq.app)"
-                ),
-            },
-            # A page could be huge (or not actually a text page at
-            # all) — cap how much we'll read instead of buffering
-            # an unbounded response.
-            stream=True,
-        )
+        # Redirects are followed by hand (max 5 hops) so every hop
+        # is checked by assert_public_url — otherwise a public URL
+        # could simply redirect to an internal one.
+        response = None
+
+        for _ in range(6):
+
+            assert_public_url(url)
+
+            response = requests.get(
+                url,
+                timeout=15,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (compatible; VLQ-AMIVI/1.0; "
+                        "+https://vlq.app)"
+                    ),
+                },
+                # A page could be huge (or not actually a text page at
+                # all) — cap how much we'll read instead of buffering
+                # an unbounded response.
+                stream=True,
+                allow_redirects=False,
+            )
+
+            if response.is_redirect and response.headers.get("location"):
+
+                url = urljoin(url, response.headers["location"])
+                response.close()
+                continue
+
+            break
+
+        else:
+
+            raise HTTPException(
+                status_code=400,
+                detail="That URL redirects too many times.",
+            )
 
         response.raise_for_status()
 
@@ -1965,12 +2333,14 @@ def extract_text_from_url(url: str) -> str:
 
     except requests.exceptions.RequestException as exc:
 
+        print(f"URL fetch failed for {url}: {exc}")
+
         raise HTTPException(
             status_code=400,
             detail=(
                 "Couldn't fetch that URL — it may be "
                 "unreachable, blocking automated requests, or "
-                f"the link may be incorrect. ({exc})"
+                "the link may be incorrect."
             ),
         )
 
@@ -2244,6 +2614,8 @@ def extract_video_text(
             detail="Video URL is required.",
         )
 
+    assert_public_url(video_url)
+
     parsed = urlparse(
         video_url
     )
@@ -2372,7 +2744,7 @@ def extract_video_text(
 
         if not downloaded_files:
 
-            raise Exception(
+            raise UserFacingError(
                 "The video audio could not be downloaded."
             )
 
@@ -2389,7 +2761,7 @@ def extract_video_text(
 
         if len(transcript_text) < 50:
 
-            raise Exception(
+            raise UserFacingError(
                 "Could not extract enough spoken content from the video."
             )
 
@@ -2413,8 +2785,12 @@ def extract_video_text(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Could not process this video URL: "
-                f"{exc}"
+                str(exc)
+                if isinstance(exc, UserFacingError)
+                else (
+                    "Could not process this video URL. Make sure "
+                    "it's a public video link and try again."
+                )
             ),
         )
 
@@ -2575,9 +2951,40 @@ def generate_amico_comic(
     character_name="",
     background_setting="",
     character_group=None,
+    explainer_name="",
 ):
 
-    if character_group:
+    if character_group and explainer_name:
+
+        # A teacher + student(s) cast picked on the AMICO screen:
+        # everyone appears together, the teacher is the explainer
+        # and the students are the ones reacting.
+
+        member_lines = "\n".join(
+            f"- \"{member['name']}\": {member['description']}"
+            for member in character_group
+        )
+
+        names_list = ", ".join(
+            f"\"{member['name']}\""
+            for member in character_group
+        )
+
+        character_line = (
+            "This comic's cast is fixed: exactly these "
+            f"{len(character_group)} characters, who appear "
+            "TOGETHER in every single panel — never leave one out. "
+            f"Use their EXACT names ({names_list}) in the dialogue "
+            "and characters list (never invent different names "
+            "for them, and never add extra characters), and each "
+            "one's appearance MUST match exactly in every panel:\n"
+            f"{member_lines}\n"
+            f"\"{explainer_name}\" is the teacher and MUST be the "
+            "explainer character in every panel; the others are "
+            "the students who react, ask, and guess.\n\n"
+        )
+
+    elif character_group:
 
         # An ensemble cast (e.g. the "Study Team" preset, which is
         # three named friends photographed together, not one
@@ -2764,19 +3171,34 @@ def generate_amico_comic(
         "look like one continuous illustration with its (at most "
         "3) speech bubbles placed on it, not a collage or comic "
         "strip within the panel.\n"
-        "IMPORTANT: Choose a small, consistent cast whose SIZE "
-        "fits this specific topic — usually just 2 characters "
-        "(e.g. one parent explaining to one curious child, or two "
-        "friends figuring something out together) is enough. Only "
-        "use 3-4 characters when the topic genuinely benefits from "
-        "more voices reacting — do not add extra characters just "
-        "to fill a quota, since a crowded panel is harder to draw "
-        "clearly and harder to read than a focused one. Whatever "
-        "size you choose, include the same cast together in every "
-        "panel's image_prompt so they can talk and react to each "
-        "other throughout the whole comic.\n\n"
 
-        "Return ONLY valid JSON using exactly this structure:\n\n"
+        + (
+            # The user picked this cast on the AMICO screen, so the
+            # usual "keep the cast to ~2" advice below must not
+            # apply — it was making the model drop picked students.
+            "IMPORTANT: the cast above was chosen by the user and "
+            "is FIXED. Every one of those "
+            f"{len(character_group)} characters MUST be drawn in "
+            "EVERY panel's image_prompt, each named and described "
+            "by appearance — even the ones with no dialogue line "
+            "in that panel (they can be listening, nodding, or "
+            "pointing). Never drop, merge, or replace any of them.\n\n"
+            if character_group
+            else
+            "IMPORTANT: Choose a small, consistent cast whose SIZE "
+            "fits this specific topic — usually just 2 characters "
+            "(e.g. one parent explaining to one curious child, or two "
+            "friends figuring something out together) is enough. Only "
+            "use 3-4 characters when the topic genuinely benefits from "
+            "more voices reacting — do not add extra characters just "
+            "to fill a quota, since a crowded panel is harder to draw "
+            "clearly and harder to read than a focused one. Whatever "
+            "size you choose, include the same cast together in every "
+            "panel's image_prompt so they can talk and react to each "
+            "other throughout the whole comic.\n\n"
+        )
+
+        + "Return ONLY valid JSON using exactly this structure:\n\n"
 
         "{\n"
         '  "title": "...",\n'
@@ -2818,11 +3240,106 @@ def generate_amico_comic(
 # AMICO REVIEW
 # ============================================================
 
+def enforce_fixed_cast(comic, cast):
+    """
+    Makes sure every user-picked character is in every panel's
+    image_prompt and in the comic's characters list. Panels that
+    already name a character are left as they are.
+    """
+
+    if not isinstance(comic, dict):
+        return comic
+
+    for panel in comic.get("panels") or []:
+
+        if not isinstance(panel, dict):
+            continue
+
+        image_prompt = str(panel.get("image_prompt") or "")
+        lowered = image_prompt.lower()
+
+        missing = [
+            member
+            for member in cast
+            if member["name"].lower() not in lowered
+        ]
+
+        if missing:
+
+            extra = "; ".join(
+                f"{member['name']} ({member['description']})"
+                for member in missing
+            )
+
+            panel["image_prompt"] = (
+                f"{image_prompt.rstrip()}\n\nAlso clearly show, "
+                "together in this same scene with the others, "
+                f"watching and reacting: {extra}."
+            ).strip()
+
+    characters = comic.get("characters")
+
+    if isinstance(characters, list):
+
+        listed = {
+            str(c.get("name", "")).lower()
+            for c in characters
+            if isinstance(c, dict)
+        }
+
+        for member in cast:
+
+            if member["name"].lower() not in listed:
+
+                characters.append(
+                    {
+                        "name": member["name"],
+                        "role": "",
+                        "appearance": member["description"],
+                    }
+                )
+
+    return comic
+
+
 def review_amico_comic(
     comic,
     language="en",
     total_panels=8,
+    fixed_cast=None,
 ):
+
+    if fixed_cast:
+
+        names_list = ", ".join(
+            f"\"{member['name']}\""
+            for member in fixed_cast
+        )
+
+        cast_rule = (
+            "11. The cast was CHOSEN BY THE USER and is fixed: "
+            f"{names_list}. Every one of them MUST appear (named "
+            "and described by appearance) in EVERY panel's "
+            "image_prompt, even when they have no dialogue line in "
+            "that panel. Do NOT trim, merge, rename, or replace any "
+            "of them, and do not add other characters. Keep the "
+            "dialogue limit by giving some of them a silent "
+            "reaction (listening, nodding, pointing) instead of a "
+            "line.\n"
+        )
+
+    else:
+
+        cast_rule = (
+            "11. Ensure a small, consistent cast appears together "
+            "throughout, with one explainer introducing each idea and "
+            "the other(s) reacting in short, natural bursts. The cast "
+            "size should fit the topic — usually just 2 characters is "
+            "plenty; only 3-4 if the topic genuinely benefits from "
+            "more voices. If characters were added beyond what the "
+            "story needs, trim the cast down rather than leaving it "
+            "crowded.\n"
+        )
 
     prompt = (
         "You are AMICO quality control.\n\n"
@@ -2851,15 +3368,8 @@ def review_amico_comic(
         "9. Whether the final panel provides a useful recap, "
         "mnemonic or memorable takeaway.\n"
         f"10. Whether there are exactly {total_panels} panels.\n"
-        "11. Ensure a small, consistent cast appears together "
-        "throughout, with one explainer introducing each idea and "
-        "the other(s) reacting in short, natural bursts. The cast "
-        "size should fit the topic — usually just 2 characters is "
-        "plenty; only 3-4 if the topic genuinely benefits from "
-        "more voices. If characters were added beyond what the "
-        "story needs, trim the cast down rather than leaving it "
-        "crowded.\n"
-        "12. Ensure EVERY image_prompt explicitly instructs the image "
+        + cast_rule
+        + "12. Ensure EVERY image_prompt explicitly instructs the image "
         "model to render that panel's dialogue as large, easily "
         "readable comic speech bubbles with big bold lettering "
         "(exact wording, one bubble per line) drawn directly in "
@@ -3766,6 +4276,9 @@ def generate_voice(
                 "utf-8"
             ),
             check=True,
+            # A hung Piper process would otherwise hold this worker
+            # thread forever.
+            timeout=180,
         )
 
         with open(
@@ -5837,14 +6350,25 @@ class AmiviExtractUrlRequest(BaseModel):
     language: str = "en"
 
 
+MAX_EXTRACT_UPLOAD_BYTES = 25 * 1024 * 1024
+
+
 @app.post("/api/amivi/extract")
-async def amivi_extract_file(
+def amivi_extract_file(
     file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
 ):
 
     try:
 
-        file_bytes = await file.read()
+        file_bytes = file.file.read(MAX_EXTRACT_UPLOAD_BYTES + 1)
+
+        if len(file_bytes) > MAX_EXTRACT_UPLOAD_BYTES:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Files must be 25MB or smaller.",
+            )
 
         if not file_bytes:
 
@@ -5881,13 +6405,14 @@ async def amivi_extract_file(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
 @app.post("/api/amivi/extract_url")
-async def amivi_extract_url(
+def amivi_extract_url(
     request: AmiviExtractUrlRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
@@ -5909,7 +6434,7 @@ async def amivi_extract_url(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -5917,8 +6442,8 @@ async def amivi_extract_url(
 # AMIVI GENERATE
 # ============================================================
 
-@app.post("/api/amivi/generate")
-async def amivi_generate(
+@app.post("/api/amivi/generate", dependencies=[Depends(limit_heavy_generation)])
+def amivi_generate(
     request: AmiviRequest,
     current_user=Depends(get_current_user),
 ):
@@ -5966,6 +6491,22 @@ async def amivi_generate(
             source_url = (
                 request.video_url
             )
+
+        if not source_text and request.source_project_id:
+
+            source_project = require_project_access(
+                request.source_project_id,
+                current_user,
+            )
+
+            source_text = (
+                source_project.input_text
+                or source_project.title
+                or ""
+            ).strip()
+
+            if source_project.title:
+                source_title = source_project.title
 
         if not source_text:
 
@@ -6039,10 +6580,11 @@ async def amivi_generate(
 
         def process_amivi_chunk(index, chunk):
 
-            chunk_number = chunk.get(
-                "chunk_number",
-                index + 1,
-            )
+            # Always numbered by position, never by the number the
+            # AI wrote: if the model repeated or skipped a number,
+            # two chunks of one lesson could share a chunk_number
+            # (and display order, which sorts by it, would be wrong).
+            chunk_number = index + 1
 
             key_point = chunk.get(
                 "key_point",
@@ -6309,7 +6851,7 @@ async def amivi_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6317,14 +6859,17 @@ async def amivi_generate(
 # AMIVI REGENERATE IMAGE
 # ============================================================
 
-@app.post("/api/amivi/regenerate_image")
-async def amivi_regenerate_image(
+@app.post("/api/amivi/regenerate_image", dependencies=[Depends(limit_light_generation)])
+def amivi_regenerate_image(
     request: AmiviRegenerateImageRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
 
         require_services()
+
+        require_project_access(request.project_id, current_user)
 
         project_id = (
             request.project_id
@@ -6364,7 +6909,7 @@ async def amivi_regenerate_image(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6372,14 +6917,17 @@ async def amivi_regenerate_image(
 # AMIVI EDIT CHUNK
 # ============================================================
 
-@app.post("/api/amivi/edit_chunk")
-async def amivi_edit_chunk(
+@app.post("/api/amivi/edit_chunk", dependencies=[Depends(limit_light_generation)])
+def amivi_edit_chunk(
     request: AmiviEditChunkRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
 
         require_services()
+
+        require_project_access(request.project_id, current_user)
 
         project_id = (
             request.project_id
@@ -6414,11 +6962,14 @@ async def amivi_edit_chunk(
             "voice_script": request.voice_script,
         }
 
+    except HTTPException:
+        raise
+
     except Exception as exc:
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6430,8 +6981,8 @@ async def amivi_edit_chunk(
 # the two outputs are the same "labeled diagram poster" format.)
 # ============================================================
 
-@app.post("/api/amivi/generate_video")
-async def amivi_generate_video(
+@app.post("/api/amivi/generate_video", dependencies=[Depends(limit_heavy_generation)])
+def amivi_generate_video(
     request: AmiviVideoRequest,
     current_user=Depends(get_current_user),
 ):
@@ -6451,7 +7002,7 @@ async def amivi_generate_video(
 
         require_services()
 
-        project = get_project(request.project_id)
+        project = require_project_access(request.project_id, current_user)
 
         if project.project_type != "amivi":
 
@@ -6522,7 +7073,7 @@ async def amivi_generate_video(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6533,16 +7084,17 @@ async def amivi_generate_video(
 # images alone.
 # ============================================================
 
-@app.post("/api/amivi/generate_complete_visual")
-async def amivi_generate_complete_visual(
+@app.post("/api/amivi/generate_complete_visual", dependencies=[Depends(limit_light_generation)])
+def amivi_generate_complete_visual(
     request: AmiviCompleteVisualRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
 
         require_services()
 
-        project = get_project(request.project_id)
+        project = require_project_access(request.project_id, current_user)
 
         if project.project_type != "amivi":
 
@@ -6610,7 +7162,7 @@ async def amivi_generate_complete_visual(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6618,8 +7170,8 @@ async def amivi_generate_complete_visual(
 # AMICO GENERATE
 # ============================================================
 
-@app.post("/api/amico/generate")
-async def amico_generate(
+@app.post("/api/amico/generate", dependencies=[Depends(limit_heavy_generation)])
+def amico_generate(
     request: AmicoRequest,
     current_user=Depends(get_current_user),
 ):
@@ -6659,8 +7211,9 @@ async def amico_generate(
 
         if request.source_project_id:
 
-            source_project = get_project(
-                request.source_project_id
+            source_project = require_project_access(
+                request.source_project_id,
+                current_user,
             )
 
             source_text = (
@@ -6716,7 +7269,7 @@ async def amico_generate(
 
             character_group = [
                 PRESET_AVATARS[key]
-                for key in ("ananya", "rohan", "mitali")
+                for key in STUDY_TEAM_KEYS
                 if key in PRESET_AVATARS
             ]
 
@@ -6746,6 +7299,53 @@ async def amico_generate(
 
                 character_name = avatar.name
 
+        # -----------------------------------------------------
+        # A teacher picked alongside the student: merge both into
+        # one fixed cast, with the teacher as the explainer. With
+        # no student picked, the teacher is simply the single
+        # main character.
+        # -----------------------------------------------------
+
+        explainer_name = ""
+
+        teacher_key = request.teacher_avatar or ""
+
+        if teacher_key in PRESET_TEACHER_KEYS and teacher_key in PRESET_AVATARS:
+
+            teacher = PRESET_AVATARS[teacher_key]
+
+            if character_group:
+
+                students = character_group
+
+            elif character_reference or character_name:
+
+                students = [
+                    {
+                        "name": character_name or "Student",
+                        "description": (
+                            character_reference
+                            or "a cheerful young student"
+                        ),
+                    }
+                ]
+
+            else:
+
+                students = []
+
+            if students:
+
+                character_group = [teacher] + students
+                explainer_name = teacher["name"]
+                character_reference = ""
+                character_name = ""
+
+            else:
+
+                character_reference = teacher["description"]
+                character_name = teacher["name"]
+
         # A built-in story setting (Garden / Lakeside / Jungle /
         # Breakfast table) — unrecognized or missing values are
         # simply ignored, leaving the AI free to choose its own.
@@ -6769,6 +7369,7 @@ async def amico_generate(
             character_name,
             background_setting,
             character_group,
+            explainer_name,
         )
 
         # -----------------------------------------------------
@@ -6779,7 +7380,15 @@ async def amico_generate(
             comic,
             request.language,
             total_panels,
+            character_group,
         )
+
+        # Safety net: even with the prompts above, a model can still
+        # leave a picked character out of a panel. Any picked
+        # character not named in a panel's image_prompt is added to
+        # it here, so the image model always draws the whole cast.
+        if character_group:
+            enforce_fixed_cast(comic, character_group)
 
         # -----------------------------------------------------
         # Validate the expected panel count
@@ -6984,7 +7593,7 @@ async def amico_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -6992,14 +7601,17 @@ async def amico_generate(
 # AMICO REGENERATE PANEL
 # ============================================================
 
-@app.post("/api/amico/regenerate_panel")
-async def amico_regenerate_panel(
+@app.post("/api/amico/regenerate_panel", dependencies=[Depends(limit_light_generation)])
+def amico_regenerate_panel(
     request: AmicoRegeneratePanelRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
 
         require_services()
+
+        require_project_access(request.project_id, current_user)
 
         prompt = (
             request.image_prompt
@@ -7034,7 +7646,7 @@ async def amico_regenerate_panel(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7042,12 +7654,15 @@ async def amico_regenerate_panel(
 # AMICO EDIT PANEL
 # ============================================================
 
-@app.post("/api/amico/edit_panel")
-async def amico_edit_panel(
+@app.post("/api/amico/edit_panel", dependencies=[Depends(limit_light_generation)])
+def amico_edit_panel(
     request: AmicoEditPanelRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
+
+        require_project_access(request.project_id, current_user)
 
         comic_row = latest_comic_for_project(
             request.project_id
@@ -7153,7 +7768,7 @@ async def amico_edit_panel(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7161,14 +7776,17 @@ async def amico_edit_panel(
 # AMICO ADD PANEL
 # ============================================================
 
-@app.post("/api/amico/add_panel")
-async def amico_add_panel(
+@app.post("/api/amico/add_panel", dependencies=[Depends(limit_light_generation)])
+def amico_add_panel(
     request: AmicoAddPanelRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
 
         require_services()
+
+        require_project_access(request.project_id, current_user)
 
         comic_row = latest_comic_for_project(
             request.project_id
@@ -7309,7 +7927,7 @@ async def amico_add_panel(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7318,12 +7936,15 @@ async def amico_add_panel(
 # add/remove panel, without calling the LLM again)
 # ============================================================
 
-@app.post("/api/amico/recompose")
-async def amico_recompose(
+@app.post("/api/amico/recompose", dependencies=[Depends(limit_light_generation)])
+def amico_recompose(
     request: AmicoRecomposeRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
+
+        require_project_access(request.project_id, current_user)
 
         comic_row = latest_comic_for_project(
             request.project_id
@@ -7390,7 +8011,7 @@ async def amico_recompose(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7398,8 +8019,8 @@ async def amico_recompose(
 # AMICO PHOTO STORY GENERATE
 # ============================================================
 
-@app.post("/api/amico/photostory/generate")
-async def amico_photostory_generate(
+@app.post("/api/amico/photostory/generate", dependencies=[Depends(limit_heavy_generation)])
+def amico_photostory_generate(
     file: UploadFile = File(...),
     language: str = Form("en"),
     panel_count: int = Form(6),
@@ -7419,7 +8040,7 @@ async def amico_photostory_generate(
         # Look at the uploaded photo and pick the topic
         # -----------------------------------------------------
 
-        photo_bytes = await file.read()
+        photo_bytes = file.file.read()
 
         moderate_image_bytes(
             photo_bytes,
@@ -7607,12 +8228,12 @@ async def amico_photostory_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
-@app.post("/api/amico/photostory/from_amivi")
-async def amico_photostory_from_amivi(
+@app.post("/api/amico/photostory/from_amivi", dependencies=[Depends(limit_heavy_generation)])
+def amico_photostory_from_amivi(
     request: AmicoPhotoStoryFromAmiviRequest,
     current_user=Depends(get_current_user),
 ):
@@ -7631,7 +8252,7 @@ async def amico_photostory_from_amivi(
 
         require_services()
 
-        source_project = get_project(request.project_id)
+        source_project = require_project_access(request.project_id, current_user)
 
         if source_project.project_type != "amivi":
 
@@ -7746,7 +8367,7 @@ async def amico_photostory_from_amivi(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7754,8 +8375,8 @@ async def amico_photostory_from_amivi(
 # AVATARS
 # ============================================================
 
-@app.post("/api/avatar/generate")
-async def avatar_generate(
+@app.post("/api/avatar/generate", dependencies=[Depends(limit_heavy_generation)])
+def avatar_generate(
     file: UploadFile = File(...),
     name: str = Form(""),
     style: str = Form(""),
@@ -7766,7 +8387,7 @@ async def avatar_generate(
 
         require_services()
 
-        photo_bytes = await file.read()
+        photo_bytes = file.file.read()
 
         moderate_image_bytes(
             photo_bytes,
@@ -7819,7 +8440,7 @@ async def avatar_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7873,7 +8494,7 @@ def avatar_delete(avatar_id: int, current_user=Depends(get_current_user)):
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -7882,9 +8503,12 @@ def avatar_delete(avatar_id: int, current_user=Depends(get_current_user)):
 # ============================================================
 
 @app.get("/api/projects")
-def projects_list(project_type: str | None = None):
+def projects_list(
+    project_type: str | None = None,
+    current_user=Depends(get_current_user),
+):
 
-    projects = list_projects(project_type)
+    projects = list_projects(project_type, user_id=current_user.id)
 
     return {
         "projects": [
@@ -7905,9 +8529,9 @@ def projects_list(project_type: str | None = None):
 
 
 @app.get("/api/comics")
-def comics_list():
+def comics_list(current_user=Depends(get_current_user)):
 
-    comics = list_comics()
+    comics = list_comics(user_id=current_user.id)
 
     results = []
 
@@ -7940,9 +8564,12 @@ def comics_list():
 
 
 @app.get("/api/comics/{comic_id}")
-def comic_detail(comic_id: int):
+def comic_detail(comic_id: int, current_user=Depends(get_current_user)):
 
     row = get_comic(comic_id)
+
+    if row.project_id is not None:
+        require_project_access(row.project_id, current_user)
 
     return {
         "comic_id": row.id,
@@ -8513,8 +9140,8 @@ def chapter_hub(
 # QUIZ
 # ============================================================
 
-@app.post("/api/quiz/generate")
-async def quiz_generate(
+@app.post("/api/quiz/generate", dependencies=[Depends(limit_heavy_generation)])
+def quiz_generate(
     mode: str = Form("topic"),
     topic: str = Form(""),
     material_text: str = Form(""),
@@ -8537,7 +9164,7 @@ async def quiz_generate(
 
         if file is not None:
 
-            file_bytes = await file.read()
+            file_bytes = file.file.read()
 
             if file_bytes:
 
@@ -8563,7 +9190,7 @@ async def quiz_generate(
             and not topic_clean
         ):
 
-            source_project = get_project(source_project_id)
+            source_project = require_project_access(source_project_id, current_user)
 
             source_title = source_project.title or ""
 
@@ -8898,7 +9525,7 @@ async def quiz_generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -8912,7 +9539,7 @@ async def quiz_generate(
 # explanation completely untouched — this only touches images.)
 # ============================================================
 
-@app.post("/api/library/{project_id}/fix_quiz_images")
+@app.post("/api/library/{project_id}/fix_quiz_images", dependencies=[Depends(limit_heavy_generation)])
 def fix_quiz_images(project_id: int, current_user=Depends(get_current_user)):
 
     require_services()
@@ -9047,8 +9674,8 @@ def fix_quiz_images(project_id: int, current_user=Depends(get_current_user)):
 # AI-illustrated look as a generated quiz.)
 # ============================================================
 
-@app.post("/api/quiz/generate_question_image")
-async def quiz_generate_question_image(
+@app.post("/api/quiz/generate_question_image", dependencies=[Depends(limit_light_generation)])
+def quiz_generate_question_image(
     prompt: str = Form(...),
     explanation: str = Form(""),
     language: str = Form("en"),
@@ -9107,6 +9734,9 @@ async def quiz_generate_question_image(
             ),
         }
 
+    except HTTPException:
+        raise
+
     except Exception as exc:
 
         import traceback
@@ -9115,7 +9745,7 @@ async def quiz_generate_question_image(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -9129,11 +9759,13 @@ async def quiz_generate_question_image(
 @app.post("/api/quiz/wrong_answers")
 def quiz_wrong_answer_save(
     request: WrongAnswerRequest,
+    current_user=Depends(get_current_user),
 ):
 
     try:
 
         wrong_answer_id = save_wrong_answer(
+            user_id=current_user.id,
             quiz_id=request.quiz_id,
             quiz_title=request.quiz_title,
             question_text=request.q,
@@ -9160,14 +9792,14 @@ def quiz_wrong_answer_save(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
 @app.get("/api/quiz/wrong_answers")
-def quiz_wrong_answers_list():
+def quiz_wrong_answers_list(current_user=Depends(get_current_user)):
 
-    rows = list_wrong_answers()
+    rows = list_wrong_answers(current_user.id)
 
     return {
         "items": [
@@ -9203,11 +9835,14 @@ def quiz_wrong_answers_list():
 
 
 @app.delete("/api/quiz/wrong_answers/{wrong_answer_id}")
-def quiz_wrong_answer_delete(wrong_answer_id: int):
+def quiz_wrong_answer_delete(
+    wrong_answer_id: int,
+    current_user=Depends(get_current_user),
+):
 
     try:
 
-        delete_wrong_answer(wrong_answer_id)
+        delete_wrong_answer(wrong_answer_id, current_user.id)
 
         return {
             "status": "success",
@@ -9224,7 +9859,7 @@ def quiz_wrong_answer_delete(wrong_answer_id: int):
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail=friendly_error_detail(exc),
         )
 
 
@@ -9293,11 +9928,39 @@ def media(
     data = asset.data
     total_length = len(data)
 
+    # Teacher uploads keep whatever type the browser claimed, so an
+    # uploaded HTML/SVG/JS file must never render inline from this
+    # origin — anything that isn't plain image/audio/video/PDF is
+    # forced to download instead.
+    mime = (asset.mime_type or "").lower()
+
+    inline_safe = (
+        (mime.startswith(("image/", "audio/", "video/")) and "svg" not in mime)
+        or mime == "application/pdf"
+    )
+
+    if not inline_safe:
+        disposition = "attachment"
+
+    # HTTP headers must be latin-1, so a filename in Hindi/CJK/emoji
+    # used to crash this endpoint with a 500. Send an ASCII fallback
+    # plus the RFC 5987 UTF-8 form that browsers actually use.
+    raw_filename = asset.filename or f"media_{media_id}"
+
+    ascii_filename = (
+        raw_filename.encode("ascii", "ignore").decode("ascii")
+        .replace('"', "").replace("\\", "").replace("\r", "").replace("\n", "")
+        .strip()
+        or f"media_{media_id}"
+    )
+
     base_headers = {
         "Content-Disposition": (
             f'{disposition}; '
-            f'filename="{asset.filename}"'
+            f'filename="{ascii_filename}"; '
+            f"filename*=UTF-8''{quote(raw_filename, safe='')}"
         ),
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "public, max-age=31536000, immutable",
         "ETag": etag,
         # Without this, the browser's <video> element has no way
@@ -9935,6 +10598,62 @@ def get_classroom_member_by_token(db, classroom_id: int, member_token: str):
     return member
 
 
+def validate_attachments(db, attachments):
+    """
+    Attachment lists are stored as JSON (no foreign key), so make
+    sure every referenced media_asset_id actually exists before
+    saving — otherwise a typo'd or stale id becomes an attachment
+    that can never be opened.
+    """
+
+    ids = {a.media_asset_id for a in attachments}
+
+    if not ids:
+        return
+
+    found = {
+        row_id
+        for (row_id,) in db.query(MediaAsset.id).filter(MediaAsset.id.in_(ids)).all()
+    }
+
+    missing = ids - found
+
+    if missing:
+
+        raise HTTPException(
+            status_code=400,
+            detail="One or more attached files no longer exist. Please re-upload them.",
+        )
+
+
+def teacher_account_id(member, current_user=None):
+    """
+    The account a teacher's classroom membership belongs to, used
+    to decide which Library projects they may present or assign.
+    A membership created before accounts existed has no user_id;
+    if the teacher is now signed in, it's linked to their account
+    (the same thing teacher-login already does).
+    """
+
+    if member.user_id is None and current_user is not None:
+        member.user_id = current_user.id
+
+    return member.user_id
+
+
+def require_teacher_owns_project(project, account_id):
+    """
+    A teacher may only present/assign their own Library projects,
+    plus legacy ownerless ones. A teacher membership with no linked
+    account can therefore only use legacy projects — previously it
+    could push ANY user's project to its class by id.
+    """
+
+    if project.user_id is not None and project.user_id != account_id:
+
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+
 def require_teacher(member):
 
     if member.role != "teacher":
@@ -9982,11 +10701,7 @@ def serialize_assignment(db, assignment, student_count: int) -> dict:
         "amico_project_id": assignment.amico_project_id,
         "lesson_id": assignment.lesson_id,
         "attachments": assignment.attachments or [],
-        "due_at": (
-            assignment.due_at.isoformat()
-            if assignment.due_at
-            else None
-        ),
+        "due_at": serialize_due_at(assignment.due_at),
         "created_at": (
             assignment.created_at.isoformat()
             if assignment.created_at
@@ -10096,13 +10811,35 @@ def parse_due_at(raw: str | None):
         return None
 
     try:
-        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
 
         raise HTTPException(
             status_code=400,
             detail="due_at must be an ISO 8601 date/time.",
         )
+
+    # The column is a plain (timezone-less) TIMESTAMP — always store
+    # UTC explicitly instead of relying on the database session's
+    # TimeZone setting to convert it. serialize_due_at marks it as
+    # UTC again on the way out.
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return parsed
+
+
+def serialize_due_at(value):
+    """
+    due_at is stored as naive UTC. Without a trailing "Z" the
+    browser's `new Date(...)` reads it as LOCAL time, so a teacher
+    in India who set "10:00" would see "04:30".
+    """
+
+    if not value:
+        return None
+
+    return value.isoformat() + "Z"
 
 
 def serialize_assignment_for_member(db, assignment, member_id: int) -> dict:
@@ -10136,11 +10873,7 @@ def serialize_assignment_for_member(db, assignment, member_id: int) -> dict:
         "id": assignment.id,
         "title": assignment.title,
         "instructions": assignment.instructions,
-        "due_at": (
-            assignment.due_at.isoformat()
-            if assignment.due_at
-            else None
-        ),
+        "due_at": serialize_due_at(assignment.due_at),
         "created_at": (
             assignment.created_at.isoformat()
             if assignment.created_at
@@ -10291,6 +11024,34 @@ def join_classroom(payload: ClassroomJoinRequest, current_user=Depends(get_curre
 
         classroom = get_classroom_or_404(db, payload.class_code)
 
+        # A signed-in student who joins a class they're already in
+        # (new device, cleared browser, clicked the link twice) gets
+        # their existing membership back instead of a duplicate row
+        # — duplicates split their homework history and showed them
+        # twice on the teacher's roster. Only student rows are
+        # matched, so a teacher can still join their own class as a
+        # student to test it.
+        if current_user:
+
+            existing = (
+                db.query(ClassroomMember)
+                .filter(
+                    ClassroomMember.classroom_id == classroom.id,
+                    ClassroomMember.user_id == current_user.id,
+                    ClassroomMember.role == "student",
+                )
+                .order_by(ClassroomMember.id.asc())
+                .first()
+            )
+
+            if existing:
+
+                return {
+                    "status": "success",
+                    "member": {**serialize_classroom_member(existing), "token": existing.token},
+                    "student_code": existing.student_code,
+                }
+
         student_code = None
 
         for _ in range(10):
@@ -10389,7 +11150,11 @@ def classroom_detail(class_code: str):
 
 
 @app.post("/api/classrooms/{class_code}/assignments")
-def create_assignment(class_code: str, payload: AssignmentCreateRequest):
+def create_assignment(
+    class_code: str,
+    payload: AssignmentCreateRequest,
+    current_user=Depends(get_current_user_optional),
+):
 
     title = payload.title.strip()
 
@@ -10435,6 +11200,38 @@ def create_assignment(class_code: str, payload: AssignmentCreateRequest):
                     status_code=400,
                     detail="quiz_project_id must point at an existing quiz project.",
                 )
+
+        # AMIVI/AMICO/quiz projects attached to homework become
+        # viewable by every student in the class (see the
+        # assignment project endpoint), so they must be the
+        # teacher's own — previously any project id was accepted.
+        account_id = teacher_account_id(member, current_user)
+
+        for attached_id, kind in (
+            (payload.quiz_project_id, "quiz"),
+            (payload.amivi_project_id, "amivi"),
+            (payload.amico_project_id, "amico"),
+        ):
+
+            if not attached_id:
+                continue
+
+            attached = (
+                db.query(Project)
+                .filter(Project.id == attached_id)
+                .first()
+            )
+
+            if not attached or attached.project_type != kind:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"The attached {kind.upper()} project no longer exists.",
+                )
+
+            require_teacher_owns_project(attached, account_id)
+
+        validate_attachments(db, payload.attachments)
 
         if payload.lesson_id:
 
@@ -10503,7 +11300,7 @@ MAX_CLASSROOM_UPLOAD_BYTES = 25 * 1024 * 1024
 
 
 @app.post("/api/classrooms/{class_code}/media/upload")
-async def classroom_media_upload(
+def classroom_media_upload(
     class_code: str,
     member_token: str = Form(...),
     file: UploadFile = File(...),
@@ -10515,7 +11312,7 @@ async def classroom_media_upload(
     MediaAsset table, rather than separate storage per feature.
     """
 
-    data = await file.read()
+    data = file.file.read(MAX_CLASSROOM_UPLOAD_BYTES + 1)
 
     if len(data) > MAX_CLASSROOM_UPLOAD_BYTES:
         raise HTTPException(
@@ -10576,6 +11373,8 @@ def create_material(class_code: str, payload: MaterialCreateRequest):
         classroom = get_classroom_or_404(db, class_code)
         member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
         require_teacher(member)
+
+        validate_attachments(db, payload.attachments)
 
         material = TeachingMaterial(
             classroom_id=classroom.id,
@@ -10663,7 +11462,7 @@ def delete_material(class_code: str, material_id: int, member_token: str):
 # create_manual_quiz endpoint below (now tagged created_via=
 # "generated" instead of "manual").
 
-@app.post("/api/classrooms/{class_code}/quizzes/generate_draft")
+@app.post("/api/classrooms/{class_code}/quizzes/generate_draft", dependencies=[Depends(limit_heavy_generation)])
 def generate_quiz_draft(
     class_code: str,
     payload: GenerateQuizDraftRequest,
@@ -10786,7 +11585,7 @@ def generate_quiz_draft(
         import traceback
         traceback.print_exc()
 
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=friendly_error_detail(exc))
 
     finally:
         db.close()
@@ -11219,7 +12018,11 @@ def _bump_live(db, live) -> dict:
 
 
 @app.post("/api/classrooms/{class_code}/live/start")
-def live_start(class_code: str, payload: LiveStartRequest):
+def live_start(
+    class_code: str,
+    payload: LiveStartRequest,
+    current_user=Depends(get_current_user_optional),
+):
 
     if payload.kind not in LIVE_KINDS:
 
@@ -11258,12 +12061,12 @@ def live_start(class_code: str, payload: LiveStartRequest):
 
         # Same visibility rule as the teacher's Library picker:
         # their own projects plus legacy ones with no owner.
-        if not project or (
-            member.user_id is not None
-            and project.user_id is not None
-            and project.user_id != member.user_id
-        ):
+        if not project:
             raise HTTPException(status_code=404, detail="Project not found.")
+
+        require_teacher_owns_project(
+            project, teacher_account_id(member, current_user)
+        )
 
         live = get_live_session(db, classroom.id)
 
@@ -11656,8 +12459,10 @@ def submit_assignment(class_code: str, assignment_id: int, payload: SubmissionCr
         submission = AssignmentSubmission(
             assignment_id=assignment.id,
             member_id=member.id,
-            score=max(0, payload.score),
+            # Never negative, and never more than the total (a
+            # tampered request used to be able to submit 100/5).
             total=max(0, payload.total),
+            score=min(max(0, payload.score), max(0, payload.total)),
             answers=[a.model_dump() for a in payload.answers] if payload.answers else None,
         )
 

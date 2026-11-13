@@ -21,6 +21,12 @@ elif DATABASE_URL.startswith("postgresql://"):
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
+    # Generation endpoints run in FastAPI's threadpool and fan out
+    # to 8 worker threads each, so concurrent requests need more
+    # than SQLAlchemy's default 5 (+10 overflow) connections.
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=60,
 )
 
 SessionLocal = sessionmaker(
@@ -79,6 +85,15 @@ def _run_lightweight_migrations():
     from sqlalchemy import text
 
     with engine.begin() as conn:
+        # Every ALTER TABLE below takes an exclusive lock, even when
+        # IF NOT EXISTS makes it a no-op. During a zero-downtime
+        # deploy the OLD instance is still serving traffic; if one
+        # of its queries holds a lock, an ALTER waiting behind it
+        # would queue every later query on that table too, freezing
+        # the live site. With a timeout, the new instance's startup
+        # fails instead (the deploy is retried / the old instance
+        # keeps serving) rather than stalling production.
+        conn.execute(text("SET LOCAL lock_timeout = '10s'"))
         conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)")
         )
@@ -181,4 +196,32 @@ def _run_lightweight_migrations():
         )
         conn.execute(
             text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS classroom_id INTEGER REFERENCES classrooms(id) ON DELETE SET NULL")
+        )
+        # Wrong Answers bank used to be one global list shared by
+        # every account. Existing rows get user_id = NULL and are
+        # hidden from everyone, same reasoning as avatars above.
+        conn.execute(
+            text("ALTER TABLE wrong_answers ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
+        )
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_wrong_answers_user_id ON wrong_answers (user_id)")
+        )
+        # Indexes added to columns of tables that already existed.
+        # amivi_chunks' media FKs: deleting a media row makes Postgres
+        # find chunks pointing at it (ON DELETE SET NULL), which was a
+        # full-table scan per deleted media row. classroom_members
+        # .user_id: filtered on every Teacher Workspace / "my
+        # classrooms" load. Names match what create_all() generates,
+        # so fresh databases and migrated ones end up identical.
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_amivi_chunks_image_id ON amivi_chunks (image_id)")
+        )
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_amivi_chunks_image2_id ON amivi_chunks (image2_id)")
+        )
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_amivi_chunks_audio_id ON amivi_chunks (audio_id)")
+        )
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_classroom_members_user_id ON classroom_members (user_id)")
         )

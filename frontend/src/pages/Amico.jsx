@@ -165,7 +165,12 @@ export default function Amico() {
   // Avatars
   const [avatars, setAvatars] = useState([]);
   const [selectedAvatarId, setSelectedAvatarId] = useState(null);
+  // Student slot: a preset student (or the Study Team) in
+  // selectedPresetAvatar, or the user's own saved avatar in
+  // selectedAvatarId. Teacher slot is separate, so one of each can
+  // be picked together.
   const [selectedPresetAvatar, setSelectedPresetAvatar] = useState(null);
+  const [selectedTeacherAvatar, setSelectedTeacherAvatar] = useState(null);
   const [avatarName, setAvatarName] = useState('');
   const [avatarStyle, setAvatarStyle] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -378,6 +383,7 @@ export default function Amico() {
         layout,
         avatarId: selectedAvatarId,
         presetAvatar: selectedPresetAvatar,
+        teacherAvatar: selectedTeacherAvatar,
         backgroundSetting: selectedBackground,
       });
 
@@ -969,22 +975,8 @@ export default function Amico() {
                 picture instead of overlaid on top of it, per the
                 size/legibility request this was built to. */}
             <div className="mb-6">
-              <label className="text-base font-bold text-black block mb-2">{t('Character Avatar (optional)')}</label>
-
-              <div className="flex flex-wrap items-start gap-4 mb-5">
-                <button
-                  onClick={() => {
-                    setSelectedAvatarId(null);
-                    setSelectedPresetAvatar(null);
-                  }}
-                  className={`shrink-0 w-64 h-64 rounded-2xl border-2 flex items-center justify-center text-lg font-bold ${selectedAvatarId === null && selectedPresetAvatar === null
-                      ? 'border-pink-500 bg-pink-50 text-black'
-                      : 'border-gray-200 text-black'
-                    }`}
-                >
-                  {t('None')}
-                </button>
-              </div>
+              <label className="text-base font-bold text-black block mb-1">{t('Character Avatar (optional)')}</label>
+              <p className="text-sm text-black mb-3">{t('Pick one teacher and one student. Click a picked avatar again to remove it.')}</p>
 
               {/* Quick-pick built-in avatars — no photo upload
                   needed, split into Teachers and Students so the
@@ -1002,10 +994,11 @@ export default function Amico() {
                   <button
                     key={preset.key}
                     onClick={() => {
-                      setSelectedPresetAvatar(preset.key);
-                      setSelectedAvatarId(null);
+                      setSelectedTeacherAvatar((current) =>
+                        current === preset.key ? null : preset.key
+                      );
                     }}
-                    className={`shrink-0 w-64 flex flex-col items-center gap-2 rounded-2xl border-2 p-2 ${selectedPresetAvatar === preset.key
+                    className={`shrink-0 w-64 flex flex-col items-center gap-2 rounded-2xl border-2 p-2 ${selectedTeacherAvatar === preset.key
                         ? 'border-pink-500 bg-pink-50 ring-4 ring-pink-200'
                         : 'border-transparent'
                       }`}
@@ -1035,7 +1028,9 @@ export default function Amico() {
                   <button
                     key={preset.key}
                     onClick={() => {
-                      setSelectedPresetAvatar(preset.key);
+                      setSelectedPresetAvatar((current) =>
+                        current === preset.key ? null : preset.key
+                      );
                       setSelectedAvatarId(null);
                     }}
                     className={`shrink-0 w-64 flex flex-col items-center gap-2 rounded-2xl border-2 p-2 ${selectedPresetAvatar === preset.key
@@ -1064,7 +1059,9 @@ export default function Amico() {
                   <div key={avatar.avatar_id} className="relative shrink-0 group flex flex-col items-center gap-2 w-64">
                     <button
                       onClick={() => {
-                        setSelectedAvatarId(avatar.avatar_id);
+                        setSelectedAvatarId((current) =>
+                          current === avatar.avatar_id ? null : avatar.avatar_id
+                        );
                         setSelectedPresetAvatar(null);
                       }}
                       className={`w-64 h-64 rounded-2xl overflow-hidden border-2 ${selectedAvatarId === avatar.avatar_id
@@ -1134,15 +1131,6 @@ export default function Amico() {
             <div className="mb-6">
               <label className="text-base font-bold text-black block mb-2">{t('Story Background (optional)')}</label>
               <div className="flex flex-wrap items-start gap-4">
-                <button
-                  onClick={() => setSelectedBackground(null)}
-                  className={`shrink-0 w-80 h-64 rounded-2xl border-2 flex items-center justify-center text-lg font-bold ${selectedBackground === null
-                      ? 'border-pink-500 bg-pink-50 text-black'
-                      : 'border-gray-200 text-black'
-                    }`}
-                >
-                  {t('None')}
-                </button>
                 {/* Shows a real scene thumbnail once
                     generate_comic_story_presets.py has been run and
                     /vlq-bg-{key}.png exists in frontend/public/;
@@ -1177,6 +1165,16 @@ export default function Amico() {
                     </button>
                   );
                 })}
+                {/* "None" sits last, after all the scene tiles. */}
+                <button
+                  onClick={() => setSelectedBackground(null)}
+                  className={`shrink-0 w-80 h-64 rounded-2xl border-2 flex items-center justify-center text-lg font-bold ${selectedBackground === null
+                      ? 'border-pink-500 bg-pink-50 text-black'
+                      : 'border-gray-200 text-black'
+                    }`}
+                >
+                  {t('None')}
+                </button>
               </div>
             </div>
 

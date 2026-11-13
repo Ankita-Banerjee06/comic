@@ -77,12 +77,29 @@ def test_moderation_blocked_error_becomes_friendly():
     assert "safety system" in detail.lower()
 
 
-def test_unrecognized_error_passes_through_unchanged():
-    """A genuinely new/unexpected error must stay fully visible —
-    this only softens the handful of well-known OpenAI failure
-    modes above, never hides something a developer needs to see."""
+def test_unrecognized_error_is_hidden_behind_reference_code(capsys):
+    """An unexpected error must not leak internals (paths, DB
+    errors, raw model output) to the browser. The user gets a
+    generic message with a reference code; the full error is
+    logged server-side under that same code for debugging."""
 
-    exc = ValueError("some totally different, unrelated bug")
+    exc = ValueError("psycopg error at /srv/app/backend/main.py")
+    detail = main.friendly_error_detail(exc)
+
+    assert "psycopg" not in detail
+    assert "/srv/app" not in detail
+    assert detail.startswith(main.GENERIC_ERROR_MESSAGE)
+
+    ref = detail.split("(ref ")[1].rstrip(").")
+    logged = capsys.readouterr().out
+    assert f"ref={ref}" in logged
+    assert "psycopg error at /srv/app/backend/main.py" in logged
+
+
+def test_user_facing_error_passes_through_unchanged():
+    exc = main.UserFacingError(
+        "Could not extract enough spoken content from the video."
+    )
     assert main.friendly_error_detail(exc) == str(exc)
 
 
