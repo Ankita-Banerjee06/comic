@@ -773,7 +773,7 @@ export default function Amivi() {
     { value: '/introduction', label: t('Introduction') },
     { value: '/explore', label: t('Explore') },
     { value: '/how-we-do-it', label: t('How We Do It') },
-    { value: '/core-ecosystems', label: t('Core Ecosystems') },
+    { value: '/core-ecosystems', label: t('VLQ - VISION') },
     { value: '/courses', label: t('Essential Learning') },
     { value: '/tutorials', label: t('Video Tutorials') },
     { value: '/plans', label: t('Plans') },

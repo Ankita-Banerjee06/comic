@@ -18,11 +18,14 @@ Covers:
    regenerate_image, and AMICO's regenerate_panel / edit_panel
    (dialogue redraw) / add_panel.
 
+The endpoints are plain (sync) functions that need a signed-in
+user, so the tests call them directly with a stand-in user.
+
 Run with:
     pytest backend/test_avatar_reliability.py -v
 """
 
-import asyncio
+import io
 import os
 import sys
 from unittest.mock import patch
@@ -40,15 +43,25 @@ import main  # noqa: E402
 
 
 class _FakeUploadFile:
-    """Stands in for FastAPI's UploadFile — avatar_generate only
-    calls .read() (async) and reads .content_type."""
+    """Stands in for FastAPI's UploadFile — avatar_generate reads
+    .file (a file-like object) and .content_type."""
 
     def __init__(self, data=b"fake-photo-bytes", content_type="image/jpeg"):
-        self._data = data
+        self.file = io.BytesIO(data)
         self.content_type = content_type
 
-    async def read(self):
-        return self._data
+
+class _FakeUser:
+    id = 1
+
+
+def _call_avatar_generate():
+    return main.avatar_generate(
+        file=_FakeUploadFile(),
+        name="Mia",
+        style="",
+        current_user=_FakeUser(),
+    )
 
 
 # ============================================================
@@ -101,11 +114,7 @@ def _run_avatar_generate(generate_avatar_image_return):
          patch("main.generate_avatar_image", return_value=generate_avatar_image_return) as mock_gen, \
          patch("main.save_avatar", return_value=999) as mock_save:
 
-        return asyncio.run(
-            main.avatar_generate(
-                file=_FakeUploadFile(), name="Mia", style=""
-            )
-        ), mock_gen, mock_save
+        return _call_avatar_generate(), mock_gen, mock_save
 
 
 def test_avatar_generate_succeeds_when_image_generation_works():
@@ -140,11 +149,45 @@ def test_avatar_generate_does_not_save_a_broken_avatar_when_blocked():
          patch("main.generate_avatar_image", return_value=None), \
          patch("main.save_avatar", return_value=999) as mock_save:
 
-        with pytest.raises(main.HTTPException):
-            asyncio.run(
-                main.avatar_generate(
-                    file=_FakeUploadFile(), name="Mia", style=""
-                )
-            )
+        with pytest.raises(main.HTTPException) as exc_info:
+            _call_avatar_generate()
 
+        assert exc_info.value.status_code == 400
         mock_save.assert_not_called()
+
+
+# ============================================================
+# The other one-off image endpoints that share the same fix
+# ============================================================
+
+def test_amico_regenerate_panel_uses_resilient_wrapper_and_400s_when_blocked():
+    request = main.AmicoRegeneratePanelRequest(
+        title="Evaporation", image_prompt="a sunny lake"
+    )
+
+    with patch("main.require_services", return_value=None),          patch("main.require_project_access", return_value=None),          patch("main.moderate_text", return_value=None),          patch("main.generate_image_resilient", return_value=321) as mock_resilient:
+
+        result = main.amico_regenerate_panel(request, current_user=_FakeUser())
+
+    assert result["image_id"] == 321
+    assert mock_resilient.call_args.kwargs["fallback_label"] == "Evaporation"
+
+    with patch("main.require_services", return_value=None),          patch("main.require_project_access", return_value=None),          patch("main.moderate_text", return_value=None),          patch("main.generate_image_resilient", return_value=None):
+
+        with pytest.raises(main.HTTPException) as exc_info:
+            main.amico_regenerate_panel(request, current_user=_FakeUser())
+
+    assert exc_info.value.status_code == 400
+    assert "safety system" in exc_info.value.detail.lower()
+
+
+def test_amivi_regenerate_image_400s_when_blocked():
+    request = main.AmiviRegenerateImageRequest(text="The water cycle")
+
+    with patch("main.require_services", return_value=None),          patch("main.require_project_access", return_value=None),          patch("main.moderate_text", return_value=None),          patch("main.generate_image_resilient", return_value=None) as mock_resilient:
+
+        with pytest.raises(main.HTTPException) as exc_info:
+            main.amivi_regenerate_image(request, current_user=_FakeUser())
+
+    assert exc_info.value.status_code == 400
+    assert mock_resilient.call_args.kwargs["fallback_label"] == "The water cycle"

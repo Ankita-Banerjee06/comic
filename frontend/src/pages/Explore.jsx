@@ -17,11 +17,11 @@ import {
 // ============================================================
 
 const FIVE_STEPS = [
-  { n: 1, title: 'See It', desc: 'Quick visuals grab your attention and spark curiosity.', image: '/vlq-step-see.jpg' },
-  { n: 2, title: 'Understand It', desc: 'Clear visuals simplify complex ideas in seconds.', image: '/vlq-step-understand.jpg' },
-  { n: 3, title: 'Remember It', desc: 'Visual patterns lock in knowledge for the long term.', image: '/vlq-step-remember.jpg' },
-  { n: 4, title: 'Apply It', desc: 'Use what you learn with confidence in real life.', image: '/vlq-step-apply.jpg' },
-  { n: 5, title: 'Master It', desc: 'Reinforce, revisit, and level up every day.', image: '/vlq-step-master.jpg' },
+  { n: 1, title: 'See It', desc: 'Quick visuals grab your attention and spark curiosity.', image: '/vlq-step-see.jpg', color: '#2F6FED', tint: '#EAF1FF' },
+  { n: 2, title: 'Understand It', desc: 'Clear visuals simplify complex ideas in seconds.', image: '/vlq-step-understand.jpg', color: '#1FAE65', tint: '#E8FBF1' },
+  { n: 3, title: 'Remember It', desc: 'Visual patterns lock in knowledge for the long term.', image: '/vlq-step-remember.jpg', color: '#8B5CF6', tint: '#F3EEFE' },
+  { n: 4, title: 'Apply It', desc: 'Use what you learn with confidence in real life.', image: '/vlq-step-apply.jpg', color: '#F2994A', tint: '#FFF3E8' },
+  { n: 5, title: 'Master It', desc: 'Reinforce, revisit, and level up every day.', image: '/vlq-step-master.jpg', color: '#E84393', tint: '#FDEAF3' },
 ];
 
 function ZoneHeader({ icon: Icon, iconColor, iconTint, title, subtitle, tagline, dark = false }) {
@@ -67,14 +67,32 @@ export default function Explore() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
         {FIVE_STEPS.map((step) => (
-          <div key={step.n} className="rounded-2xl overflow-hidden shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all aspect-square">
-            <img
-              src={step.image}
-              alt={`Step ${step.n}: ${step.title} — ${step.desc}`}
-              className="w-full h-full object-cover block"
-              style={{ objectPosition: 'left center' }}
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
+          <div
+            key={step.n}
+            className="rounded-2xl overflow-hidden shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col border-2"
+            style={{ background: step.tint, borderColor: step.color }}
+          >
+            <div className="aspect-square relative">
+              <img
+                src={step.image}
+                alt={`Step ${step.n}: ${step.title} — ${step.desc}`}
+                className="w-full h-full object-cover block"
+                style={{ objectPosition: 'left center' }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <div
+                className="absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center text-white font-extrabold text-sm shadow"
+                style={{ background: step.color }}
+              >
+                {step.n}
+              </div>
+            </div>
+            <div className="p-4 flex-1 flex flex-col">
+              <h3 className="font-extrabold text-base uppercase tracking-wide mb-1" style={{ color: step.color }}>
+                {step.title}
+              </h3>
+              <p className="text-sm font-semibold text-slate-700 leading-snug">{step.desc}</p>
+            </div>
           </div>
         ))}
       </div>

@@ -4178,6 +4178,7 @@ def generate_avatar_image(
     description,
     style,
     filename,
+    fallback_label=None,
 ):
 
     style_text = (
@@ -4192,9 +4193,13 @@ def generate_avatar_image(
         "background, no text, no watermark, no speech bubbles."
     )
 
-    return generate_image(
+    # Resilient wrapper: if OpenAI's safety system blocks the
+    # portrait, retry once with a generic G-rated prompt instead of
+    # failing outright. Returns None only if that is blocked too.
+    return generate_image_resilient(
         prompt=prompt,
         filename=filename,
+        fallback_label=fallback_label,
     )
 
 
@@ -6885,14 +6890,28 @@ def amivi_regenerate_image(
 
         moderate_text(prompt, "This image request")
 
-        image_id = generate_image(
-            prompt,
-            (
+        image_id = generate_image_resilient(
+            prompt=prompt,
+            filename=(
                 f"amivi_regen_"
                 f"{uuid.uuid4().hex[:8]}.png"
             ),
-            project_id,
+            project_id=project_id,
+            fallback_label=(
+                request.text or request.slogan or "this lesson"
+            ),
         )
+
+        if image_id is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "We couldn't regenerate this image — it may have been "
+                    "blocked by the safety system. "
+                    "Please try different wording."
+                ),
+            )
 
         return {
             "status": "success",
@@ -7136,11 +7155,23 @@ def amivi_generate_complete_visual(
 
         moderate_text(prompt, "This Complete Visual request")
 
-        image_id = generate_image(
-            prompt,
-            f"amivi_complete_visual_{request.project_id}_{uuid.uuid4().hex[:8]}.png",
-            request.project_id,
+        image_id = generate_image_resilient(
+            prompt=prompt,
+            filename=f"amivi_complete_visual_{request.project_id}_{uuid.uuid4().hex[:8]}.png",
+            project_id=request.project_id,
+            fallback_label=topic,
         )
+
+        if image_id is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "We couldn't create the Complete Visual — it may have been "
+                    "blocked by the safety system. "
+                    "Please try again."
+                ),
+            )
 
         image_url = f"/api/media/{image_id}"
 
@@ -7622,14 +7653,26 @@ def amico_regenerate_panel(
 
         moderate_text(prompt, "This panel request")
 
-        image_id = generate_image(
-            prompt,
-            (
+        image_id = generate_image_resilient(
+            prompt=prompt,
+            filename=(
                 f"amico_regen_"
                 f"{uuid.uuid4().hex[:8]}.png"
             ),
-            request.project_id,
+            project_id=request.project_id,
+            fallback_label=request.title or "this panel",
         )
+
+        if image_id is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "We couldn't regenerate this panel's image — it may have been "
+                    "blocked by the safety system. "
+                    "Please try different wording."
+                ),
+            )
 
         return {
             "status": "success",
@@ -7740,13 +7783,28 @@ def amico_edit_panel(
                 f"with no other text:\n{request.dialogue}"
             )
 
-            new_image_id = generate_image(
+            new_image_id = generate_image_resilient(
                 prompt=override_prompt,
                 filename=(
                     f"amico_edit_{uuid.uuid4().hex[:8]}.png"
                 ),
                 project_id=request.project_id,
+                fallback_label=(
+                    target_panel.get("title") or "this panel"
+                ),
             )
+
+            if new_image_id is None:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "We couldn't redraw this panel with the "
+                        "new dialogue — it may have been blocked "
+                        "by the safety system. Please try "
+                        "different wording."
+                    ),
+                )
 
             target_panel["image_id"] = new_image_id
             target_panel["image_url"] = f"/api/media/{new_image_id}"
@@ -7875,14 +7933,28 @@ def amico_add_panel(
             request.topic_hint or data.get("title", ""),
         )
 
-        image_id = generate_image(
+        image_id = generate_image_resilient(
             prompt=new_panel.get("image_prompt", ""),
             filename=(
                 f"amico_add_"
                 f"{uuid.uuid4().hex[:8]}.png"
             ),
             project_id=request.project_id,
+            fallback_label=(
+                new_panel.get("title") or "this new panel"
+            ),
         )
+
+        if image_id is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "We couldn't generate an image for the new panel — it may have been "
+                    "blocked by the safety system. "
+                    "Please try a different topic hint."
+                ),
+            )
 
         insert_at = max(
             0,
@@ -8411,7 +8483,22 @@ def avatar_generate(
             filename=(
                 f"avatar_{uuid.uuid4().hex[:8]}.png"
             ),
+            fallback_label=name or "a friendly comic character",
         )
+
+        if image_id is None:
+
+            # Even the safe retry was blocked. Don't save an avatar
+            # with no picture (it would show as a broken tile).
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "We couldn't generate an avatar image from "
+                    "this photo — it may have been blocked by the "
+                    "safety system. Please try a different photo "
+                    "or style."
+                ),
+            )
 
         avatar_id = save_avatar(
             name=name or "My Avatar",
