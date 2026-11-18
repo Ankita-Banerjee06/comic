@@ -12,7 +12,7 @@
 // /ecosystems/amico-overview.webp for a sharper result.
 // ============================================================
 
-import { Sparkles, BarChart3, Globe } from 'lucide-react';
+import { Sparkles, Globe } from 'lucide-react';
 
 export default function CoreEcosystems() {
   return (
@@ -21,17 +21,17 @@ export default function CoreEcosystems() {
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto">
         <div
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-widest mb-5"
-          style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #e0e7ff' }}
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-base font-bold uppercase tracking-widest mb-5"
+          style={{ background: '#eef2ff', color: '#000000', border: '1px solid #e0e7ff' }}
         >
           <Sparkles className="w-4 h-4" /> The VLQ Engine
         </div>
-        <h1 className="font-extrabold leading-snug text-black" style={{ fontSize: 'clamp(28px,3.4vw,44px)' }}>
+        <h1 className="font-extrabold leading-snug text-black" style={{ fontSize: 'clamp(32px,4vw,52px)' }}>
           Two Proprietary Ecosystems.
           <br />
           One Learning Platform.
         </h1>
-        <p className="mt-3 text-xl font-bold text-black">
+        <p className="mt-3 text-2xl font-bold text-black">
           AMIVI turns complexity into clarity. AMICO turns learning into creativity.
         </p>
       </div>
@@ -64,13 +64,23 @@ export default function CoreEcosystems() {
           as a distinct section rather than floating text.
       ======================================================= */}
       <div className="max-w-3xl mx-auto text-center bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm px-6 py-8 md:px-10 md:py-10">
-        <h2 className="font-extrabold text-2xl md:text-3xl text-black mb-3">
-          AMIVI &amp; AMICO — One Learning Ecosystem
+        <h2 className="font-extrabold text-3xl md:text-4xl text-black mb-3">
+          AMIVI &amp; AMICO
         </h2>
-        <p className="text-lg font-semibold text-black leading-relaxed">
-          AMIVI helps learners see and understand knowledge. AMICO brings that knowledge to
-          life through creative storytelling. Together, they make visual learning more
-          engaging, memorable and accessible.
+        <p className="text-xl font-semibold text-black leading-relaxed">
+          <strong>AMIVI</strong> helps learners{' '}
+          <strong className="font-extrabold">SEE</strong> and{' '}
+          <strong className="font-extrabold">UNDERSTAND</strong>{' '}
+          <strong>knowledge</strong>
+          <br />
+          <strong>AMICO</strong> brings that <strong>knowledge to life</strong> through{' '}
+          <strong>creative storytelling</strong>
+          <br />
+          Together, they make
+          <br />
+          <strong className="font-extrabold uppercase">Visual Learning</strong>
+          <br />
+          more engaging, memorable and accessible
         </p>
       </div>
 
@@ -83,14 +93,10 @@ export default function CoreEcosystems() {
       ======================================================= */}
       <div className="max-w-5xl mx-auto bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm px-6 py-8 md:px-10 md:py-10 space-y-8">
         <div className="text-center">
-          <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-widest mb-3"
-            style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}
-          >
-            <BarChart3 className="w-4 h-4" /> Coming soon &gt;&gt; AMILYTICS
-          </div>
-          <p className="text-lg font-bold text-black">
-            The Data Analytics ecosystem to revolutionize the Learning industry!
+          <p className="text-lg font-semibold text-black mb-1">Coming soon</p>
+          <h3 className="font-extrabold text-4xl md:text-5xl text-black mb-3">AMILYTICS</h3>
+          <p className="text-xl font-bold text-black">
+            Helps teachers track learner progress and see where students need support.
           </p>
         </div>
 
@@ -107,8 +113,8 @@ export default function CoreEcosystems() {
 
         <div className="pt-2 border-t border-slate-100">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Globe className="w-4 h-4 text-slate-400" />
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+            <Globe className="w-4 h-4 text-black" />
+            <p className="text-sm font-bold uppercase tracking-widest text-black">
               Multiple Markets. Global Potential.
             </p>
           </div>

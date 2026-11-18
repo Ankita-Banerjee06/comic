@@ -78,7 +78,11 @@ export async function getCurrentUser() {
   const response = await fetch(`${API_URL}/api/auth/me`, {
     headers: { ...authHeaders() },
   });
-  if (!response.ok) throw await parseAuthError(response, 'Not signed in.');
+  if (!response.ok) {
+    const err = await parseAuthError(response, 'Not signed in.');
+    err.status = response.status;
+    throw err;
+  }
   return response.json();
 }
 

@@ -28,16 +28,20 @@ export default function Introduction() {
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto">
         <div
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-widest mb-5"
-          style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #e0e7ff' }}
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-base font-bold uppercase tracking-widest mb-5"
+          style={{ background: '#eef2ff', color: '#000000', border: '1px solid #e0e7ff' }}
         >
           <Info className="w-4 h-4" /> Introduction
         </div>
-        <h1 className="font-extrabold leading-tight text-black" style={{ fontSize: 'clamp(40px,5vw,60px)' }}>
+        <h1 className="font-extrabold leading-tight text-black" style={{ fontSize: 'clamp(44px,5.5vw,68px)' }}>
           Why VLQ?
         </h1>
-        <p className="mt-4 text-2xl font-semibold text-black">
-          From challenges to real solutions — see how VLQ makes learning faster, easier and more effective.
+        <p className="mt-4 text-3xl font-semibold text-black">
+          From challenges to real solutions,
+          <br />
+          see how VLQ makes
+          <br />
+          <strong>learning faster, easier and more effective.</strong>
         </p>
       </div>
 
@@ -68,12 +72,14 @@ export default function Introduction() {
         </div>
       </div>
 
-      {/* See VLQ In Action */}
+      {/* See VLQ in Action */}
       <div className="w-full rounded-3xl p-6 md:p-9" style={{ background: 'linear-gradient(135deg,#eff6ff,#f5f3ff)' }}>
         <div className="text-center max-w-2xl mx-auto mb-6">
-          <h2 className="font-extrabold text-4xl sm:text-5xl text-black mb-3">See VLQ In Action</h2>
-          <p className="text-2xl font-semibold text-black">
-            See how VLQ turns complex information into clear visual learning.
+          <h2 className="font-extrabold text-5xl sm:text-6xl text-black mb-3">See VLQ in Action</h2>
+          <p className="text-3xl font-semibold text-black">
+            See how VLQ turns complex information into
+            <br />
+            <strong>clear visual learning.</strong>
           </p>
         </div>
 
@@ -93,8 +99,8 @@ export default function Introduction() {
       {/* See it for yourself */}
       <div className="w-full rounded-3xl p-6 md:p-9" style={{ background: 'linear-gradient(135deg,#faf5ff,#fdf4ff)' }}>
         <div className="text-center max-w-2xl mx-auto mb-6">
-          <h2 className="font-extrabold text-4xl sm:text-5xl text-black mb-3">See It For Yourself</h2>
-          <p className="text-xl font-medium text-black">Explore VLQ and see visual learning in action.</p>
+          <h2 className="font-extrabold text-5xl sm:text-6xl text-black mb-3">See It For Yourself</h2>
+          <p className="text-2xl font-medium text-black">Explore VLQ and see visual learning in action.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           {NEXT_STEPS.map((s) => {
@@ -112,10 +118,10 @@ export default function Introduction() {
                 >
                   <Icon className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="font-extrabold text-3xl text-black mb-2 relative z-10">{s.label}</h3>
-                <p className="text-black font-semibold text-xl leading-relaxed mb-4 flex-1 relative z-10">{s.desc}</p>
-                <span className="inline-flex items-center gap-1.5 font-bold text-xl relative z-10" style={{ color: s.color }}>
-                  {s.linkLabel} <ArrowRight className="w-6 h-6" />
+                <h3 className="font-extrabold text-4xl text-black mb-2 relative z-10">{s.label}</h3>
+                <p className="text-black font-semibold text-2xl leading-relaxed mb-4 flex-1 relative z-10">{s.desc}</p>
+                <span className="inline-flex items-center gap-1.5 font-bold text-2xl relative z-10 text-black">
+                  {s.linkLabel} <ArrowRight className="w-6 h-6" style={{ color: s.color }} />
                 </span>
               </Link>
             );

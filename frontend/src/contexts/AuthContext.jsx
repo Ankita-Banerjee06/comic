@@ -33,12 +33,16 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         saveAuthSession({ token: stored.token, user: data.user });
       })
-      .catch(() => {
-        // stored token is no longer valid (logged out elsewhere, server
-        // data reset, etc.) — drop the stale session rather than get stuck
-        clearAuthSession();
-        setUser(null);
-        setToken(null);
+      .catch((err) => {
+        // Only a 401 means the token is really invalid (logged out
+        // elsewhere, session expired). A network error, a server that
+        // is still waking up, or a 500 must NOT sign the user out —
+        // keep the stored session and let later requests retry.
+        if (err?.status === 401) {
+          clearAuthSession();
+          setUser(null);
+          setToken(null);
+        }
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps

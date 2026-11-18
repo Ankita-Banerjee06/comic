@@ -9,6 +9,7 @@ import {
   getChapterSubjects, getSubjectChapters, getChapterHub,
   generateAmivi, generateAmico, generateQuiz, mediaUrl,
 } from '../services/api';
+import { SUBJECT_ILLUSTRATION } from '../components/SubjectIllustrations';
 
 const SUBJECT_ICON = {
   Science: Atom,
@@ -218,24 +219,25 @@ export default function Courses() {
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Header */}
-      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8" style={{ minHeight: 180, background: '#ecfdf5' }}>
+      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm p-5 sm:p-8" style={{ minHeight: 180, background: '#f8fafc' }}>
         <img
-          src="/vlq-classroom-hero.jpg"
+          src="/vlq-hero-classroom-v3.jpg"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"
+          style={{ filter: 'brightness(1.08)' }}
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
-        <div className="absolute inset-0" style={{ background: 'rgba(6,78,59,0.62)' }} />
+        <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.62)' }} />
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5 text-xs font-bold mb-4 text-white">
+          <div className="inline-flex items-center gap-2 bg-white/80 border border-slate-200 rounded-full px-4 py-1.5 text-sm font-bold mb-4 text-black shadow-sm">
             <img src="/vlq-badge-essential-learning-icon.png" alt="" className="w-4 h-4 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             Essential Learning
           </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight text-white">
+          <h1 className="text-3xl md:text-4xl font-extrabold mb-2 tracking-tight text-black">
             Essential Learning
           </h1>
-          <p className="text-white/90 font-medium max-w-lg">
+          <p className="text-black font-medium max-w-lg text-lg">
             Every AMIVI, AMICO and Quiz you've generated, organized by subject and chapter.
           </p>
         </div>
@@ -256,8 +258,8 @@ export default function Courses() {
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
             <div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-black mb-2">Essential Learning</h2>
-              <ul className="space-y-1 text-black font-semibold text-sm sm:text-base">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-black mb-2">Essential Learning</h2>
+              <ul className="space-y-1 text-black font-semibold text-base sm:text-lg">
                 <li>Focuses learning on what is genuinely important.</li>
                 <li>Key ideas, relationships and understanding replace unnecessary trivia.</li>
                 <li>Learners concentrate on knowledge worth remembering.</li>
@@ -266,16 +268,19 @@ export default function Courses() {
           </div>
 
           <div className="flex items-center justify-center flex-wrap gap-2 mt-6 pt-6 border-t border-slate-100">
-            {ESSENTIAL_LEARNING_FLOW.map((step, i) => (
+            {ESSENTIAL_LEARNING_FLOW.map((step, i) => {
+              const [bgBorder] = step.color.split(' text-');
+              return (
               <div key={step.label} className="flex items-center gap-2">
-                <span className={`px-4 py-2 rounded-xl border font-extrabold text-sm sm:text-base ${step.color}`}>
+                <span className={`px-4 py-2 rounded-xl border font-extrabold text-base sm:text-lg text-black ${bgBorder}`}>
                   {step.label}
                 </span>
                 {i < ESSENTIAL_LEARNING_FLOW.length - 1 && (
                   <ArrowRight className="w-4 h-4 text-black flex-shrink-0" />
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -289,11 +294,11 @@ export default function Courses() {
       {view === 'subjects' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
           <div className="text-center mb-8">
-            <p className="text-black font-semibold text-sm sm:text-base max-w-2xl mx-auto mb-4">
+            <p className="text-black font-semibold text-base sm:text-lg max-w-2xl mx-auto mb-4">
               A structured peer-review loop that turns Essential Learning into lasting mastery —
               identify what's been learned and what still needs reinforcing, then check and reinforce it together.
             </p>
-            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-extrabold text-sm sm:text-base shadow-sm">
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-extrabold text-base sm:text-lg shadow-sm">
               <img
                 src="/vlq-logo-clean.webp"
                 alt=""
@@ -326,11 +331,11 @@ export default function Courses() {
                         <Icon className={`w-5 h-5 ${step.iconColor}`} />
                       </div>
                       <div className="min-w-0">
-                        <p className={`text-xs font-extrabold ${step.iconColor}`}>STEP {i + 1}</p>
-                        <h3 className="font-extrabold text-black leading-tight">{step.title}</h3>
+                        <p className="text-sm font-extrabold text-black">STEP {i + 1}</p>
+                        <h3 className="font-extrabold text-black text-lg leading-tight">{step.title}</h3>
                       </div>
                     </div>
-                    <p className="text-black font-medium text-sm">{step.caption}</p>
+                    <p className="text-black font-medium text-base">{step.caption}</p>
                   </div>
                 </div>
               );
@@ -423,11 +428,12 @@ function SubjectsGrid({ subjects, onOpen }) {
         const Icon = SUBJECT_ICON[s.subject] || BookOpen;
         const style = SUBJECT_STYLE[s.subject] || SUBJECT_STYLE.Other;
         const displayName = SUBJECT_DISPLAY_NAME[s.subject] || s.subject;
+        const Illustration = SUBJECT_ILLUSTRATION[s.subject] || SUBJECT_ILLUSTRATION.Other;
         return (
           <button
             key={s.subject}
             onClick={() => onOpen(s.subject)}
-            className="text-left rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group p-8 flex flex-col gap-5"
+            className="text-left rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group p-8 flex items-center gap-4"
             style={{
               minHeight: 240,
               border: `3px solid ${style.color}`,
@@ -435,6 +441,8 @@ function SubjectsGrid({ subjects, onOpen }) {
               boxShadow: `0 14px 32px -16px ${style.color}66`,
             }}
           >
+            {/* Left: icon, name, chapter count, Explore — unchanged */}
+            <div className="flex flex-col gap-5 min-w-0 flex-1 self-stretch">
             <div
               className="w-20 h-20 rounded-2xl flex items-center justify-center shrink-0"
               style={{ background: style.soft, border: `2px solid ${style.color}` }}
@@ -442,16 +450,25 @@ function SubjectsGrid({ subjects, onOpen }) {
               <Icon className="w-10 h-10" style={{ color: style.color }} strokeWidth={2.2} />
             </div>
             <div className="flex-1">
-              <h3 className="font-extrabold text-2xl text-slate-900 leading-tight mb-1.5">{displayName}</h3>
-              <p className="text-base font-bold" style={{ color: style.color }}>
+              <h3 className="font-extrabold text-3xl text-black leading-tight mb-1.5">{displayName}</h3>
+              <p className="text-lg font-bold text-black">
                 {s.chapter_count} {s.chapter_count === 1 ? 'chapter' : 'chapters'}
               </p>
             </div>
             <div
-              className="inline-flex items-center gap-2 text-sm font-extrabold self-start px-4 py-2 rounded-xl transition-transform group-hover:translate-x-1"
-              style={{ background: style.soft, color: style.color, border: `2px solid ${style.color}` }}
+              className="inline-flex items-center gap-2 text-base font-extrabold self-start px-4 py-2 rounded-xl transition-transform group-hover:translate-x-1 text-black"
+              style={{ background: style.soft, border: `2px solid ${style.color}` }}
             >
-              Explore <ArrowRight className="w-4 h-4" />
+              Explore <ArrowRight className="w-4 h-4" style={{ color: style.color }} />
+            </div>
+            </div>
+            {/* Right: large subject illustration filling the empty space — one
+                consistent-style, consistent-size illustration per card. */}
+            <div
+              className="w-32 h-32 sm:w-44 sm:h-44 shrink-0 transition-transform duration-300 group-hover:scale-105 group-hover:-rotate-2"
+              aria-hidden="true"
+            >
+              <Illustration />
             </div>
           </button>
         );

@@ -709,7 +709,17 @@ export default function Amico() {
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <button
         type="button"
-        onClick={() => (mode ? goToAmicoHome() : navigate('/explore'))}
+        onClick={() => {
+          // Came here from AMIVI's "Send to AMICO": Back returns to
+          // that generated AMIVI lesson, not the AMICO launcher.
+          if (incomingSourceProjectId) {
+            navigate(`/amivi/${incomingSourceProjectId}`);
+          } else if (mode) {
+            goToAmicoHome();
+          } else {
+            navigate('/explore');
+          }
+        }}
         className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Back

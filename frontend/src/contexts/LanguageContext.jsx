@@ -1104,12 +1104,23 @@ export const SUPPORTED_LANGUAGES = [
 const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
+  // localStorage can throw (private browsing, blocked site data); since
+  // this provider wraps the whole app, an unguarded call here would
+  // leave every page blank. Fall back to English instead.
   const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('vlq_language') || 'en';
+    try {
+      return localStorage.getItem('vlq_language') || 'en';
+    } catch {
+      return 'en';
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('vlq_language', language);
+    try {
+      localStorage.setItem('vlq_language', language);
+    } catch {
+      // ignore — the choice just won't be remembered
+    }
   }, [language]);
 
   const t = (key) => {

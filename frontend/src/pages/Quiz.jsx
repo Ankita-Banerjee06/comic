@@ -21,7 +21,7 @@ import {
   Trophy,
   PlayCircle,
 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import FileUpload from '../components/ui/FileUpload';
 import {
@@ -336,6 +336,13 @@ export default function Quiz() {
   const { projectId } = useParams();
   const { t } = useLanguage();
 
+  // Arriving from a generated AMIVI lesson's "Quiz" button: the topic
+  // is prefilled with the lesson title, and the lesson itself is sent
+  // as the source so questions come from what the student just saw.
+  const location = useLocation();
+  const sourceProjectId = location.state?.sourceProjectId || null;
+  const sourceTitle = (location.state?.sourceTitle || '').trim();
+
   // --------------------------------------------------------
   // GENERATION FORM STATE
   // --------------------------------------------------------
@@ -343,7 +350,7 @@ export default function Quiz() {
   const [view, setView] = useState('setup'); // 'setup' | 'bank' | 'decks'
   const [activeDeck, setActiveDeck] = useState(null); // picture-quiz deck currently being played
   const [inputMode, setInputMode] = useState('topic'); // 'topic' | 'material'
-  const [topic, setTopic] = useState('');
+  const [topic, setTopic] = useState(() => sourceTitle);
   const [materialText, setMaterialText] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
   const [numQuestions, setNumQuestions] = useState(5);
@@ -546,10 +553,17 @@ export default function Quiz() {
   // GENERATE QUIZ
   // ============================================================
 
+  // True while the topic still matches the AMIVI lesson it came from;
+  // once the user types a different topic, it's a normal topic quiz.
+  const fromAmiviLesson =
+    Boolean(sourceProjectId) &&
+    inputMode === 'topic' &&
+    topic.trim() === sourceTitle;
+
   const handleGenerateQuiz = async () => {
     setGenError(null);
 
-    if (inputMode === 'topic' && !topic.trim()) {
+    if (inputMode === 'topic' && !topic.trim() && !fromAmiviLesson) {
       setGenError(t('Please enter a topic.'));
       return;
     }
@@ -564,10 +578,13 @@ export default function Quiz() {
     try {
       const data = await generateQuiz({
         mode: inputMode,
-        topic,
+        // The backend only builds from the lesson's material when no
+        // topic is typed, so send the lesson id instead of its title.
+        topic: fromAmiviLesson ? '' : topic,
         materialText,
         file: uploadedFile,
         numQuestions,
+        sourceProjectId: fromAmiviLesson ? sourceProjectId : null,
       });
 
       if (!data?.quiz?.questions?.length) {
@@ -729,7 +746,9 @@ export default function Quiz() {
       <div className="max-w-3xl mx-auto py-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <button
           type="button"
-          onClick={() => navigate('/explore')}
+          // Came from a generated AMIVI's Quiz button: Back returns to
+          // that AMIVI lesson instead of Explore.
+          onClick={() => navigate(sourceProjectId ? `/amivi/${sourceProjectId}` : '/explore')}
           className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back
@@ -940,6 +959,11 @@ export default function Quiz() {
                 )}
                 className="w-full p-4 sm:p-5 bg-purple-50 border-2 border-purple-200 rounded-2xl text-black font-semibold focus:ring-4 focus:ring-purple-300 focus:border-purple-400 focus:outline-none text-lg sm:text-xl transition-all"
               />
+              {fromAmiviLesson && (
+                <p className="text-sm font-semibold text-purple-700">
+                  {t('Questions will come from your AMIVI lesson.')}
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-5 mb-6">

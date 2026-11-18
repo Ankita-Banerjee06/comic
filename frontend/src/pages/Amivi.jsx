@@ -247,7 +247,6 @@ export default function Amivi() {
     setError(null);
     setResult(null);
     setMcqAnswers({});
-    setPhotoStoryError(null);
 
     const fetchProject = classroomView
       ? getAssignmentProject(classroomView.classCode, classroomView.assignmentId, 'amivi', classroomView.memberToken)
@@ -433,7 +432,6 @@ export default function Amivi() {
     setWebUrlInput('');
     setError(null);
     setMcqAnswers({});
-    setPhotoStoryError(null);
     setCompleteVisualUrl(null);
     setIsGeneratingCompleteVisual(false);
     setCompleteVisualError(null);
@@ -773,7 +771,7 @@ export default function Amivi() {
     { value: '/introduction', label: t('Introduction') },
     { value: '/explore', label: t('Explore') },
     { value: '/how-we-do-it', label: t('How We Do It') },
-    { value: '/core-ecosystems', label: t('VLQ - VISION') },
+    { value: '/vlq-vision', label: t('VLQ - VISION') },
     { value: '/courses', label: t('Essential Learning') },
     { value: '/tutorials', label: t('Video Tutorials') },
     { value: '/plans', label: t('Plans') },
@@ -1685,7 +1683,7 @@ export default function Amivi() {
             <div className="flex flex-wrap items-center justify-center gap-4">
 
               <button
-                onClick={() => navigate('/quiz')}
+                onClick={() => navigate('/quiz', { state: { sourceProjectId: result?.project_id, sourceTitle: result?.title } })}
                 className="px-6 py-3 bg-white text-green-700 font-bold rounded-2xl hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-lg"
               >
                 🧩 {t('Go to Quiz')}
@@ -1832,7 +1830,7 @@ export default function Amivi() {
 
               <button
                 type="button"
-                onClick={() => navigate('/quiz')}
+                onClick={() => navigate('/quiz', { state: { sourceProjectId: result?.project_id, sourceTitle: result?.title } })}
                 className="py-4 bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 text-black rounded-2xl font-bold text-lg flex flex-col items-center justify-center gap-2 transition"
               >
                 <span className="text-2xl">🧩</span>
