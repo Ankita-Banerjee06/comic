@@ -100,6 +100,9 @@ def _run_lightweight_migrations():
         conn.execute(
             text("ALTER TABLE assignment_submissions ADD COLUMN IF NOT EXISTS answers JSON")
         )
+        conn.execute(
+            text("ALTER TABLE assignment_submissions ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'completed'")
+        )
         # classroom_members.user_id / room_members.user_id should already
         # exist (those tables were created with the column already in the
         # model), but this is a harmless no-op if so — cheap insurance

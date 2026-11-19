@@ -1033,11 +1033,15 @@ export async function getClassroomLibraryProjects(classCode, memberToken, type) 
   return response.json();
 }
 
-export async function submitAssignment(classCode, assignmentId, { memberToken, score, total, answers = [] }) {
+// Called after EVERY answer (completed: false) so the teacher sees how
+// far a student got even if they abandon the quiz, then once more after
+// the last question (completed: true). Pass back the submission id the
+// first call returned so all calls update the same attempt.
+export async function submitAssignment(classCode, assignmentId, { memberToken, score, total, answers = [], submissionId = null, completed = true }) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}/submit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ member_token: memberToken, score, total, answers }),
+    body: JSON.stringify({ member_token: memberToken, score, total, answers, submission_id: submissionId, completed }),
   });
   if (!response.ok) throw await parseClassroomError(response, 'Failed to submit homework.');
   return response.json();

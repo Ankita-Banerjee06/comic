@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   GraduationCap,
@@ -1835,6 +1835,7 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
             <div className="space-y-2">
               {results.map((r) => {
                 const canReview = r.attempts > 0;
+                const incomplete = r.status === 'in_progress';
                 const Row = canReview ? 'button' : 'div';
                 return (
                   <Row
@@ -1846,13 +1847,24 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
                   >
                     <div>
                       <p className="text-sm font-bold text-black">{r.display_name}</p>
+                      {incomplete && (
+                        <p className="text-xs font-bold text-amber-600">
+                          {r.answered > 0
+                            ? `${t('Incomplete')} — ${t('stopped after')} Q${r.answered}`
+                            : t('Incomplete')}
+                        </p>
+                      )}
                       <p className="text-xs text-black font-semibold">
                         {canReview
                           ? `${r.attempts} ${r.attempts === 1 ? t('attempt') : t('attempts')} — ${t('tap to review answers')}`
                           : t('Not started')}
                       </p>
                     </div>
-                    {r.total ? (
+                    {incomplete ? (
+                      <span className="shrink-0 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
+                        {r.score}/{r.answered} {t('so far')}
+                      </span>
+                    ) : r.total ? (
                       <span className="font-extrabold text-black">{r.score}/{r.total}</span>
                     ) : (
                       <span className="text-xs font-bold text-black">—</span>
@@ -1920,9 +1932,21 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
 
           {!loading && !error && detail?.submitted && (
             <div className="space-y-5">
+              {detail.status === 'in_progress' && (
+                <p className="text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  {detail.answered > 0
+                    ? `${t('Incomplete')} — ${t('stopped after')} Q${detail.answered} ${t('of')} ${detail.total}`
+                    : t('Incomplete')}
+                </p>
+              )}
+
               <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                <span className="text-sm font-bold text-black">{t('Score')}</span>
-                <span className="font-extrabold text-black">{detail.score}/{detail.total}</span>
+                <span className="text-sm font-bold text-black">
+                  {detail.status === 'in_progress' ? t('Score so far') : t('Score')}
+                </span>
+                <span className="font-extrabold text-black">
+                  {detail.status === 'in_progress' ? `${detail.score}/${detail.answered}` : `${detail.score}/${detail.total}`}
+                </span>
               </div>
 
               {detail.questions.length === 0 && (
@@ -1957,7 +1981,11 @@ function SubmissionDetailModal({ session, classroom, assignment, member, onBack,
                   </div>
 
                   {q.selected === null && (
-                    <p className="text-xs font-semibold text-amber-600 mt-2">{t('Skipped — no answer selected.')}</p>
+                    <p className="text-xs font-semibold text-amber-600 mt-2">
+                      {detail.status === 'in_progress' && q.question_index >= detail.answered
+                        ? t('Not reached — the student stopped before this question.')
+                        : t('Skipped — no answer selected.')}
+                    </p>
                   )}
 
                   {q.explanation && (
@@ -1984,6 +2012,31 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
   const [player, setPlayer] = useState(null); // { questions, idx, selected, score, answers }
   const [finished, setFinished] = useState(false);
 
+  // Every answer is saved to the teacher's results straight away, so a
+  // quiz abandoned after Q3 shows up as "Incomplete after Q3". The first
+  // save creates the attempt and returns its id; later saves update that
+  // same attempt. Saves are chained so they reach the server in order.
+  const submissionIdRef = useRef(null);
+  const saveChainRef = useRef(Promise.resolve());
+
+  const saveAttempt = (snapshot, completed) => {
+    const run = saveChainRef.current.then(async () => {
+      const data = await submitAssignment(classroom.class_code, assignment.id, {
+        memberToken: session.memberToken,
+        score: snapshot.score,
+        total: snapshot.questions.length,
+        answers: snapshot.answers,
+        submissionId: submissionIdRef.current,
+        completed,
+      });
+      if (data?.submission?.id) submissionIdRef.current = data.submission.id;
+      return data;
+    });
+    // A failed progress save must not block the next one.
+    saveChainRef.current = run.catch(() => {});
+    return run;
+  };
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -2005,45 +2058,54 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
 
   const handleSelect = (i) => {
     if (player.selected !== null) return;
-    setPlayer((p) => {
-      const q = p.questions[p.idx];
-      const isCorrect = i === q.correct;
-      return {
-        ...p,
-        selected: i,
-        score: isCorrect ? p.score + 1 : p.score,
-        // Record every question's answer as it's picked — the
-        // teacher's per-question review reads this back, so it
-        // has to survive moving on to the next question, unlike
-        // `selected` which resets each time.
-        answers: [
-          ...p.answers,
-          { question_index: p.idx, selected: i, correct: q.correct, is_correct: isCorrect },
-        ],
-      };
-    });
+    const q = player.questions[player.idx];
+    const isCorrect = i === q.correct;
+    const next = {
+      ...player,
+      selected: i,
+      score: isCorrect ? player.score + 1 : player.score,
+      // Record every question's answer as it's picked — the
+      // teacher's per-question review reads this back, so it
+      // has to survive moving on to the next question, unlike
+      // `selected` which resets each time.
+      answers: [
+        ...player.answers,
+        { question_index: player.idx, selected: i, correct: q.correct, is_correct: isCorrect },
+      ],
+    };
+    setPlayer(next);
+
+    if (player.idx === player.questions.length - 1) {
+      // Last question answered: the homework hands itself in, with no
+      // Submit button to click.
+      submitFinal(next);
+    } else {
+      // Save progress in the background; the student never waits on it.
+      saveAttempt(next, false).catch(() => {});
+    }
   };
 
-  const handleNext = async () => {
-    const isLast = player.idx === player.questions.length - 1;
+  // 'idle' | 'saving' | 'error'. Once the final save succeeds, the
+  // score screen appears on its own after a short pause, so the student
+  // still sees whether their last answer was right.
+  const [submitState, setSubmitState] = useState('idle');
+  const [submitError, setSubmitError] = useState(null);
 
-    if (!isLast) {
-      setPlayer((p) => ({ ...p, idx: p.idx + 1, selected: null }));
-      return;
-    }
-
+  const submitFinal = async (snapshot) => {
+    setSubmitState('saving');
+    setSubmitError(null);
     try {
-      const data = await submitAssignment(classroom.class_code, assignment.id, {
-        memberToken: session.memberToken,
-        score: player.score,
-        total: player.questions.length,
-        answers: player.answers,
-      });
+      await saveAttempt(snapshot, true);
       onSubmitted(assignment.id, { submitted_count: assignment.submitted_count + 1 });
-      setFinished(true);
+      setTimeout(() => setFinished(true), 1200);
     } catch (err) {
-      setError(err?.message || t('Failed to submit your answers.'));
+      setSubmitState('error');
+      setSubmitError(err?.message || t('Failed to submit your answers.'));
     }
+  };
+
+  const handleNext = () => {
+    setPlayer((p) => ({ ...p, idx: p.idx + 1, selected: null }));
   };
 
   return (
@@ -2118,13 +2180,33 @@ function AssignmentPlayerModal({ session, classroom, assignment, onClose, onSubm
                       })}
                     </div>
 
-                    {player.selected !== null && (
+                    {player.selected !== null && player.idx < player.questions.length - 1 && (
                       <button
                         onClick={handleNext}
                         className="w-full py-3.5 sm:py-4 rounded-2xl font-bold text-lg sm:text-xl text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:scale-[1.01] transition-transform shadow-lg"
                       >
-                        {player.idx === player.questions.length - 1 ? t('Submit') : `${t('Next')} →`}
+                        {`${t('Next')} →`}
                       </button>
+                    )}
+
+                    {/* Last question: submitted automatically, no button. */}
+                    {player.selected !== null && player.idx === player.questions.length - 1 && (
+                      submitState === 'error' ? (
+                        <div className="text-center space-y-3">
+                          <p className="text-red-500 font-bold text-base">{submitError}</p>
+                          <button
+                            onClick={() => submitFinal(player)}
+                            className="w-full py-3.5 sm:py-4 rounded-2xl font-bold text-lg sm:text-xl text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:scale-[1.01] transition-transform shadow-lg"
+                          >
+                            {t('Try again')}
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="flex items-center justify-center gap-2 text-base font-bold text-purple-600 py-3">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          {t('All done! Submitting your answers…')}
+                        </p>
+                      )
                     )}
                   </>
                 );
@@ -2180,10 +2262,16 @@ function HistoryPanel({ session }) {
                 <p className="text-sm font-bold text-black truncate">{h.assignment_title}</p>
                 <p className="text-xs text-black font-semibold">{formatDue(h.submitted_at)}</p>
               </div>
-              <span className="font-extrabold text-black shrink-0 ml-3 inline-flex items-center gap-1">
-                {h.score / h.total >= 0.8 && <Trophy className="w-3.5 h-3.5 text-amber-500" />}
-                {h.score}/{h.total}
-              </span>
+              {h.status === 'in_progress' ? (
+                <span className="shrink-0 ml-3 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
+                  {h.answered > 0 ? `${t('Incomplete after')} Q${h.answered}` : t('Incomplete')}
+                </span>
+              ) : (
+                <span className="font-extrabold text-black shrink-0 ml-3 inline-flex items-center gap-1">
+                  {h.score / h.total >= 0.8 && <Trophy className="w-3.5 h-3.5 text-amber-500" />}
+                  {h.score}/{h.total}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -2268,6 +2356,10 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
                       <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
                         <CheckCircle2 className="w-3.5 h-3.5" /> {a.score}/{a.total}
                       </span>
+                    ) : a.status === 'incomplete' ? (
+                      <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
+                        <Clock className="w-3.5 h-3.5" /> {a.answered > 0 ? `${t('Incomplete after')} Q${a.answered}` : t('Incomplete')}
+                      </span>
                     ) : (
                       <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
                         <Clock className="w-3.5 h-3.5" /> {t('Not started')}
@@ -2297,9 +2389,15 @@ function ParentView({ data, loading, error, onRetry, onLogout }) {
                     <p className="text-sm font-bold text-black truncate">{h.assignment_title}</p>
                     <p className="text-xs text-black font-semibold">{formatDue(h.submitted_at) || ''}</p>
                   </div>
-                  <span className="shrink-0 text-sm font-extrabold text-black">
-                    {h.score}/{h.total}
-                  </span>
+                  {h.status === 'in_progress' ? (
+                    <span className="shrink-0 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
+                      {h.answered > 0 ? `${t('Incomplete after')} Q${h.answered}` : t('Incomplete')}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-sm font-extrabold text-black">
+                      {h.score}/{h.total}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

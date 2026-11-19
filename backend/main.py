@@ -518,6 +518,13 @@ class SubmissionCreateRequest(BaseModel):
     score: int
     total: int
     answers: list[SubmissionAnswer] = []
+    # Progress saving: the quiz player calls /submit after EVERY
+    # answer. The first call (no submission_id) creates the attempt,
+    # later calls pass its id back to update the same row, and the
+    # call after the last question sends completed=True. Old clients
+    # that send neither field still create one completed row, as before.
+    submission_id: int | None = None
+    completed: bool = True
 
 
 class ClassroomLeaveRequest(BaseModel):
@@ -1218,6 +1225,68 @@ def require_project_access(project_id, current_user):
     project = get_project(project_id)
 
     if project.user_id is not None and project.user_id != current_user.id:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    return project
+
+
+def require_project_source_access(project_id, current_user):
+    """
+    Read-only variant of require_project_access, for endpoints that
+    only USE a project as source material for something new (an
+    AMICO comic, a Photo Story, a Quiz, an AMIVI lesson) and never
+    change it.
+
+    On top of the owner rule, it also allows a project the teacher
+    attached to an assignment in a classroom this account belongs
+    to. A teacher creates the homework with their own account and a
+    student opens it with theirs, so the student is never the owner.
+    Without this, "Send to AMICO" or "Quiz" from an assigned lesson
+    failed with "Project not found."
+
+    Classroom membership is matched by account (ClassroomMember.
+    user_id), which is set when the student joins or logs in to the
+    class while signed in. Anything else is still reported as
+    not-found, as before.
+    """
+
+    if project_id is None:
+        return None
+
+    project = get_project(project_id)
+
+    if project.user_id is None or project.user_id == current_user.id:
+        return project
+
+    db = SessionLocal()
+
+    try:
+
+        assigned_to_me = (
+            db.query(Assignment.id)
+            .join(
+                ClassroomMember,
+                ClassroomMember.classroom_id == Assignment.classroom_id,
+            )
+            .filter(
+                ClassroomMember.user_id == current_user.id,
+                (
+                    (Assignment.amivi_project_id == project.id)
+                    | (Assignment.amico_project_id == project.id)
+                    | (Assignment.quiz_project_id == project.id)
+                ),
+            )
+            .first()
+        )
+
+    finally:
+        db.close()
+
+    if not assigned_to_me:
 
         raise HTTPException(
             status_code=404,
@@ -6499,7 +6568,7 @@ def amivi_generate(
 
         if not source_text and request.source_project_id:
 
-            source_project = require_project_access(
+            source_project = require_project_source_access(
                 request.source_project_id,
                 current_user,
             )
@@ -7242,7 +7311,7 @@ def amico_generate(
 
         if request.source_project_id:
 
-            source_project = require_project_access(
+            source_project = require_project_source_access(
                 request.source_project_id,
                 current_user,
             )
@@ -8324,7 +8393,7 @@ def amico_photostory_from_amivi(
 
         require_services()
 
-        source_project = require_project_access(request.project_id, current_user)
+        source_project = require_project_source_access(request.project_id, current_user)
 
         if source_project.project_type != "amivi":
 
@@ -9277,7 +9346,7 @@ def quiz_generate(
             and not topic_clean
         ):
 
-            source_project = require_project_access(source_project_id, current_user)
+            source_project = require_project_source_access(source_project_id, current_user)
 
             source_title = source_project.title or ""
 
@@ -10773,7 +10842,10 @@ def serialize_assignment(db, assignment, student_count: int) -> dict:
         row[0]
         for row in (
             db.query(AssignmentSubmission.member_id)
-            .filter(AssignmentSubmission.assignment_id == assignment.id)
+            .filter(
+                AssignmentSubmission.assignment_id == assignment.id,
+                AssignmentSubmission.status == "completed",
+            )
             .distinct()
             .all()
         )
@@ -10966,7 +11038,14 @@ def serialize_assignment_for_member(db, assignment, member_id: int) -> dict:
             if assignment.created_at
             else None
         ),
-        "status": "submitted" if latest else "not_started",
+        "status": (
+            "not_started"
+            if not latest
+            else "incomplete"
+            if latest.status == "in_progress"
+            else "submitted"
+        ),
+        "answered": len(latest.answers or []) if latest else 0,
         "score": latest.score if latest else None,
         "total": latest.total if latest else None,
         "attempts": attempt_count,
@@ -11963,9 +12042,11 @@ def classroom_students(class_code: str, member_token: str):
                 .all()
             )
 
-            completed_assignment_ids = {s.assignment_id for s in submissions}
+            finished = [s for s in submissions if s.status != "in_progress"]
 
-            scored = [s for s in submissions if s.total]
+            completed_assignment_ids = {s.assignment_id for s in finished}
+
+            scored = [s for s in finished if s.total]
 
             average_score_percent = (
                 round(
@@ -12543,17 +12624,59 @@ def submit_assignment(class_code: str, assignment_id: int, payload: SubmissionCr
         if not assignment:
             raise HTTPException(status_code=404, detail="Assignment not found.")
 
-        submission = AssignmentSubmission(
-            assignment_id=assignment.id,
-            member_id=member.id,
-            # Never negative, and never more than the total (a
-            # tampered request used to be able to submit 100/5).
-            total=max(0, payload.total),
-            score=min(max(0, payload.score), max(0, payload.total)),
-            answers=[a.model_dump() for a in payload.answers] if payload.answers else None,
-        )
+        # Never negative, and never more than the total (a
+        # tampered request used to be able to submit 100/5).
+        total = max(0, payload.total)
+        score = min(max(0, payload.score), total)
+        answers = [a.model_dump() for a in payload.answers] if payload.answers else None
+        status = "completed" if payload.completed else "in_progress"
 
-        db.add(submission)
+        if payload.submission_id is not None:
+
+            # Continuing an attempt already saved by an earlier answer.
+            # Only this student's own, still-unfinished attempt on this
+            # assignment can be updated, so a finished result can never
+            # be rewritten afterwards.
+            submission = (
+                db.query(AssignmentSubmission)
+                .filter(
+                    AssignmentSubmission.id == payload.submission_id,
+                    AssignmentSubmission.assignment_id == assignment.id,
+                    AssignmentSubmission.member_id == member.id,
+                )
+                .first()
+            )
+
+            if not submission:
+                raise HTTPException(status_code=404, detail="Quiz attempt not found.")
+
+            if submission.status == "completed":
+                raise HTTPException(
+                    status_code=409,
+                    detail="This quiz attempt has already been submitted.",
+                )
+
+            submission.total = total
+            submission.score = score
+            submission.answers = answers
+            submission.status = status
+            # Last activity: for an abandoned attempt, this is when
+            # the student answered their last question.
+            submission.submitted_at = datetime.utcnow()
+
+        else:
+
+            submission = AssignmentSubmission(
+                assignment_id=assignment.id,
+                member_id=member.id,
+                total=total,
+                score=score,
+                answers=answers,
+                status=status,
+            )
+
+            db.add(submission)
+
         db.commit()
         db.refresh(submission)
 
@@ -12563,6 +12686,8 @@ def submit_assignment(class_code: str, assignment_id: int, payload: SubmissionCr
                 "id": submission.id,
                 "score": submission.score,
                 "total": submission.total,
+                "status": submission.status,
+                "answered": len(submission.answers or []),
                 "submitted_at": submission.submitted_at.isoformat(),
             },
         }
@@ -12633,6 +12758,8 @@ def assignment_results(class_code: str, assignment_id: int, member_token: str):
                     "display_name": student.display_name,
                     "score": latest.score if latest else None,
                     "total": latest.total if latest else None,
+                    "status": latest.status if latest else None,
+                    "answered": len(latest.answers or []) if latest else 0,
                     "attempts": attempt_count,
                     "last_submitted_at": (
                         latest.submitted_at.isoformat() if latest else None
@@ -12748,6 +12875,8 @@ def assignment_submission_detail(class_code: str, assignment_id: int, member_id:
             "display_name": student.display_name,
             "assignment_title": assignment.title,
             "submitted": True,
+            "status": submission.status,
+            "answered": len(submission.answers or []),
             "score": submission.score,
             "total": submission.total,
             "submitted_at": submission.submitted_at.isoformat(),
@@ -12782,6 +12911,8 @@ def classroom_history(class_code: str, member_token: str):
                     "submission_id": submission.id,
                     "assignment_id": assignment.id,
                     "assignment_title": assignment.title,
+                    "status": submission.status,
+                    "answered": len(submission.answers or []),
                     "score": submission.score,
                     "total": submission.total,
                     "submitted_at": (
@@ -12945,6 +13076,8 @@ def parent_view(parent_code: str):
                     "submission_id": submission.id,
                     "assignment_id": assignment.id,
                     "assignment_title": assignment.title,
+                    "status": submission.status,
+                    "answered": len(submission.answers or []),
                     "score": submission.score,
                     "total": submission.total,
                     "submitted_at": (

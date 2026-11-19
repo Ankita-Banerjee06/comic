@@ -847,6 +847,18 @@ class AssignmentSubmission(Base):
     # simply have nothing to show here beyond the score.
     answers = Column(JSON, nullable=True)
 
+    # "in_progress" while the student is still answering (the attempt
+    # is saved after every answer, so a quiz abandoned after Q3 shows
+    # the teacher "Incomplete after Q3"), "completed" once they finish
+    # the last question. Rows from before this column existed are
+    # completed submissions, hence the server default.
+    status = Column(
+        String(20),
+        nullable=False,
+        default="completed",
+        server_default="completed",
+    )
+
     submitted_at = Column(
         DateTime,
         nullable=False,
