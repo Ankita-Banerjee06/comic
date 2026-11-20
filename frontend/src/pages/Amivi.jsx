@@ -32,6 +32,7 @@ import {
   LayoutGrid,
   List,
   Compass,
+  FolderOpen,
 } from 'lucide-react';
 
 import { useLanguage } from '../contexts/LanguageContext';
@@ -1581,23 +1582,36 @@ export default function Amivi() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleGenerateCompleteVisual}
-              disabled={isGeneratingCompleteVisual}
-              className="px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center gap-2 transition-all flex-shrink-0"
-            >
-              {isGeneratingCompleteVisual ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" /> {t('Generating...')}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5" />
-                  {completeVisualUrl ? t('Regenerate Complete Visual') : t('Generate Complete Visual')}
-                </>
-              )}
-            </button>
+            <div className="flex flex-col items-center sm:items-end gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleGenerateCompleteVisual}
+                disabled={isGeneratingCompleteVisual}
+                className="px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center gap-2 transition-all"
+              >
+                {isGeneratingCompleteVisual ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> {t('Generating...')}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    {completeVisualUrl ? t('Regenerate Complete Visual') : t('Generate Complete Visual')}
+                  </>
+                )}
+              </button>
+              {/* This image is actually saved automatically with the
+                  project (complete_visual_image_url on the AMIVI
+                  project record) — this badge just surfaces that. */}
+              <button
+                type="button"
+                title={t('This image is saved automatically with this AMIVI lesson.')}
+                className="px-3 py-1.5 bg-purple-50 text-purple-700 text-xs font-bold rounded-full flex items-center gap-1.5 border border-purple-200"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                {t('Saved with this lesson')}
+              </button>
+            </div>
           </div>
 
           {completeVisualError && (
@@ -1711,19 +1725,32 @@ export default function Amivi() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleGenerateVideo}
-                disabled={isGeneratingVideo || !result?.project_id}
-                className="px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center gap-2 transition-all"
-              >
-                <Video className={`w-5 h-5 ${isGeneratingVideo ? 'animate-pulse' : ''}`} />
-                {isGeneratingVideo
-                  ? t('Generating...')
-                  : (result?.video_url
-                      ? t('Regenerate Video')
-                      : t('Generate Video'))}
-              </button>
+              <div className="flex flex-col items-center sm:items-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateVideo}
+                  disabled={isGeneratingVideo || !result?.project_id}
+                  className="px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center gap-2 transition-all"
+                >
+                  <Video className={`w-5 h-5 ${isGeneratingVideo ? 'animate-pulse' : ''}`} />
+                  {isGeneratingVideo
+                    ? t('Generating...')
+                    : (result?.video_url
+                        ? t('Regenerate Video')
+                        : t('Generate Video'))}
+                </button>
+                {/* The video itself saves to this device when you use
+                    the Download button below — this badge just makes
+                    that clear up front. */}
+                <button
+                  type="button"
+                  title={t('This video saves to your own computer when you download it.')}
+                  className="px-3 py-1.5 bg-purple-50 text-purple-700 text-xs font-bold rounded-full flex items-center gap-1.5 border border-purple-200"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {t('Saves to your local system')}
+                </button>
+              </div>
 
             </div>
 

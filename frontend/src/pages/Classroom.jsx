@@ -24,6 +24,7 @@ import {
   Trophy,
   Heart,
   KeyRound,
+  Trash2,
 } from 'lucide-react';
 import {
   createClassroom,
@@ -44,6 +45,7 @@ import {
   generateAmivi,
   generateAmico,
   generateQuiz,
+  createManualQuiz,
   getAssignmentProject,
   getClassroomLibraryProjects,
   mediaUrl,
@@ -1290,6 +1292,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState(null);
   const [expanded, setExpanded] = useState(false);
+  const [showManualQuizForm, setShowManualQuizForm] = useState(false);
 
   const runGenerate = async (kind) => {
     if (!material.trim()) {
@@ -1342,6 +1345,16 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
     setGenerated((g) => ({ ...g, [kind]: { projectId: project.id, title: project.title } }));
     setGenErrors((e) => ({ ...e, [kind]: null }));
     if (kind === 'quiz' && !title) setTitle(project.title || '');
+  };
+
+  // A quiz the teacher just typed by hand (ManualQuizForm) — already
+  // saved to the backend by the time this fires, so this just slots
+  // it into the same `generated.quiz` shape as the other two paths.
+  const applyManualQuiz = ({ projectId, title: quizTitle }) => {
+    setGenerated((g) => ({ ...g, quiz: { projectId, title: quizTitle } }));
+    setGenErrors((e) => ({ ...e, quiz: null }));
+    if (!title) setTitle(quizTitle || '');
+    setShowManualQuizForm(false);
   };
 
   const handleAssign = async (e) => {
@@ -1398,6 +1411,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
   }
 
   return (
+    <>
     <form onSubmit={handleAssign} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-black">{t('Assign homework')}</h2>
@@ -1433,6 +1447,15 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
             kind="quiz"
             onPick={(project) => applyLibraryPick('quiz', project)}
           />
+          <div className="mt-1.5 text-center">
+            <button
+              type="button"
+              onClick={() => setShowManualQuizForm(true)}
+              className="text-[11px] font-bold text-teal-600 hover:text-teal-700 underline"
+            >
+              {t('Or create my own quiz')}
+            </button>
+          </div>
           {generated.quiz && (
             <div className="mt-2 flex justify-center">
               <PresentLiveButton
@@ -1539,6 +1562,15 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         {assigning ? t('Assigning…') : t('Assign Homework')}
       </button>
     </form>
+    {showManualQuizForm && (
+      <ManualQuizForm
+        classroom={classroom}
+        session={session}
+        onClose={() => setShowManualQuizForm(false)}
+        onSaved={applyManualQuiz}
+      />
+    )}
+    </>
   );
 }
 
@@ -1634,6 +1666,183 @@ function LibraryPicker({ classroom, session, kind, onPick }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function blankManualQuestion() {
+  return { question: '', options: ['', ''], correct: 0 };
+}
+
+// Lets a teacher type their own quiz by hand right here — no AI
+// involved — instead of generating one from the Learning material
+// above. Saves through the same createManualQuiz endpoint the full
+// Quiz Builder in Teacher Workspace uses, in the exact data shape
+// the AI quiz pipeline produces, so it plays back for students with
+// no changes anywhere else (Quiz.jsx, grading, etc.).
+function ManualQuizForm({ classroom, session, onClose, onSaved }) {
+  const { t } = useLanguage();
+  const [title, setTitle] = useState('');
+  const [questions, setQuestions] = useState([blankManualQuestion()]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const updateQuestion = (idx, patch) => {
+    setQuestions((qs) => qs.map((q, i) => (i === idx ? { ...q, ...patch } : q)));
+  };
+
+  const updateOption = (qIdx, optIdx, value) => {
+    setQuestions((qs) =>
+      qs.map((q, i) =>
+        i === qIdx ? { ...q, options: q.options.map((o, oi) => (oi === optIdx ? value : o)) } : q
+      )
+    );
+  };
+
+  const addOption = (qIdx) => {
+    setQuestions((qs) => qs.map((q, i) => (i === qIdx ? { ...q, options: [...q.options, ''] } : q)));
+  };
+
+  const removeOption = (qIdx, optIdx) => {
+    setQuestions((qs) =>
+      qs.map((q, i) => {
+        if (i !== qIdx) return q;
+        const options = q.options.filter((_, oi) => oi !== optIdx);
+        const correct = q.correct >= options.length ? 0 : q.correct;
+        return { ...q, options, correct };
+      })
+    );
+  };
+
+  const addQuestion = () => setQuestions((qs) => [...qs, blankManualQuestion()]);
+  const removeQuestion = (idx) => setQuestions((qs) => qs.filter((_, i) => i !== idx));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!title.trim()) {
+      setError(t('Give this quiz a title.'));
+      return;
+    }
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const cleanOptions = q.options.map((o) => o.trim()).filter(Boolean);
+      if (!q.question.trim() || cleanOptions.length < 2) {
+        setError(`${t('Question')} ${i + 1} ${t('needs text and at least 2 options.')}`);
+        return;
+      }
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const data = await createManualQuiz(classroom.class_code, {
+        memberToken: session.memberToken,
+        title: title.trim(),
+        status: 'published',
+        questions: questions.map((q) => ({
+          question: q.question.trim(),
+          options: q.options.map((o) => o.trim()).filter(Boolean),
+          correct: q.correct,
+        })),
+      });
+      window.dispatchEvent(new Event('vlq-library-changed'));
+      onSaved({ projectId: data.project_id, title: data.quiz?.title || title.trim() });
+    } catch (err) {
+      setError(err?.message || t('Failed to save that quiz.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <form
+        onSubmit={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <h2 className="font-extrabold text-lg text-black">{t('Create your own quiz')}</h2>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <Field label={t('Quiz title')}>
+            <input className={INPUT_CLASS} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder={t('e.g. Chapter 3 Checkpoint')} />
+          </Field>
+
+          <div className="space-y-4">
+            {questions.map((q, qIdx) => (
+              <div key={qIdx} className="border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-xs font-extrabold text-teal-700 bg-teal-50 rounded-full px-2.5 py-1">Q{qIdx + 1}</span>
+                  {questions.length > 1 && (
+                    <button type="button" onClick={() => removeQuestion(qIdx)} className="p-1 rounded-lg hover:bg-red-50 text-black/40 hover:text-red-500">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <input
+                  className={INPUT_CLASS}
+                  placeholder={t('Question text')}
+                  value={q.question}
+                  onChange={(e) => updateQuestion(qIdx, { question: e.target.value })}
+                />
+                <div className="space-y-2">
+                  {q.options.map((opt, optIdx) => (
+                    <div key={optIdx} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name={`manual-quiz-correct-${qIdx}`}
+                        checked={q.correct === optIdx}
+                        onChange={() => updateQuestion(qIdx, { correct: optIdx })}
+                        className="shrink-0 accent-teal-600"
+                        title={t('Mark as the correct answer')}
+                      />
+                      <input
+                        className={`${INPUT_CLASS} flex-1`}
+                        placeholder={`${t('Option')} ${optIdx + 1}`}
+                        value={opt}
+                        onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
+                      />
+                      {q.options.length > 2 && (
+                        <button type="button" onClick={() => removeOption(qIdx, optIdx)} className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 text-black/40 hover:text-red-500">
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {q.options.length < 6 && (
+                    <button type="button" onClick={() => addOption(qIdx)} className="text-xs font-bold text-teal-700 hover:text-teal-800">
+                      + {t('Add option')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button type="button" onClick={addQuestion} className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800">
+            <Plus className="w-4 h-4" /> {t('Add question')}
+          </button>
+
+          {error && <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex gap-3 sticky bottom-0 bg-white">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 transition-colors"
+          >
+            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+            {t('Save Quiz')}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
