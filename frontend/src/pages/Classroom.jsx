@@ -1293,9 +1293,6 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
   const [assignError, setAssignError] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [showManualQuizForm, setShowManualQuizForm] = useState(false);
-  // When set, this homework carries no pre-made AMICO comic at all —
-  // each student makes and submits their own instead. Mutually
-  // exclusive with generating/picking a teacher AMICO comic above.
   const [amicoStudentMode, setAmicoStudentMode] = useState(false);
 
   const runGenerate = async (kind) => {
@@ -2217,82 +2214,97 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
 }
 
 // ============================================================
-// COMIC SUBMISSIONS MODAL (teacher — list of each student's own
-// submitted AMICO comic, for a "create your own comic" assignment)
+// COMIC SUBMISSIONS MODAL (teacher — "Create your own comic"
+// homework: who has submitted, with a link straight to each one's
+// comic)
 // ============================================================
 
 function ComicSubmissionsModal({ session, classroom, assignment, navigate, onClose }) {
   const { t } = useLanguage();
   const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
+    setLoading(true);
+    setError(null);
     getAssignmentResults(classroom.class_code, assignment.id, session.memberToken)
-      .then((data) => {
-        if (!cancelled) setResults(data.results || []);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err?.message || t('Failed to load submissions.'));
-      });
-    return () => { cancelled = true; };
-  }, [classroom.class_code, assignment.id, session.memberToken, t]);
+      .then((data) => setResults(data.results || []))
+      .catch((err) => setError(err?.message || t('Unable to load results.')))
+      .finally(() => setLoading(false));
+  }, [classroom.class_code, assignment.id, session.memberToken]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div
-        className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-black flex items-center gap-2">
-            <BookOpen className="w-4.5 h-4.5 text-pink-500" /> {assignment.title}
-          </h3>
-          <button onClick={onClose} className="text-black hover:text-black transition-colors">
-            <X className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <h3 className="font-extrabold text-black">{assignment.title} — {t('Comics')}</h3>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-black hover:bg-slate-100 transition-colors">
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 
-        {error ? (
-          <p className="text-red-500 font-bold text-sm text-center py-6">{error}</p>
-        ) : results === null ? (
-          <p className="text-sm text-black font-medium text-center py-6">{t('Loading…')}</p>
-        ) : results.length === 0 ? (
-          <p className="text-sm text-black font-medium text-center py-6">{t('No students in this class yet.')}</p>
-        ) : (
-          <div className="space-y-2">
-            {results.map((r) => (
-              <div
-                key={r.member_id}
-                className="flex items-center justify-between gap-3 border border-slate-200 rounded-xl px-4 py-3"
-              >
-                <span className="font-bold text-black truncate">{r.display_name}</span>
-                {r.comic_project_id ? (
-                  <button
-                    onClick={() =>
-                      navigate(`/amico/${r.comic_project_id}`, {
-                        state: {
-                          classroomView: {
-                            classCode: classroom.class_code,
-                            assignmentId: assignment.id,
-                            memberToken: session.memberToken,
-                            kind: 'amico',
-                            viewMemberId: r.member_id,
-                          },
-                        },
-                      })
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {loading && (
+            <div className="py-12 flex justify-center">
+              <Loader2 className="w-6 h-6 text-black animate-spin" />
+            </div>
+          )}
+
+          {!loading && error && <p className="text-red-500 font-bold text-sm text-center py-8">{error}</p>}
+
+          {!loading && !error && results?.length === 0 && (
+            <p className="text-black font-medium text-sm text-center py-8">{t('No students have joined this classroom yet.')}</p>
+          )}
+
+          {!loading && !error && results?.length > 0 && (
+            <div className="space-y-2">
+              {results.map((r) => {
+                const canView = !!r.comic_project_id;
+                const Row = canView ? 'button' : 'div';
+                return (
+                  <Row
+                    key={r.member_id}
+                    onClick={
+                      canView
+                        ? () =>
+                            navigate(`/amico/${r.comic_project_id}`, {
+                              state: {
+                                classroomView: {
+                                  classCode: classroom.class_code,
+                                  assignmentId: assignment.id,
+                                  memberToken: session.memberToken,
+                                  kind: 'amico',
+                                  viewMemberId: r.member_id,
+                                  // Lets AMICO show a "Viewing: <name>"
+                                  // dropdown so the teacher can jump
+                                  // straight to the next student's comic
+                                  // instead of coming back here each time.
+                                  submissions: results
+                                    .filter((x) => x.comic_project_id)
+                                    .map((x) => ({ member_id: x.member_id, display_name: x.display_name, comic_project_id: x.comic_project_id })),
+                                },
+                              },
+                            })
+                        : undefined
                     }
-                    className="shrink-0 inline-flex items-center gap-1 text-pink-600 hover:text-pink-700 font-bold text-sm"
+                    className={`w-full flex items-center justify-between border border-slate-100 rounded-xl px-4 py-2.5 text-left ${
+                      canView ? 'hover:border-pink-200 hover:bg-pink-50/40 transition-colors cursor-pointer' : ''
+                    }`}
                   >
-                    {t('View comic')} →
-                  </button>
-                ) : (
-                  <span className="shrink-0 text-xs font-bold text-black italic">{t('Not submitted')}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+                    <p className="text-sm font-bold text-black">{r.display_name}</p>
+                    {canView ? (
+                      <span className="shrink-0 text-xs font-bold text-pink-600">{t('View comic')} →</span>
+                    ) : (
+                      <span className="shrink-0 text-xs font-bold text-black">{t('Not submitted')}</span>
+                    )}
+                  </Row>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

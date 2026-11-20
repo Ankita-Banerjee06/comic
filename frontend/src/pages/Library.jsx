@@ -761,7 +761,7 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
           {item.type === 'amivi' && (
             <button
               onClick={() =>
-                navigate('/amico', { state: { sourceProjectId: item.id, sourceTitle: item.title } })
+                navigate('/amico', { state: { sourceProjectId: item.id } })
               }
               title="Sends this AMIVI package (Key Points, slogans, visuals and explanations) straight to AMICO — nothing needs retyping, and the original AMIVI stays exactly as it is."
               className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg font-bold text-sm text-pink-700 bg-pink-50 border border-pink-200 hover:bg-pink-100 transition-colors"
@@ -1179,12 +1179,12 @@ function QuizPreview({ data }) {
                 key={idx}
                 className={`flex items-center gap-2 text-base font-semibold px-3 py-2 rounded-lg ${
                   idx === q.correct
-                    ? 'bg-green-50 text-green-700'
+                    ? 'bg-green-700 text-white'
                     : 'bg-slate-50 text-black'
                 }`}
               >
                 {idx === q.correct ? (
-                  <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
                 ) : (
                   <XCircle className="w-4 h-4 text-black shrink-0" />
                 )}

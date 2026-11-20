@@ -1034,8 +1034,8 @@ function QuizPanel({ session, room, onRoomUpdate }) {
           {(q.options || []).map((opt, idx) => {
             let cls = 'bg-slate-50 border border-slate-200 text-slate-700 hover:border-purple-300';
             if (player.selected !== null) {
-              if (idx === q.correct) cls = 'bg-green-50 border border-green-300 text-green-700';
-              else if (idx === player.selected) cls = 'bg-red-50 border border-red-300 text-red-600';
+              if (idx === q.correct) cls = 'bg-green-700 border border-green-700 text-white';
+              else if (idx === player.selected) cls = 'bg-red-700 border border-red-700 text-white';
               else cls = 'bg-slate-50 border border-slate-100 text-slate-400';
             }
             return (
@@ -1046,8 +1046,8 @@ function QuizPanel({ session, room, onRoomUpdate }) {
                 className={`w-full text-left px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-between ${cls}`}
               >
                 {opt}
-                {player.selected !== null && idx === q.correct && <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
-                {player.selected !== null && idx === player.selected && idx !== q.correct && <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+                {player.selected !== null && idx === q.correct && <CheckCircle2 className="w-4 h-4 text-white shrink-0" />}
+                {player.selected !== null && idx === player.selected && idx !== q.correct && <XCircle className="w-4 h-4 text-white shrink-0" />}
               </button>
             );
           })}
