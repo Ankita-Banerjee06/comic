@@ -1228,8 +1228,8 @@ export default function Quiz() {
               {q.options.map((opt, idx) => {
                 let cls = 'bg-white border-gray-200 text-black hover:border-purple-400 hover:bg-purple-50';
                 if (isAnswered) {
-                  if (idx === q.correct) cls = 'bg-green-50 border-green-500 text-black';
-                  else if (idx === selectedAnswer) cls = 'bg-red-50 border-red-500 text-black';
+                  if (idx === q.correct) cls = 'bg-green-700 border-green-700 text-white';
+                  else if (idx === selectedAnswer) cls = 'bg-red-700 border-red-700 text-white';
                   else cls = 'bg-white border-gray-200 text-black opacity-60';
                 } else if (selectedAnswer === idx) {
                   cls = 'bg-purple-50 border-purple-500 text-purple-700';
@@ -1237,9 +1237,9 @@ export default function Quiz() {
 
                 const badgeCls =
                   isAnswered && idx === q.correct
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-white/20 text-white'
                     : isAnswered && idx === selectedAnswer
-                    ? 'bg-red-100 text-red-700'
+                    ? 'bg-white/20 text-white'
                     : 'bg-purple-100 text-purple-700';
 
                 return (
@@ -1255,8 +1255,8 @@ export default function Quiz() {
                       </span>
                       {opt}
                     </span>
-                    {isAnswered && idx === q.correct && <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />}
-                    {isAnswered && idx === selectedAnswer && idx !== q.correct && <XCircle className="w-6 h-6 text-red-600 shrink-0" />}
+                    {isAnswered && idx === q.correct && <CheckCircle2 className="w-6 h-6 text-white shrink-0" />}
+                    {isAnswered && idx === selectedAnswer && idx !== q.correct && <XCircle className="w-6 h-6 text-white shrink-0" />}
                   </button>
                 );
               })}
