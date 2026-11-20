@@ -1293,6 +1293,10 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
   const [assignError, setAssignError] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [showManualQuizForm, setShowManualQuizForm] = useState(false);
+  // When set, this homework carries no pre-made AMICO comic at all —
+  // each student makes and submits their own instead. Mutually
+  // exclusive with generating/picking a teacher AMICO comic above.
+  const [amicoStudentMode, setAmicoStudentMode] = useState(false);
 
   const runGenerate = async (kind) => {
     if (!material.trim()) {
@@ -1361,7 +1365,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
     e.preventDefault();
     setAssignError(null);
 
-    if (!generated.quiz && !generated.amivi && !generated.amico) {
+    if (!generated.quiz && !generated.amivi && !generated.amico && !amicoStudentMode) {
       setAssignError(t('Add at least a Quiz, Visuals, or a Comic before assigning homework.'));
       return;
     }
@@ -1379,7 +1383,8 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         instructions: instructions.trim(),
         quizProjectId: generated.quiz?.projectId || null,
         amiviProjectId: generated.amivi?.projectId || null,
-        amicoProjectId: generated.amico?.projectId || null,
+        amicoProjectId: amicoStudentMode ? null : generated.amico?.projectId || null,
+        amicoMode: amicoStudentMode ? 'student' : null,
         dueAt: dueAt ? new Date(dueAt).toISOString() : null,
       });
 
@@ -1391,6 +1396,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
       setTitle('');
       setInstructions('');
       setDueAt('');
+      setAmicoStudentMode(false);
       setExpanded(false);
     } catch (err) {
       setAssignError(err?.message || t('Failed to assign homework.'));
@@ -1497,39 +1503,58 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
           )}
         </div>
         <div>
-          <GenerateChip
-            label={t('AMICO Comic')}
-            icon={BookOpen}
-            color="text-pink-500"
-            done={!!generated.amico}
-            busy={busy === 'amico'}
-            error={genErrors.amico}
-            onClick={() => runGenerate('amico')}
-          />
-          <LibraryPicker
-            classroom={classroom}
-            session={session}
-            kind="amico"
-            onPick={(project) => applyLibraryPick('amico', project)}
-          />
-          {generated.amico && (
-            <div className="mt-2 flex justify-center">
-              <PresentLiveButton
-                kind="amico"
-                projectId={generated.amico.projectId}
-                classCode={classroom.class_code}
-                memberToken={session.memberToken}
-                className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg px-3 py-1.5"
+          {!amicoStudentMode && (
+            <>
+              <GenerateChip
+                label={t('AMICO Comic')}
+                icon={BookOpen}
+                color="text-pink-500"
+                done={!!generated.amico}
+                busy={busy === 'amico'}
+                error={genErrors.amico}
+                onClick={() => runGenerate('amico')}
               />
-            </div>
+              <LibraryPicker
+                classroom={classroom}
+                session={session}
+                kind="amico"
+                onPick={(project) => applyLibraryPick('amico', project)}
+              />
+              {generated.amico && (
+                <div className="mt-2 flex justify-center">
+                  <PresentLiveButton
+                    kind="amico"
+                    projectId={generated.amico.projectId}
+                    classCode={classroom.class_code}
+                    memberToken={session.memberToken}
+                    className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg px-3 py-1.5"
+                  />
+                </div>
+              )}
+            </>
           )}
+          <label className="mt-1.5 flex items-start gap-1.5 text-[11px] font-bold text-black text-left cursor-pointer">
+            <input
+              type="checkbox"
+              checked={amicoStudentMode}
+              onChange={(e) => {
+                setAmicoStudentMode(e.target.checked);
+                if (e.target.checked) {
+                  setGenerated((g) => ({ ...g, amico: null }));
+                  setGenErrors((err) => ({ ...err, amico: null }));
+                }
+              }}
+              className="mt-0.5 accent-pink-600"
+            />
+            {t('Or let each student create their own comic instead')}
+          </label>
         </div>
       </div>
       <p className="text-xs text-black -mt-1">
         {t('Already have a lesson saved? Use')} "{t('Or use something I already saved')}" {t('under any of the three above instead of generating new — your existing images, slogans and descriptions are reused as-is, nothing is regenerated.')}
       </p>
 
-      {(generated.quiz || generated.amivi || generated.amico) && (
+      {(generated.quiz || generated.amivi || generated.amico || amicoStudentMode) && (
         <>
           <Field label={t('Homework title')}>
             <input value={title} onChange={(e) => { setTitle(e.target.value); if (assignError) setAssignError(null); }} placeholder={t('e.g. Chapter 3 Quiz')} className={INPUT_CLASS} />
@@ -1545,7 +1570,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
         </>
       )}
 
-      {!generated.quiz && !generated.amivi && !generated.amico && (
+      {!generated.quiz && !generated.amivi && !generated.amico && !amicoStudentMode && (
         <p className="text-amber-600 font-bold text-xs text-center">
           {t('Add at least a Quiz, Visuals, or a Comic above before you can assign this homework. A Quiz is optional — add one only if you want it auto-graded.')}
         </p>
@@ -1555,7 +1580,7 @@ function CreateAssignmentPanel({ session, classroom, onUpdate }) {
 
       <button
         type="submit"
-        disabled={assigning || (!generated.quiz && !generated.amivi && !generated.amico)}
+        disabled={assigning || (!generated.quiz && !generated.amivi && !generated.amico && !amicoStudentMode)}
         className="w-full py-3 rounded-xl font-bold text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
       >
         {assigning && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -1856,6 +1881,7 @@ function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
   const assignments = classroom.assignments || [];
   const [resultsFor, setResultsFor] = useState(null);
   const [playFor, setPlayFor] = useState(null);
+  const [comicSubmissionsFor, setComicSubmissionsFor] = useState(null);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
@@ -1876,6 +1902,23 @@ function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
               role={role}
               onViewResults={() => setResultsFor(a)}
               onPlay={() => setPlayFor(a)}
+              onViewComicSubmissions={() => setComicSubmissionsFor(a)}
+              onCreateComic={() =>
+                navigate('/amico', {
+                  state: {
+                    classroomView: {
+                      classCode: classroom.class_code,
+                      assignmentId: a.id,
+                      memberToken: session.memberToken,
+                      kind: 'amico',
+                      submitMode: true,
+                      // Pre-fills AMICO's topic box so the student isn't
+                      // stuck re-typing what the teacher already wrote.
+                      topic: a.instructions?.trim() || a.title,
+                    },
+                  },
+                })
+              }
               navigate={navigate}
               classCode={classroom.class_code}
               memberToken={session.memberToken}
@@ -1890,6 +1933,16 @@ function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
           classroom={classroom}
           assignment={resultsFor}
           onClose={() => setResultsFor(null)}
+        />
+      )}
+
+      {comicSubmissionsFor && (
+        <ComicSubmissionsModal
+          session={session}
+          classroom={classroom}
+          assignment={comicSubmissionsFor}
+          navigate={navigate}
+          onClose={() => setComicSubmissionsFor(null)}
         />
       )}
 
@@ -1911,9 +1964,10 @@ function AssignmentsPanel({ session, classroom, role, onUpdate, navigate }) {
   );
 }
 
-function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, classCode, memberToken }) {
+function AssignmentRow({ assignment, role, onViewResults, onPlay, onCreateComic, onViewComicSubmissions, navigate, classCode, memberToken }) {
   const { t } = useLanguage();
   const due = formatDue(assignment.due_at);
+  const studentCreatesComic = assignment.amico_mode === 'student';
 
   // Student/teacher view of the AMIVI/AMICO attached to this assignment:
   // navigate to the normal page, but carry along classroom-view context
@@ -1923,6 +1977,33 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, clas
   // teacher's material never owns that project, so the normal fetch
   // would otherwise 404 for them.
   const classroomView = { classCode, assignmentId: assignment.id, memberToken };
+
+  // Teacher view only — who has actually submitted this homework's
+  // quiz and/or comic, shown right on the row itself rather than
+  // making the teacher open Results just to see names. One shared
+  // fetch covers both, since getAssignmentResults already returns
+  // both a quiz score and a comic_project_id per student.
+  const [results, setResults] = useState(null);
+
+  useEffect(() => {
+    if (role !== 'teacher' || (!assignment.quiz_project_id && !studentCreatesComic)) return;
+    let cancelled = false;
+    getAssignmentResults(classCode, assignment.id, memberToken)
+      .then((data) => {
+        if (!cancelled) setResults(data.results || []);
+      })
+      .catch(() => {
+        if (!cancelled) setResults([]);
+      });
+    return () => { cancelled = true; };
+  }, [role, assignment.quiz_project_id, studentCreatesComic, assignment.submitted_count, classCode, assignment.id, memberToken]);
+
+  const submittedQuizNames = results
+    ? results.filter((r) => r.attempts > 0 && r.status !== 'in_progress').map((r) => r.display_name)
+    : null;
+
+  const submittedComicCount = results ? results.filter((r) => r.comic_project_id).length : 0;
+  const submittedComicNames = results ? results.filter((r) => r.comic_project_id).map((r) => r.display_name) : null;
 
   return (
     <div className="border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -1952,33 +2033,79 @@ function AssignmentRow({ assignment, role, onViewResults, onPlay, navigate, clas
             </button>
           )}
         </div>
+        {role === 'teacher' && assignment.quiz_project_id && submittedQuizNames !== null && (
+          <p className="text-xs text-black font-semibold mt-1.5">
+            {submittedQuizNames.length > 0
+              ? `${t('Submitted')}: ${submittedQuizNames.join(', ')}`
+              : t('No one has submitted yet.')}
+          </p>
+        )}
+        {role === 'teacher' && studentCreatesComic && submittedComicNames !== null && (
+          <p className="text-xs text-black font-semibold mt-1.5">
+            {submittedComicNames.length > 0
+              ? `${t('Comics in')}: ${submittedComicNames.join(', ')}`
+              : t('No one has submitted a comic yet.')}
+          </p>
+        )}
       </div>
 
-      {/* Start/Retake and Results are quiz-specific — this homework
-          may have been assigned with only Visuals and/or a Comic and
-          no quiz at all, in which case there's nothing to grade or
-          take here; the Visuals/Comic links above are the whole of it. */}
-      {assignment.quiz_project_id ? (
-        role === 'teacher' ? (
-          <button
-            onClick={onViewResults}
-            className="shrink-0 inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 transition-colors"
-          >
-            {t('Results')} ({assignment.submitted_count}/{assignment.student_count})
-          </button>
-        ) : (
-          <button
-            onClick={onPlay}
-            className="shrink-0 inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors"
-          >
-            <Puzzle className="w-3.5 h-3.5" /> {assignment.submitted_count > 0 ? t('Retake') : t('Start')}
-          </button>
-        )
-      ) : (
-        <span className="shrink-0 text-xs font-semibold text-black italic px-1">
-          {t('No quiz on this one')}
-        </span>
-      )}
+      <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2">
+        {/* Quiz: Start/Submitted (student) or Results (teacher) — this
+            homework may have been assigned with only Visuals and/or a
+            Comic and no quiz at all, in which case there's nothing to
+            grade or take here beyond the links above. */}
+        {assignment.quiz_project_id ? (
+          role === 'teacher' ? (
+            <button
+              onClick={onViewResults}
+              className="inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 transition-colors"
+            >
+              {t('Results')} ({assignment.submitted_count}/{assignment.student_count})
+            </button>
+          ) : assignment.submitted_count > 0 ? (
+            // Submitted — no retakes. Just a plain, non-clickable badge.
+            <span className="inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-emerald-700 bg-emerald-50 border border-emerald-200">
+              <CheckCircle2 className="w-3.5 h-3.5" /> {t('Submitted')}
+            </span>
+          ) : (
+            <button
+              onClick={onPlay}
+              className="inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors"
+            >
+              <Puzzle className="w-3.5 h-3.5" /> {t('Start')}
+            </button>
+          )
+        ) : !studentCreatesComic ? (
+          <span className="text-xs font-semibold text-black italic px-1">
+            {t('No quiz on this one')}
+          </span>
+        ) : null}
+
+        {/* "Create your own comic" homework — each student makes and
+            submits their own AMICO comic instead of viewing one the
+            teacher made. */}
+        {studentCreatesComic && (
+          role === 'teacher' ? (
+            <button
+              onClick={onViewComicSubmissions}
+              className="inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-pink-600 hover:bg-pink-700 transition-colors"
+            >
+              <BookOpen className="w-3.5 h-3.5" /> {t('Comics')} ({submittedComicCount}/{assignment.student_count})
+            </button>
+          ) : assignment.submitted_count > 0 ? (
+            <span className="inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-emerald-700 bg-emerald-50 border border-emerald-200">
+              <CheckCircle2 className="w-3.5 h-3.5" /> {t('Submitted')}
+            </span>
+          ) : (
+            <button
+              onClick={onCreateComic}
+              className="inline-flex items-center gap-1.5 py-2 px-4 rounded-xl font-bold text-sm text-white bg-pink-600 hover:bg-pink-700 transition-colors"
+            >
+              <BookOpen className="w-3.5 h-3.5" /> {t('Create & submit my comic')}
+            </button>
+          )
+        )}
+      </div>
     </div>
   );
 }
@@ -2084,6 +2211,88 @@ function ResultsModal({ session, classroom, assignment, onClose }) {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// COMIC SUBMISSIONS MODAL (teacher — list of each student's own
+// submitted AMICO comic, for a "create your own comic" assignment)
+// ============================================================
+
+function ComicSubmissionsModal({ session, classroom, assignment, navigate, onClose }) {
+  const { t } = useLanguage();
+  const [results, setResults] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAssignmentResults(classroom.class_code, assignment.id, session.memberToken)
+      .then((data) => {
+        if (!cancelled) setResults(data.results || []);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err?.message || t('Failed to load submissions.'));
+      });
+    return () => { cancelled = true; };
+  }, [classroom.class_code, assignment.id, session.memberToken, t]);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-black flex items-center gap-2">
+            <BookOpen className="w-4.5 h-4.5 text-pink-500" /> {assignment.title}
+          </h3>
+          <button onClick={onClose} className="text-black hover:text-black transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {error ? (
+          <p className="text-red-500 font-bold text-sm text-center py-6">{error}</p>
+        ) : results === null ? (
+          <p className="text-sm text-black font-medium text-center py-6">{t('Loading…')}</p>
+        ) : results.length === 0 ? (
+          <p className="text-sm text-black font-medium text-center py-6">{t('No students in this class yet.')}</p>
+        ) : (
+          <div className="space-y-2">
+            {results.map((r) => (
+              <div
+                key={r.member_id}
+                className="flex items-center justify-between gap-3 border border-slate-200 rounded-xl px-4 py-3"
+              >
+                <span className="font-bold text-black truncate">{r.display_name}</span>
+                {r.comic_project_id ? (
+                  <button
+                    onClick={() =>
+                      navigate(`/amico/${r.comic_project_id}`, {
+                        state: {
+                          classroomView: {
+                            classCode: classroom.class_code,
+                            assignmentId: assignment.id,
+                            memberToken: session.memberToken,
+                            kind: 'amico',
+                            viewMemberId: r.member_id,
+                          },
+                        },
+                      })
+                    }
+                    className="shrink-0 inline-flex items-center gap-1 text-pink-600 hover:text-pink-700 font-bold text-sm"
+                  >
+                    {t('View comic')} →
+                  </button>
+                ) : (
+                  <span className="shrink-0 text-xs font-bold text-black italic">{t('Not submitted')}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

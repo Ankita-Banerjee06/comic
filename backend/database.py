@@ -228,3 +228,14 @@ def _run_lightweight_migrations():
         conn.execute(
             text("CREATE INDEX IF NOT EXISTS ix_classroom_members_user_id ON classroom_members (user_id)")
         )
+        # "Create your own comic" homework: a student makes and
+        # submits their own AMICO comic instead of just viewing one
+        # the teacher made. amico_mode flags the assignment; the
+        # student's resulting project is recorded on their own
+        # submission row, never on the assignment itself.
+        conn.execute(
+            text("ALTER TABLE assignments ADD COLUMN IF NOT EXISTS amico_mode VARCHAR(20)")
+        )
+        conn.execute(
+            text("ALTER TABLE assignment_submissions ADD COLUMN IF NOT EXISTS comic_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL")
+        )

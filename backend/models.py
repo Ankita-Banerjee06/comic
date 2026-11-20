@@ -777,6 +777,14 @@ class Assignment(Base):
         nullable=True,
     )
 
+    # When set to "student", this homework carries no pre-made AMICO
+    # comic (amico_project_id stays null) — instead, each student
+    # makes their own comic and submits it (see AssignmentSubmission.
+    # comic_project_id below). Null/"teacher" is the original
+    # behavior: the teacher's own comic, attached above, which every
+    # student just views.
+    amico_mode = Column(String(20), nullable=True)
+
     # Teacher Workspace additions: a manually-written Lesson can be
     # assigned too (alongside, or instead of, the AI-content
     # pointers above), and plain files can be attached directly
@@ -846,6 +854,16 @@ class AssignmentSubmission(Base):
     # the lightweight migration in database.py) and older rows
     # simply have nothing to show here beyond the score.
     answers = Column(JSON, nullable=True)
+
+    # Set only for a student-created AMICO comic submitted against an
+    # amico_mode="student" assignment — the student's own Project row
+    # (never the teacher's). score/total/answers stay at their
+    # defaults for this kind of submission; there's nothing to grade.
+    comic_project_id = Column(
+        Integer,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # "in_progress" while the student is still answering (the attempt
     # is saved after every answer, so a quiz abandoned after Q3 shows

@@ -499,11 +499,22 @@ class AssignmentCreateRequest(BaseModel):
     quiz_project_id: int | None = None
     amivi_project_id: int | None = None
     amico_project_id: int | None = None
+    # "student" — no amico_project_id is attached; each student makes
+    # and submits their own comic instead (see submit_assignment_comic
+    # below). Anything else (including unset) is the original
+    # behavior: amico_project_id, if any, is the teacher's own comic
+    # for every student to view.
+    amico_mode: str | None = None
     # Teacher Workspace additions — a manually-written Lesson, and/or
     # plain files, with no AI content at all.
     lesson_id: int | None = None
     attachments: list[AttachmentRef] = []
     due_at: str | None = None  # ISO 8601, optional
+
+
+class ComicSubmissionCreateRequest(BaseModel):
+    member_token: str
+    project_id: int
 
 
 class SubmissionAnswer(BaseModel):
@@ -10858,6 +10869,7 @@ def serialize_assignment(db, assignment, student_count: int) -> dict:
         "quiz_project_id": assignment.quiz_project_id,
         "amivi_project_id": assignment.amivi_project_id,
         "amico_project_id": assignment.amico_project_id,
+        "amico_mode": assignment.amico_mode,
         "lesson_id": assignment.lesson_id,
         "attachments": assignment.attachments or [],
         "due_at": serialize_due_at(assignment.due_at),
@@ -11329,10 +11341,13 @@ def create_assignment(
 
     due_at = parse_due_at(payload.due_at)
 
+    amico_mode = payload.amico_mode if payload.amico_mode == "student" else None
+
     if (
         not payload.quiz_project_id
         and not payload.amivi_project_id
         and not payload.amico_project_id
+        and not amico_mode
         and not payload.lesson_id
         and not payload.attachments
     ):
@@ -11421,6 +11436,7 @@ def create_assignment(
             quiz_project_id=payload.quiz_project_id,
             amivi_project_id=payload.amivi_project_id,
             amico_project_id=payload.amico_project_id,
+            amico_mode=amico_mode,
             lesson_id=payload.lesson_id,
             attachments=[a.dict() for a in payload.attachments] or None,
             due_at=due_at,
@@ -12696,6 +12712,152 @@ def submit_assignment(class_code: str, assignment_id: int, payload: SubmissionCr
         db.close()
 
 
+@app.post("/api/classrooms/{class_code}/assignments/{assignment_id}/submit-comic")
+def submit_assignment_comic(class_code: str, assignment_id: int, payload: ComicSubmissionCreateRequest):
+    """
+    A student's own AMICO comic, generated the normal way (so it's
+    already a Project they own), handed in against a "Create your
+    own comic" homework (Assignment.amico_mode == "student"). Kept
+    append-only like quiz attempts, via the same AssignmentSubmission
+    table — just with comic_project_id set instead of a score.
+    """
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+
+        assignment = (
+            db.query(Assignment)
+            .filter(
+                Assignment.id == assignment_id,
+                Assignment.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found.")
+
+        if assignment.amico_mode != "student":
+            raise HTTPException(
+                status_code=400,
+                detail="This homework doesn't take a student-made comic.",
+            )
+
+        project = (
+            db.query(Project)
+            .filter(Project.id == payload.project_id)
+            .first()
+        )
+
+        if not project or project.project_type != "amico":
+            raise HTTPException(
+                status_code=400,
+                detail="project_id must point at an existing AMICO comic.",
+            )
+
+        # The submitted comic must be this same student's own — not
+        # the teacher's, not another classmate's.
+        if project.user_id is not None and project.user_id != member.user_id:
+            raise HTTPException(status_code=404, detail="Project not found.")
+
+        submission = AssignmentSubmission(
+            assignment_id=assignment.id,
+            member_id=member.id,
+            comic_project_id=project.id,
+            status="completed",
+        )
+
+        db.add(submission)
+        db.commit()
+        db.refresh(submission)
+
+        return {
+            "status": "success",
+            "submission": {
+                "id": submission.id,
+                "comic_project_id": submission.comic_project_id,
+                "submitted_at": submission.submitted_at.isoformat(),
+            },
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/assignments/{assignment_id}/submissions/{member_id}/comic")
+def assignment_submission_comic(class_code: str, assignment_id: int, member_id: int, member_token: str):
+    """
+    Teacher-only: the given student's latest submitted comic for a
+    "Create your own comic" homework, serialized the same way the
+    normal Library/AMICO view does — so it opens in Amico.jsx exactly
+    like any other saved comic.
+    """
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        teacher = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(teacher)
+
+        assignment = (
+            db.query(Assignment)
+            .filter(
+                Assignment.id == assignment_id,
+                Assignment.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found.")
+
+        student = (
+            db.query(ClassroomMember)
+            .filter(
+                ClassroomMember.id == member_id,
+                ClassroomMember.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found in this classroom.")
+
+        submission = (
+            db.query(AssignmentSubmission)
+            .filter(
+                AssignmentSubmission.assignment_id == assignment.id,
+                AssignmentSubmission.member_id == member_id,
+                AssignmentSubmission.comic_project_id.isnot(None),
+            )
+            .order_by(AssignmentSubmission.submitted_at.desc())
+            .first()
+        )
+
+        if not submission:
+            raise HTTPException(status_code=404, detail="This student hasn't submitted a comic yet.")
+
+        project = (
+            db.query(Project)
+            .filter(Project.id == submission.comic_project_id)
+            .first()
+        )
+
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found.")
+
+        return serialize_library_project(project)
+
+    finally:
+        db.close()
+
+
 @app.get("/api/classrooms/{class_code}/assignments/{assignment_id}/results")
 def assignment_results(class_code: str, assignment_id: int, member_token: str):
 
@@ -12761,6 +12923,7 @@ def assignment_results(class_code: str, assignment_id: int, member_token: str):
                     "status": latest.status if latest else None,
                     "answered": len(latest.answers or []) if latest else 0,
                     "attempts": attempt_count,
+                    "comic_project_id": latest.comic_project_id if latest else None,
                     "last_submitted_at": (
                         latest.submitted_at.isoformat() if latest else None
                     ),

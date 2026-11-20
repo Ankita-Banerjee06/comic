@@ -16,6 +16,8 @@ import {
   listProjects,
   getLibraryProject,
   getAssignmentProject,
+  getAssignmentSubmissionComic,
+  submitAssignmentComic,
   mediaUrl,
   downloadMedia,
 } from '../services/api';
@@ -46,6 +48,7 @@ import {
   Waves,
   Trees,
   Coffee,
+  Compass,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import PresentLiveButton from '../components/live/PresentLiveButton';
@@ -183,6 +186,12 @@ export default function Amico() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [savedNotice, setSavedNotice] = useState(false);
+  // "Create your own comic" homework — submitting this comic against
+  // the assignment it was opened from (see classroomView.submitMode
+  // below), separate from saving it to the Library above.
+  const [homeworkSubmitting, setHomeworkSubmitting] = useState(false);
+  const [homeworkSubmitted, setHomeworkSubmitted] = useState(false);
+  const [homeworkSubmitError, setHomeworkSubmitError] = useState(null);
 
   // Save Modal State
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -323,6 +332,21 @@ export default function Amico() {
   // exact assignment.
   const classroomView = location.state?.classroomView || null;
 
+  // "Create your own comic" homework — arriving here fresh (no
+  // projectId in the URL, just classroomView.submitMode) to make a
+  // brand-new comic. Skip the launcher, go straight into the Comic
+  // flow's typed-topic tab, and pre-fill it with the assignment's own
+  // instructions/title so the student isn't stuck re-typing what the
+  // teacher already wrote — they can still edit it before generating.
+  useEffect(() => {
+    if (classroomView?.submitMode && !projectId) {
+      setMode('comic');
+      setSource('text');
+      if (classroomView.topic) setTextInput(classroomView.topic);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroomView?.submitMode, classroomView?.topic, projectId]);
+
   useEffect(() => {
     if (!projectId) return;
 
@@ -333,7 +357,9 @@ export default function Amico() {
     setError(null);
     setResult(null);
 
-    const fetchProject = classroomView
+    const fetchProject = classroomView?.viewMemberId
+      ? getAssignmentSubmissionComic(classroomView.classCode, classroomView.assignmentId, classroomView.viewMemberId, classroomView.memberToken)
+      : classroomView
       ? getAssignmentProject(classroomView.classCode, classroomView.assignmentId, 'amico', classroomView.memberToken)
       : getLibraryProject(projectId);
 
@@ -404,6 +430,29 @@ export default function Amico() {
     setSelectedProjectId('');
     setError(null);
     setSavedNotice(false);
+    setHomeworkSubmitted(false);
+    setHomeworkSubmitError(null);
+  };
+
+  // "Create your own comic" homework — hand in the comic just
+  // generated (already saved as this student's own project) against
+  // the assignment this page was opened from.
+  const handleSubmitHomework = async () => {
+    if (!classroomView?.submitMode || !result?.project_id) return;
+
+    setHomeworkSubmitting(true);
+    setHomeworkSubmitError(null);
+    try {
+      await submitAssignmentComic(classroomView.classCode, classroomView.assignmentId, {
+        memberToken: classroomView.memberToken,
+        projectId: result.project_id,
+      });
+      setHomeworkSubmitted(true);
+    } catch (err) {
+      setHomeworkSubmitError(err?.message || 'Failed to submit your comic.');
+    } finally {
+      setHomeworkSubmitting(false);
+    }
   };
 
   // ============================================================
@@ -707,23 +756,80 @@ export default function Amico() {
 
   return (
     <div className="space-y-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <button
-        type="button"
-        onClick={() => {
-          // Came here from AMIVI's "Send to AMICO": Back returns to
-          // that generated AMIVI lesson, not the AMICO launcher.
-          if (incomingSourceProjectId) {
-            navigate(`/amivi/${incomingSourceProjectId}`);
-          } else if (mode) {
-            goToAmicoHome();
-          } else {
-            navigate('/explore');
-          }
-        }}
-        className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        {classroomView ? (
+          // Arrived here from a classroom homework row — either a
+          // student making their own comic (classroomView.submitMode)
+          // or a teacher viewing one student's submission
+          // (classroomView.viewMemberId). A single "Back" is ambiguous
+          // here (back to what?), so offer one "Where to go" dropdown
+          // of actual destinations instead, with Classroom first since
+          // that's where this page was opened from.
+          <label className="inline-flex items-center gap-2 text-sm font-bold text-black bg-slate-100 rounded-xl px-3 py-2">
+            <Compass className="w-4 h-4" />
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) navigate(e.target.value);
+              }}
+              className="bg-transparent text-sm font-bold text-black focus:outline-none"
+            >
+              <option value="" disabled>{t('Where to go?')}</option>
+              <option value="/classroom">{t('Classroom')}</option>
+              <option value="/explore">{t('Explore')}</option>
+              <option value="/library">{t('Library')}</option>
+              <option value="/dashboard">{t('Dashboard')}</option>
+            </select>
+          </label>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              if (incomingSourceProjectId) {
+                // Came here from AMIVI's "Send to AMICO": Back returns to
+                // that generated AMIVI lesson, not the AMICO launcher.
+                navigate(`/amivi/${incomingSourceProjectId}`);
+              } else if (mode) {
+                goToAmicoHome();
+              } else {
+                navigate('/explore');
+              }
+            }}
+            className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+        )}
+
+        {/* Teacher stepping through each student's comic one by one —
+            jump straight to another student's submission instead of
+            going back to the Comics list and clicking in again each
+            time. Only built when Classroom passed the submitted list
+            along (see ComicSubmissionsModal); older links without it
+            just get the plain Back button above. */}
+        {classroomView?.viewMemberId && classroomView.submissions?.length > 1 && (
+          <label className="inline-flex items-center gap-2 text-sm font-bold text-black">
+            {t('Viewing')}:
+            <select
+              value={String(classroomView.viewMemberId)}
+              onChange={(e) => {
+                const picked = classroomView.submissions.find((s) => String(s.member_id) === e.target.value);
+                if (picked) {
+                  navigate(`/amico/${picked.comic_project_id}`, {
+                    replace: true,
+                    state: { classroomView: { ...classroomView, viewMemberId: picked.member_id } },
+                  });
+                }
+              }}
+              className="px-3 py-1.5 bg-pink-50 border border-pink-200 rounded-lg text-sm font-bold text-black focus:outline-none"
+            >
+              {classroomView.submissions.map((s) => (
+                <option key={s.member_id} value={s.member_id}>{s.display_name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
       {/* ======================================================
           JOURNEY STRIP — same "So much information... / 1/4
@@ -1229,14 +1335,21 @@ export default function Amico() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-4">
+              {classroomView?.submitMode && homeworkSubmitted && (
+                <span className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-100 font-bold rounded-xl px-4 py-2.5">
+                  <CheckCircle2 className="w-5 h-5" /> {t('Submitted!')}
+                </span>
+              )}
               <PresentLiveButton
                 kind="amico"
                 projectId={result?.project_id}
                 className="inline-flex items-center gap-2 bg-white text-red-600 hover:bg-red-50 font-bold rounded-xl px-4 py-2.5 shadow-sm disabled:opacity-50"
               />
-              <button onClick={resetAmico} className="text-base font-bold text-pink-100 hover:text-white underline">
-                {t('Create Another Comic')}
-              </button>
+              {!(classroomView?.submitMode && homeworkSubmitted) && (
+                <button onClick={resetAmico} className="text-base font-bold text-pink-100 hover:text-white underline">
+                  {t('Create Another Comic')}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1394,6 +1507,36 @@ export default function Amico() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Final step for "create your own comic" homework — shown
+              last, after the student has had a chance to look over
+              (and tweak) every panel above. Submitting is separate
+              from Save to Library: this is what actually hands the
+              comic in to the teacher. */}
+          {classroomView?.submitMode && (
+            <div className="bg-white rounded-2xl border-2 border-pink-200 shadow-sm p-6 text-center space-y-3">
+              {homeworkSubmitted ? (
+                <p className="inline-flex items-center gap-2 text-emerald-700 font-bold text-lg">
+                  <CheckCircle2 className="w-6 h-6" /> {t('Submitted — your teacher can see it now.')}
+                </p>
+              ) : (
+                <>
+                  <p className="text-black font-bold">{t('Happy with your comic? Hand it in as your homework.')}</p>
+                  <button
+                    onClick={handleSubmitHomework}
+                    disabled={homeworkSubmitting}
+                    className="inline-flex items-center gap-2 bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white font-bold rounded-xl px-6 py-3 text-lg mx-auto"
+                  >
+                    {homeworkSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                    {t("I'm ready to submit")}
+                  </button>
+                  {homeworkSubmitError && (
+                    <p className="text-sm font-bold text-red-600">{homeworkSubmitError}</p>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

@@ -982,7 +982,7 @@ export async function getMyClassrooms() {
   return response.json();
 }
 
-export async function createAssignment(classCode, { memberToken, title, instructions = '', quizProjectId, amiviProjectId = null, amicoProjectId = null, lessonId = null, attachments = [], dueAt = null }) {
+export async function createAssignment(classCode, { memberToken, title, instructions = '', quizProjectId, amiviProjectId = null, amicoProjectId = null, amicoMode = null, lessonId = null, attachments = [], dueAt = null }) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -993,6 +993,7 @@ export async function createAssignment(classCode, { memberToken, title, instruct
       quiz_project_id: quizProjectId,
       amivi_project_id: amiviProjectId,
       amico_project_id: amicoProjectId,
+      amico_mode: amicoMode,
       lesson_id: lessonId,
       attachments,
       due_at: dueAt,
@@ -1019,6 +1020,30 @@ export async function getAssignmentProject(classCode, assignmentId, kind, member
     `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}/project/${kind}?member_token=${encodeURIComponent(memberToken)}`
   );
   if (!response.ok) throw await parseClassroomError(response, 'Unable to load this material.');
+  return response.json();
+}
+
+// Teacher-only: opens one specific student's own submitted comic for
+// a "Create your own comic" homework (Assignment.amico_mode ===
+// "student") — the student's own Project, not the teacher's.
+export async function getAssignmentSubmissionComic(classCode, assignmentId, memberId, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}/submissions/${memberId}/comic?member_token=${encodeURIComponent(memberToken)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, "Unable to load this student's comic.");
+  return response.json();
+}
+
+// Hands in a student's own AMICO comic (already generated and saved
+// as their own Project, via the normal Amico.jsx flow) against a
+// "Create your own comic" homework.
+export async function submitAssignmentComic(classCode, assignmentId, { memberToken, projectId }) {
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}/submit-comic`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ member_token: memberToken, project_id: projectId }),
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to submit your comic.');
   return response.json();
 }
 
