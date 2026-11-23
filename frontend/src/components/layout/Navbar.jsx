@@ -151,7 +151,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex flex-1 items-center justify-center gap-0.5 flex-wrap">
+        <nav className="hidden md:flex flex-1 items-center justify-center gap-1.5 flex-wrap">
           {navLinks.map((link) => {
             const Icon = link.icon;
             return (
@@ -160,10 +160,10 @@ export default function Navbar() {
                 to={link.path}
                 end={link.path === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 lg:px-3 py-2 rounded-xl font-bold text-xl transition-all flex-shrink-0 ${
+                  `flex items-center gap-1.5 px-3 lg:px-4 py-2.5 rounded-xl font-bold text-xl transition-all flex-shrink-0 border-2 ${
                     isActive
-                      ? 'bg-white text-indigo-700 shadow-md'
-                      : 'text-white hover:bg-white/15'
+                      ? 'bg-white text-indigo-700 shadow-md border-white'
+                      : 'text-white border-white/20 hover:bg-white/15 hover:border-white/40'
                   }`
                 }
               >

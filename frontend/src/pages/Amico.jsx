@@ -18,6 +18,7 @@ import {
   getAssignmentProject,
   getAssignmentSubmissionComic,
   submitAssignmentComic,
+  categorizeLibraryProject,
   mediaUrl,
   downloadMedia,
 } from '../services/api';
@@ -52,6 +53,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import PresentLiveButton from '../components/live/PresentLiveButton';
+import LibraryCategoryPicker from '../components/ui/LibraryCategoryPicker';
 
 // Quick-pick avatars so a Comic Story can start right away without
 // needing an uploaded photo first. Keys must match backend
@@ -196,7 +198,11 @@ export default function Amico() {
   // Save Modal State
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveSpace, setSaveSpace] = useState('personal');
-  const [saveFolder, setSaveFolder] = useState('Science');
+  const [saveCategory, setSaveCategory] = useState('Science');
+  const [saveGroup, setSaveGroup] = useState('');
+  const [saveTopic, setSaveTopic] = useState('');
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [saveCategoryError, setSaveCategoryError] = useState('');
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [editingPanel, setEditingPanel] = useState(null);
@@ -765,14 +771,14 @@ export default function Amico() {
           // here (back to what?), so offer one "Where to go" dropdown
           // of actual destinations instead, with Classroom first since
           // that's where this page was opened from.
-          <label className="inline-flex items-center gap-2 text-sm font-bold text-black bg-slate-100 rounded-xl px-3 py-2">
-            <Compass className="w-4 h-4" />
+          <label className="inline-flex items-center gap-2 text-base font-bold text-black bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 rounded-xl px-4 py-2.5 shadow-sm transition-colors">
+            <Compass className="w-5 h-5" />
             <select
               defaultValue=""
               onChange={(e) => {
                 if (e.target.value) navigate(e.target.value);
               }}
-              className="bg-transparent text-sm font-bold text-black focus:outline-none"
+              className="bg-transparent text-base font-bold text-black focus:outline-none"
             >
               <option value="" disabled>{t('Where to go?')}</option>
               <option value="/classroom">{t('Classroom')}</option>
@@ -795,9 +801,9 @@ export default function Amico() {
                 navigate('/explore');
               }
             }}
-            className="inline-flex items-center gap-1.5 text-base font-bold text-black hover:text-black transition-colors"
+            className="inline-flex items-center gap-2 text-base font-bold text-black bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 rounded-xl px-4 py-2.5 shadow-sm transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Back
+            <ArrowLeft className="w-5 h-5" /> {t('Back')}
           </button>
         )}
 
@@ -808,7 +814,7 @@ export default function Amico() {
             along (see ComicSubmissionsModal); older links without it
             just get the plain Back button above. */}
         {classroomView?.viewMemberId && classroomView.submissions?.length > 1 && (
-          <label className="inline-flex items-center gap-2 text-sm font-bold text-black">
+          <label className="inline-flex items-center gap-2 text-base font-bold text-black">
             {t('Viewing')}:
             <select
               value={String(classroomView.viewMemberId)}
@@ -821,7 +827,7 @@ export default function Amico() {
                   });
                 }
               }}
-              className="px-3 py-1.5 bg-pink-50 border border-pink-200 rounded-lg text-sm font-bold text-black focus:outline-none"
+              className="px-4 py-2.5 bg-pink-50 border-2 border-pink-300 rounded-xl text-base font-bold text-black focus:outline-none shadow-sm"
             >
               {classroomView.submissions.map((s) => (
                 <option key={s.member_id} value={s.member_id}>{s.display_name}</option>
@@ -1328,7 +1334,7 @@ export default function Amico() {
                     </button>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 text-sm bg-emerald-500/20 text-emerald-100 px-3 py-1.5 rounded-full font-bold ml-2">
-                      <CheckCircle2 className="w-3 h-3" /> Saved to {saveSpace} / {saveFolder}
+                      <CheckCircle2 className="w-3 h-3" /> Saved to {saveSpace} / {saveCategory}{saveGroup ? ` / ${saveGroup}` : ''}{saveTopic ? ` / ${saveTopic}` : ''}
                     </span>
                   )}
                 </p>
@@ -1390,9 +1396,9 @@ export default function Amico() {
                   <button
                     onClick={() => setCurrentPageIndex((p) => Math.max(0, p - 1))}
                     disabled={currentPageIndex === 0}
-                    className="absolute left-4 z-10 p-2 rounded-full bg-white shadow-lg border-2 border-pink-200 text-pink-500 disabled:opacity-30"
+                    className="absolute left-4 z-10 p-3 rounded-full bg-white shadow-lg border-2 border-pink-300 text-pink-600 hover:bg-pink-50 disabled:opacity-30"
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    <ChevronLeft className="w-7 h-7" />
                   </button>
                 )}
 
@@ -1409,9 +1415,9 @@ export default function Amico() {
                   <button
                     onClick={() => setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))}
                     disabled={currentPageIndex === pages.length - 1}
-                    className="absolute right-4 z-10 p-2 rounded-full bg-white shadow-lg border-2 border-pink-200 text-pink-500 disabled:opacity-30"
+                    className="absolute right-4 z-10 p-3 rounded-full bg-white shadow-lg border-2 border-pink-300 text-pink-600 hover:bg-pink-50 disabled:opacity-30"
                   >
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-7 h-7" />
                   </button>
                 )}
               </div>
@@ -1709,9 +1715,9 @@ export default function Amico() {
                   <button
                     onClick={() => setPsCurrentPageIndex((p) => Math.max(0, p - 1))}
                     disabled={psCurrentPageIndex === 0}
-                    className="absolute left-4 z-10 p-2 rounded-full bg-white shadow-lg border-2 border-pink-200 text-pink-500 disabled:opacity-30"
+                    className="absolute left-4 z-10 p-3 rounded-full bg-white shadow-lg border-2 border-pink-300 text-pink-600 hover:bg-pink-50 disabled:opacity-30"
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    <ChevronLeft className="w-7 h-7" />
                   </button>
                 )}
 
@@ -1728,9 +1734,9 @@ export default function Amico() {
                   <button
                     onClick={() => setPsCurrentPageIndex((p) => Math.min(psPages.length - 1, p + 1))}
                     disabled={psCurrentPageIndex === psPages.length - 1}
-                    className="absolute right-4 z-10 p-2 rounded-full bg-white shadow-lg border-2 border-pink-200 text-pink-500 disabled:opacity-30"
+                    className="absolute right-4 z-10 p-3 rounded-full bg-white shadow-lg border-2 border-pink-300 text-pink-600 hover:bg-pink-50 disabled:opacity-30"
                   >
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-7 h-7" />
                   </button>
                 )}
               </div>
@@ -1913,20 +1919,20 @@ export default function Amico() {
               </div>
 
               <div>
-                <label className="block text-base font-bold text-black mb-2">2. Choose Subject Folder</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Science', 'History', 'Geography', 'Math', 'Languages', 'Uncategorized'].map(folder => (
-                    <button
-                      key={folder}
-                      onClick={() => setSaveFolder(folder)}
-                      className={`py-2 rounded-xl text-base font-bold border-2 transition-colors ${saveFolder === folder ? 'border-pink-500 bg-pink-50 text-black' : 'border-slate-200 text-black hover:border-pink-300'
-                        }`}
-                    >
-                      {folder}
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-base font-bold text-black mb-2">2. Choose Category</label>
+                <LibraryCategoryPicker
+                  category={saveCategory}
+                  onCategoryChange={setSaveCategory}
+                  group={saveGroup}
+                  onGroupChange={setSaveGroup}
+                  topic={saveTopic}
+                  onTopicChange={setSaveTopic}
+                  t={t}
+                />
               </div>
+              {saveCategoryError && (
+                <p className="text-sm font-bold text-red-600">{saveCategoryError}</p>
+              )}
             </div>
 
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
@@ -1937,13 +1943,33 @@ export default function Amico() {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  setSavedNotice(true);
-                  setShowSaveModal(false);
+                disabled={savingCategory}
+                onClick={async () => {
+                  const pid = result?.project_id;
+                  if (!pid) {
+                    setShowSaveModal(false);
+                    return;
+                  }
+                  setSavingCategory(true);
+                  setSaveCategoryError('');
+                  try {
+                    await categorizeLibraryProject(pid, {
+                      category: saveCategory,
+                      group: saveGroup,
+                      topic: saveTopic,
+                    });
+                    setSavedNotice(true);
+                    setShowSaveModal(false);
+                  } catch (err) {
+                    setSaveCategoryError(err.message || 'Unable to save the category.');
+                  } finally {
+                    setSavingCategory(false);
+                  }
                 }}
-                className="px-5 py-2.5 rounded-xl font-bold text-white bg-pink-600 hover:bg-pink-700 transition-colors flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl font-bold text-white bg-pink-600 hover:bg-pink-700 disabled:opacity-60 transition-colors flex items-center gap-2"
               >
-                <CheckCircle2 size={18} /> Confirm Save
+                {savingCategory ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                Confirm Save
               </button>
             </div>
           </div>

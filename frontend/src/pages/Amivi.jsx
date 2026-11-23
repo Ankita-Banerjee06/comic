@@ -11,6 +11,7 @@ import {
   generateAmiviVideo,
   getLibraryProject,
   getAssignmentProject,
+  categorizeLibraryProject,
   API_URL,
   authHeaders,
 } from '../services/api';
@@ -38,6 +39,7 @@ import {
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import PresentLiveButton from '../components/live/PresentLiveButton';
+import LibraryCategoryPicker from '../components/ui/LibraryCategoryPicker';
 
 // Shared pager for the Microbit grids (Box 1 / Box 2) — 6 Microbits
 // per page, 3 per row x 2 rows; only rendered when there's more
@@ -138,7 +140,11 @@ export default function Amivi() {
   // Save Modal State
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveSpace, setSaveSpace] = useState('personal');
-  const [saveFolder, setSaveFolder] = useState('Science');
+  const [saveCategory, setSaveCategory] = useState('Science');
+  const [saveGroup, setSaveGroup] = useState('');
+  const [saveTopic, setSaveTopic] = useState('');
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [saveCategoryError, setSaveCategoryError] = useState('');
 
   // Per-slot regenerate tracking, e.g. "42:1" or "42:2"
   const [regeneratingKey, setRegeneratingKey] = useState(null);
@@ -1980,21 +1986,20 @@ export default function Amivi() {
               </div>
 
               <div>
-                <label className="block text-lg font-bold text-black mb-2">2. Choose Subject Folder</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Science', 'History', 'Geography', 'Math', 'Languages', 'Uncategorized'].map(folder => (
-                    <button
-                      key={folder}
-                      onClick={() => setSaveFolder(folder)}
-                      className={`py-2 rounded-xl text-base font-bold border-2 transition-colors ${
-                        saveFolder === folder ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-black hover:border-emerald-300'
-                      }`}
-                    >
-                      {folder}
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-lg font-bold text-black mb-2">2. Choose Category</label>
+                <LibraryCategoryPicker
+                  category={saveCategory}
+                  onCategoryChange={setSaveCategory}
+                  group={saveGroup}
+                  onGroupChange={setSaveGroup}
+                  topic={saveTopic}
+                  onTopicChange={setSaveTopic}
+                  t={t}
+                />
               </div>
+              {saveCategoryError && (
+                <p className="text-sm font-bold text-red-600">{saveCategoryError}</p>
+              )}
             </div>
 
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
@@ -2005,13 +2010,32 @@ export default function Amivi() {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  alert(`Successfully saved ${selectedChunks.size || result?.chunks?.length || 0} visual cards to ${saveSpace} library under ${saveFolder}!`);
-                  setShowSaveModal(false);
+                disabled={savingCategory}
+                onClick={async () => {
+                  const pid = result?.project_id || projectId;
+                  if (!pid) {
+                    setShowSaveModal(false);
+                    return;
+                  }
+                  setSavingCategory(true);
+                  setSaveCategoryError('');
+                  try {
+                    await categorizeLibraryProject(pid, {
+                      category: saveCategory,
+                      group: saveGroup,
+                      topic: saveTopic,
+                    });
+                    setShowSaveModal(false);
+                  } catch (err) {
+                    setSaveCategoryError(err.message || 'Unable to save the category.');
+                  } finally {
+                    setSavingCategory(false);
+                  }
                 }}
-                className="px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center gap-2"
               >
-                <CheckCircle2 size={18} /> Confirm Save
+                {savingCategory ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                Confirm Save
               </button>
             </div>
           </div>

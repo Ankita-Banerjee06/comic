@@ -512,6 +512,12 @@ class AssignmentCreateRequest(BaseModel):
     due_at: str | None = None  # ISO 8601, optional
 
 
+class LibraryCategorizeRequest(BaseModel):
+    category: str
+    group: str | None = None
+    topic: str | None = None
+
+
 class ComicSubmissionCreateRequest(BaseModel):
     member_token: str
     project_id: int
@@ -8811,6 +8817,8 @@ def library_list(current_user=Depends(get_current_user)):
                 "title": row.title,
                 "input_text": row.input_text,
                 "language": row.language,
+                "subject": row.subject,
+                "chapter": row.chapter,
                 "created_at": (
                     row.created_at.isoformat()
                     if row.created_at
@@ -8926,6 +8934,8 @@ def serialize_library_project(project) -> dict:
         "input_text": project.input_text,
         "language": project.language,
         "data": data,
+        "subject": project.subject,
+        "chapter": project.chapter,
         "created_at": (
             project.created_at.isoformat()
             if project.created_at
@@ -9059,6 +9069,84 @@ def library_project_delete(project_id: int, current_user=Depends(get_current_use
         "project_id": project_id,
         "message": "Project deleted.",
     }
+
+
+# Lets the Library "Save" modal's Category / Group / Subject picker
+# actually persist, by writing into the same subject/chapter/
+# chapter_key columns the Essential Learning auto-classifier below
+# already uses — no new columns, no migration. "category" (the
+# mockup's top-level picker, e.g. "Science") maps to Project.subject
+# and must be one of the fixed SUBJECT_CATEGORIES; "group" + "topic"
+# (the mockup's "Group" and "Subject" fields, e.g. "Biology" and
+# "Photosynthesis") are combined into Project.chapter so a reopened
+# project can show exactly what was picked.
+@app.post("/api/library/{project_id}/categorize")
+def library_project_categorize(
+    project_id: int,
+    body: LibraryCategorizeRequest,
+    current_user=Depends(get_current_user),
+):
+
+    project = get_project(project_id)
+
+    if project.project_type not in LIBRARY_PROJECT_TYPES:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    if project.user_id is not None and project.user_id != current_user.id:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    category = (body.category or "").strip()
+
+    if category not in SUBJECT_CATEGORIES:
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"category must be one of: {', '.join(SUBJECT_CATEGORIES)}",
+        )
+
+    group = (body.group or "").strip()
+    topic = (body.topic or "").strip()
+
+    if group and topic:
+        chapter = f"{group} — {topic}"
+    else:
+        chapter = group or topic or project.title or "Unsorted"
+
+    db = SessionLocal()
+
+    try:
+
+        row = db.query(Project).filter(Project.id == project_id).first()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Project not found.")
+
+        row.subject = category
+        row.chapter = chapter
+        row.chapter_key = normalize_chapter_key(chapter)
+
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+
+        return {
+            "status": "success",
+            "project_id": project_id,
+            "subject": row.subject,
+            "chapter": row.chapter,
+            "chapter_key": row.chapter_key,
+        }
+
+    finally:
+        db.close()
 
 
 # ============================================================

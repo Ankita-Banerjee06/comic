@@ -741,6 +741,23 @@ export async function deleteLibraryProject(id) {
   return response.json();
 }
 
+// Persists the Library "Save" modal's Category / Group / Subject
+// picker onto the project (reuses the same subject/chapter columns
+// as Essential Learning's auto-classifier, so a reopened project
+// shows exactly what was picked instead of just an alert()).
+export async function categorizeLibraryProject(id, { category, group, topic }) {
+  const response = await fetch(`${API_URL}/api/library/${id}/categorize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ category, group, topic }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Unable to save the category.');
+  }
+  return response.json();
+}
+
 // Regenerates ONLY the images of a saved quiz, under the same
 // answer-safety rules used for brand-new quizzes — for an older
 // quiz whose question image accidentally gives the answer away
