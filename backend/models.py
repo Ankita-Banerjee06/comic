@@ -1035,6 +1035,67 @@ class TeachingMaterial(Base):
 
     classroom = relationship("Classroom")
 
+
+class CreativeLearningItem(Base):
+    """
+    "Creative Learning" — a teacher-shared link to material outside
+    the normal curriculum (e.g. "Royal Bengal Tiger vs. Siberian
+    Tiger", "Eurasian Red Squirrel overview"). Unlike a Lesson, there
+    is no authored body here: the content lives at `url`, and this
+    row is just the card that introduces it (title, short blurb,
+    optional cover image, a display shape for visual variety on the
+    Creative Learning page). Reachable from the top-level nav, not
+    nested inside a single classroom's tabs, so it is listed per
+    classroom here and aggregated across a user's classrooms by the
+    API layer (see /api/me/creative-learning in main.py).
+    """
+
+    __tablename__ = "creative_learning_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    classroom_id = Column(
+        Integer,
+        ForeignKey("classrooms.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    title = Column(String(255), nullable=False)
+    url = Column(String(2048), nullable=False)
+    blurb = Column(Text, nullable=True)
+
+    # Optional cover image, uploaded through the same classroom
+    # media-upload endpoint/MediaAsset table every other image in
+    # the app uses. Null is fine — the card just shows a plain
+    # colour tile with the title/blurb instead of a photo.
+    image_media_id = Column(
+        Integer,
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Purely visual — which card shape/size this item renders as on
+    # the bento-style Creative Learning grid: "square" | "wide" |
+    # "tall" | "circle". Defaults to "square" so older/unset rows
+    # still render something sensible.
+    card_shape = Column(String(20), nullable=False, default="square")
+
+    created_by_member_id = Column(
+        Integer,
+        ForeignKey("classroom_members.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+
+    classroom = relationship("Classroom")
+
+
 class ClassroomLiveSession(Base):
     """
     The teacher's live presentation state for one classroom — which

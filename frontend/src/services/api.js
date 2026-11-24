@@ -1238,6 +1238,47 @@ export async function deleteMaterial(classCode, materialId, memberToken) {
   return response.json();
 }
 
+// Creative Learning — teacher-shared links to material outside the
+// normal curriculum, shown as a bento grid of varied-shaped cards.
+// Aggregated across every classroom a logged-in user belongs to, so
+// the top-level nav page doesn't need a classroom picked first.
+export async function getMyCreativeLearning() {
+  const response = await fetch(`${API_URL}/api/me/creative-learning`, {
+    headers: { ...authHeaders() },
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load Creative Learning.');
+  return response.json();
+}
+
+export async function createCreativeLearningItem(classCode, { memberToken, title, url, blurb = '', imageMediaId = null, cardShape = 'square' }) {
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/creative-learning`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ member_token: memberToken, title, url, blurb, image_media_id: imageMediaId, card_shape: cardShape }),
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to save that Creative Learning item.');
+  return response.json();
+}
+
+export async function updateCreativeLearningItem(classCode, itemId, { memberToken, title, url, blurb, imageMediaId, cardShape }) {
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/creative-learning/${itemId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ member_token: memberToken, title, url, blurb, image_media_id: imageMediaId, card_shape: cardShape }),
+  });
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to update that Creative Learning item.');
+  return response.json();
+}
+
+export async function deleteCreativeLearningItem(classCode, itemId, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/creative-learning/${itemId}?member_token=${encodeURIComponent(memberToken)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Failed to delete that Creative Learning item.');
+  return response.json();
+}
+
 export async function createManualQuiz(classCode, { memberToken, title, description = '', durationMinutes = null, status = 'draft', questions = [], createdVia = 'manual', language = 'en' }) {
   const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/quizzes/manual`, {
     method: 'POST',

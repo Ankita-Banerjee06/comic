@@ -34,6 +34,7 @@ import LivePresent from './pages/LivePresent';
 import Courses from './pages/Courses';
 import Tutorials from './pages/Tutorials';
 import CoreEcosystems from './pages/CoreEcosystems';
+import CreativeLearning from './pages/CreativeLearning';
 import Help from './pages/Help';
 
 // Auth Pages
@@ -134,6 +135,7 @@ function App() {
           <Route path="/teacher-workspace" element={<TeacherWorkspace />} />
           <Route path="/teacher-workspace/class/:classCode" element={<ClassWorkspace />} />
           <Route path="/courses" element={<Courses />} />
+          <Route path="/creative-learning" element={<CreativeLearning />} />
           <Route path="/tutorials" element={<Tutorials />} />
           <Route path="/help" element={<Help />} />
         </Route>

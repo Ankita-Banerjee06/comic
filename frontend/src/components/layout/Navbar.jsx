@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, User, Globe, ChevronDown, GraduationCap, Video, LogOut, Home, Compass, CreditCard, Lightbulb, Info, Sparkles, Repeat, LayoutDashboard } from 'lucide-react';
+import { Menu, X, User, Globe, ChevronDown, GraduationCap, Video, LogOut, Home, Compass, CreditCard, Lightbulb, Info, Sparkles, Repeat, LayoutDashboard, Palette } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useLanguage, SUPPORTED_LANGUAGES } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,6 +16,7 @@ const navLinks = [
   { name: 'How We Do It',  path: '/how-we-do-it',  icon: Lightbulb },
   { name: 'VLQ - VISION', path: '/vlq-vision', icon: Sparkles },
   { name: 'Essential Learning',       path: '/courses',       icon: GraduationCap },
+  { name: 'Creative Learning', path: '/creative-learning', icon: Palette },
   { name: 'Video Tutorials', path: '/tutorials',   icon: Video },
   { name: 'Plans',          path: '/plans',         icon: CreditCard },
 ];

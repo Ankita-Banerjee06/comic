@@ -74,6 +74,7 @@ from models import (
     AssignmentSubmission,
     Lesson,
     TeachingMaterial,
+    CreativeLearningItem,
     ClassroomLiveSession,
 )
 
@@ -645,6 +646,27 @@ class MaterialCreateRequest(BaseModel):
     title: str
     description: str = ""
     attachments: list[AttachmentRef] = []
+
+
+CREATIVE_LEARNING_SHAPES = {"square", "wide", "tall", "circle"}
+
+
+class CreativeLearningItemCreateRequest(BaseModel):
+    member_token: str
+    title: str
+    url: str
+    blurb: str = ""
+    image_media_id: int | None = None
+    card_shape: str = "square"
+
+
+class CreativeLearningItemUpdateRequest(BaseModel):
+    member_token: str
+    title: str | None = None
+    url: str | None = None
+    blurb: str | None = None
+    image_media_id: int | None = None
+    card_shape: str | None = None
 
 
 class ManualQuizQuestion(BaseModel):
@@ -10999,6 +11021,21 @@ def serialize_material(material) -> dict:
     }
 
 
+def serialize_creative_learning_item(item) -> dict:
+
+    return {
+        "id": item.id,
+        "classroom_id": item.classroom_id,
+        "title": item.title,
+        "url": item.url,
+        "blurb": item.blurb,
+        "image_media_id": item.image_media_id,
+        "image_url": f"/api/media/{item.image_media_id}" if item.image_media_id else None,
+        "card_shape": item.card_shape or "square",
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+    }
+
+
 def build_manual_quiz_data(title, description, duration_minutes, status, questions) -> dict:
     """
     Builds a Quiz/Project.data dict for a Teacher Workspace manual
@@ -11715,6 +11752,241 @@ def delete_material(class_code: str, material_id: int, member_token: str):
         db.commit()
 
         return {"status": "success"}
+
+    finally:
+        db.close()
+
+
+# ---- Creative Learning ---------------------------------------
+# A teacher shares a link to material outside the normal curriculum
+# (e.g. a comparative study, an overview of a topic the syllabus
+# doesn't cover) as a "Creative Learning" card. Same teacher-scoped
+# member_token + require_teacher() pattern as Teaching Materials
+# above; reads are open to any classroom member. Reachable from the
+# top-level nav rather than nested in one classroom's tabs, so
+# /api/me/creative-learning (below) aggregates across every
+# classroom a logged-in user belongs to.
+
+@app.post("/api/classrooms/{class_code}/creative-learning")
+def create_creative_learning_item(class_code: str, payload: CreativeLearningItemCreateRequest):
+
+    title = payload.title.strip()
+    url = payload.url.strip()
+
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required.")
+
+    if not url:
+        raise HTTPException(status_code=400, detail="Link is required.")
+
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise HTTPException(status_code=400, detail="Link must start with http:// or https://")
+
+    card_shape = (payload.card_shape or "square").strip().lower()
+
+    if card_shape not in CREATIVE_LEARNING_SHAPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"card_shape must be one of {sorted(CREATIVE_LEARNING_SHAPES)}.",
+        )
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        if payload.image_media_id is not None:
+            validate_attachments(db, [AttachmentRef(media_asset_id=payload.image_media_id, filename="", mime_type="")])
+
+        item = CreativeLearningItem(
+            classroom_id=classroom.id,
+            title=title,
+            url=url,
+            blurb=payload.blurb.strip() or None,
+            image_media_id=payload.image_media_id,
+            card_shape=card_shape,
+            created_by_member_id=member.id,
+        )
+
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+
+        return {"status": "success", "item": serialize_creative_learning_item(item)}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/classrooms/{class_code}/creative-learning")
+def list_creative_learning_items(class_code: str, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        # Open to any classroom member — teacher or student.
+        get_classroom_member_by_token(db, classroom.id, member_token)
+
+        items = (
+            db.query(CreativeLearningItem)
+            .filter(CreativeLearningItem.classroom_id == classroom.id)
+            .order_by(CreativeLearningItem.created_at.desc())
+            .all()
+        )
+
+        return {"items": [serialize_creative_learning_item(i) for i in items]}
+
+    finally:
+        db.close()
+
+
+@app.put("/api/classrooms/{class_code}/creative-learning/{item_id}")
+def update_creative_learning_item(
+    class_code: str, item_id: int, payload: CreativeLearningItemUpdateRequest
+):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, payload.member_token)
+        require_teacher(member)
+
+        item = (
+            db.query(CreativeLearningItem)
+            .filter(
+                CreativeLearningItem.id == item_id,
+                CreativeLearningItem.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not item:
+            raise HTTPException(status_code=404, detail="Creative Learning item not found.")
+
+        if payload.title is not None:
+            title = payload.title.strip()
+            if not title:
+                raise HTTPException(status_code=400, detail="Title is required.")
+            item.title = title
+
+        if payload.url is not None:
+            url = payload.url.strip()
+            if not (url.startswith("http://") or url.startswith("https://")):
+                raise HTTPException(status_code=400, detail="Link must start with http:// or https://")
+            item.url = url
+
+        if payload.blurb is not None:
+            item.blurb = payload.blurb.strip() or None
+
+        if payload.image_media_id is not None:
+            validate_attachments(db, [AttachmentRef(media_asset_id=payload.image_media_id, filename="", mime_type="")])
+            item.image_media_id = payload.image_media_id
+
+        if payload.card_shape is not None:
+            card_shape = payload.card_shape.strip().lower()
+            if card_shape not in CREATIVE_LEARNING_SHAPES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"card_shape must be one of {sorted(CREATIVE_LEARNING_SHAPES)}.",
+                )
+            item.card_shape = card_shape
+
+        db.commit()
+        db.refresh(item)
+
+        return {"status": "success", "item": serialize_creative_learning_item(item)}
+
+    finally:
+        db.close()
+
+
+@app.delete("/api/classrooms/{class_code}/creative-learning/{item_id}")
+def delete_creative_learning_item(class_code: str, item_id: int, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+        classroom = get_classroom_or_404(db, class_code)
+        member = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(member)
+
+        item = (
+            db.query(CreativeLearningItem)
+            .filter(
+                CreativeLearningItem.id == item_id,
+                CreativeLearningItem.classroom_id == classroom.id,
+            )
+            .first()
+        )
+
+        if not item:
+            raise HTTPException(status_code=404, detail="Creative Learning item not found.")
+
+        db.delete(item)
+        db.commit()
+
+        return {"status": "success"}
+
+    finally:
+        db.close()
+
+
+@app.get("/api/me/creative-learning")
+def my_creative_learning(current_user=Depends(get_current_user)):
+    """
+    Aggregates Creative Learning cards across every classroom the
+    logged-in user belongs to, so the top-level nav page doesn't
+    need the user to pick a class first. Each item carries its
+    classroom's name/class_code and the caller's role/member_token
+    in that classroom, so the frontend can show "Add" / edit /
+    delete controls only where the caller is the teacher.
+    """
+
+    db = SessionLocal()
+
+    try:
+        memberships = (
+            db.query(ClassroomMember)
+            .filter(ClassroomMember.user_id == current_user.id)
+            .all()
+        )
+
+        results = []
+
+        for member in memberships:
+
+            classroom = (
+                db.query(Classroom)
+                .filter(Classroom.id == member.classroom_id)
+                .first()
+            )
+
+            if not classroom:
+                continue
+
+            items = (
+                db.query(CreativeLearningItem)
+                .filter(CreativeLearningItem.classroom_id == classroom.id)
+                .order_by(CreativeLearningItem.created_at.desc())
+                .all()
+            )
+
+            results.append(
+                {
+                    "classroom_id": classroom.id,
+                    "class_code": classroom.class_code,
+                    "classroom_name": classroom.name,
+                    "role": member.role,
+                    "member_token": member.token,
+                    "items": [serialize_creative_learning_item(i) for i in items],
+                }
+            )
+
+        return {"classrooms": results}
 
     finally:
         db.close()
