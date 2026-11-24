@@ -48,6 +48,7 @@ import {
   createManualQuiz,
   getAssignmentProject,
   getClassroomLibraryProjects,
+  getClassroomSubmissionsLog,
   mediaUrl,
 } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -945,6 +946,12 @@ function Field({ label, children }) {
 
 function ClassroomView({ session, classroom, myMember, role, loading, error, onRetry, onUpdate, onBackToHub, navigate }) {
   const { t } = useLanguage();
+  // Teacher-only: "Assignments" (create + manage homework) vs.
+  // "Submissions" (a flat, dated log of who's turned in what, across
+  // every assignment at once — see SubmissionsLogPanel). Students
+  // only ever see their own assignments list, so this stays
+  // teacher-only.
+  const [teacherTab, setTeacherTab] = useState('assignments');
   if (loading && !classroom) return <ClassroomSkeleton />;
 
   if (error && !classroom) {
@@ -983,7 +990,38 @@ function ClassroomView({ session, classroom, myMember, role, loading, error, onR
           </>
         ) : null}
 
-        <AssignmentsPanel session={session} classroom={classroom} role={role} onUpdate={onUpdate} navigate={navigate} />
+        {role === 'teacher' && (
+          <div className="flex items-center gap-2 border-b-2 border-slate-100">
+            <button
+              type="button"
+              onClick={() => setTeacherTab('assignments')}
+              className={`px-4 py-2.5 text-base font-bold rounded-t-xl transition-colors ${
+                teacherTab === 'assignments'
+                  ? 'text-teal-700 border-b-2 border-teal-600 -mb-0.5'
+                  : 'text-black hover:text-teal-700'
+              }`}
+            >
+              {t('Assignments')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTeacherTab('submissions')}
+              className={`px-4 py-2.5 text-base font-bold rounded-t-xl transition-colors ${
+                teacherTab === 'submissions'
+                  ? 'text-teal-700 border-b-2 border-teal-600 -mb-0.5'
+                  : 'text-black hover:text-teal-700'
+              }`}
+            >
+              {t('Submissions')}
+            </button>
+          </div>
+        )}
+
+        {role === 'teacher' && teacherTab === 'submissions' ? (
+          <SubmissionsLogPanel session={session} classroom={classroom} />
+        ) : (
+          <AssignmentsPanel session={session} classroom={classroom} role={role} onUpdate={onUpdate} navigate={navigate} />
+        )}
 
         {role === 'student' && <HistoryPanel session={session} />}
       </div>
@@ -1865,6 +1903,93 @@ function ManualQuizForm({ classroom, session, onClose, onSaved }) {
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+// ============================================================
+// SUBMISSIONS LOG — a flat, dated table of who's turned in what
+// across every assignment in the class (teacher-only), instead of
+// opening each assignment one at a time to see "Submitted: [names]".
+// ============================================================
+
+function SubmissionsLogPanel({ session, classroom }) {
+  const { t } = useLanguage();
+  const [rows, setRows] = useState(null); // null = loading
+  const [error, setError] = useState(null);
+
+  const load = useCallback(() => {
+    setError(null);
+    getClassroomSubmissionsLog(classroom.class_code, session.memberToken)
+      .then((data) => setRows(data.rows || []))
+      .catch((err) => setError(err.message || t('Unable to load the submissions log.')));
+  }, [classroom.class_code, session.memberToken, t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const Tick = () => <CheckCircle2 className="w-5 h-5 text-emerald-600 mx-auto" />;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 className="text-lg font-extrabold text-black">{t('Submissions')}</h3>
+        <button
+          type="button"
+          onClick={load}
+          className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 hover:text-teal-800"
+        >
+          <RefreshCw className="w-4 h-4" /> {t('Refresh')}
+        </button>
+      </div>
+
+      {error ? (
+        <div className="p-6 text-center">
+          <AlertTriangle className="w-6 h-6 text-red-400 mx-auto mb-2" />
+          <p className="text-black font-semibold text-sm">{error}</p>
+        </div>
+      ) : rows === null ? (
+        <div className="p-10 flex justify-center">
+          <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="p-6 text-center text-black font-semibold text-sm">
+          {t('No homework has been submitted yet.')}
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-black text-amber-300">
+                <th className="px-3 py-3 text-left font-extrabold whitespace-nowrap">{t('No')}</th>
+                <th className="px-3 py-3 text-left font-extrabold whitespace-nowrap">{t('Date')}</th>
+                <th className="px-3 py-3 text-left font-extrabold whitespace-nowrap">{t('Class')}</th>
+                <th className="px-3 py-3 text-left font-extrabold whitespace-nowrap">{t('Student Name')}</th>
+                <th className="px-3 py-3 text-center font-extrabold whitespace-nowrap">{t('Quiz')}</th>
+                <th className="px-3 py-3 text-center font-extrabold whitespace-nowrap">{t('Story')}</th>
+                <th className="px-3 py-3 text-center font-extrabold whitespace-nowrap">{t('Other')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => (
+                <tr
+                  key={`${row.assignment_id}-${row.member_id}`}
+                  className={idx % 2 === 0 ? 'bg-slate-100' : 'bg-white'}
+                >
+                  <td className="px-3 py-3 text-black font-semibold">{row.no}</td>
+                  <td className="px-3 py-3 text-black font-semibold whitespace-nowrap">{formatDue(row.date) || '—'}</td>
+                  <td className="px-3 py-3 text-black font-semibold">{row.class_name}</td>
+                  <td className="px-3 py-3 text-black font-bold">{row.student_name}</td>
+                  <td className="px-3 py-3 text-center">{row.quiz ? <Tick /> : null}</td>
+                  <td className="px-3 py-3 text-center">{row.story ? <Tick /> : null}</td>
+                  <td className="px-3 py-3 text-center">{row.other ? <Tick /> : null}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

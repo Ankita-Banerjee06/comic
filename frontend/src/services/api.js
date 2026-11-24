@@ -1097,6 +1097,17 @@ export async function getAssignmentResults(classCode, assignmentId, memberToken)
   return response.json();
 }
 
+// Classroom-wide submissions log for the teacher's "Submissions" tab —
+// one row per (assignment, student) pair, across every assignment in
+// the class, instead of opening each assignment one at a time.
+export async function getClassroomSubmissionsLog(classCode, memberToken) {
+  const response = await fetch(
+    `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/submissions-log?member_token=${encodeURIComponent(memberToken)}`
+  );
+  if (!response.ok) throw await parseClassroomError(response, 'Unable to load the submissions log.');
+  return response.json();
+}
+
 export async function getSubmissionDetail(classCode, assignmentId, memberId, memberToken) {
   const response = await fetch(
     `${API_URL}/api/classrooms/${encodeURIComponent(classCode)}/assignments/${assignmentId}/submissions/${memberId}?member_token=${encodeURIComponent(memberToken)}`

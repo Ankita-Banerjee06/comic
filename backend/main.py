@@ -13024,6 +13024,115 @@ def assignment_results(class_code: str, assignment_id: int, member_token: str):
         db.close()
 
 
+# Classroom-wide submissions log — one row per (assignment, student)
+# pair that has at least one completed submission, across every
+# assignment in the class. Powers the teacher's "Submissions" tab:
+# a flat, dated table instead of having to open each assignment one
+# at a time. "quiz" / "story" reflect the two kinds of submission
+# AssignmentSubmission actually stores today (a graded quiz attempt,
+# or a student's own AMICO comic/photo-story) — "other" is reserved
+# for a future homework type (e.g. a Lesson a student marks done)
+# that isn't tracked yet, so it's always false for now rather than
+# silently misrepresenting something that was never submitted.
+@app.get("/api/classrooms/{class_code}/submissions-log")
+def classroom_submissions_log(class_code: str, member_token: str):
+
+    db = SessionLocal()
+
+    try:
+
+        classroom = get_classroom_or_404(db, class_code)
+        teacher = get_classroom_member_by_token(db, classroom.id, member_token)
+        require_teacher(teacher)
+
+        assignments = (
+            db.query(Assignment)
+            .filter(Assignment.classroom_id == classroom.id)
+            .all()
+        )
+
+        assignment_by_id = {a.id: a for a in assignments}
+
+        if not assignment_by_id:
+            return {"class_name": classroom.name, "rows": []}
+
+        submissions = (
+            db.query(AssignmentSubmission)
+            .filter(
+                AssignmentSubmission.assignment_id.in_(assignment_by_id.keys()),
+                AssignmentSubmission.status == "completed",
+            )
+            .all()
+        )
+
+        member_ids = {s.member_id for s in submissions}
+
+        members = (
+            db.query(ClassroomMember)
+            .filter(ClassroomMember.id.in_(member_ids))
+            .all()
+            if member_ids
+            else []
+        )
+
+        member_by_id = {m.id: m for m in members}
+
+        grouped: dict = {}
+
+        for sub in submissions:
+
+            key = (sub.assignment_id, sub.member_id)
+            row = grouped.setdefault(
+                key,
+                {"quiz": False, "story": False, "other": False, "last_submitted_at": sub.submitted_at},
+            )
+
+            if sub.comic_project_id:
+                row["story"] = True
+            else:
+                row["quiz"] = True
+
+            if sub.submitted_at and (
+                not row["last_submitted_at"] or sub.submitted_at > row["last_submitted_at"]
+            ):
+                row["last_submitted_at"] = sub.submitted_at
+
+        rows = []
+
+        for (assignment_id, member_id), row in grouped.items():
+
+            assignment = assignment_by_id.get(assignment_id)
+            member = member_by_id.get(member_id)
+
+            rows.append(
+                {
+                    "assignment_id": assignment_id,
+                    "assignment_title": assignment.title if assignment else None,
+                    "member_id": member_id,
+                    "student_name": member.display_name if member else "—",
+                    "class_name": classroom.name,
+                    "date": (
+                        row["last_submitted_at"].isoformat()
+                        if row["last_submitted_at"]
+                        else None
+                    ),
+                    "quiz": row["quiz"],
+                    "story": row["story"],
+                    "other": row["other"],
+                }
+            )
+
+        rows.sort(key=lambda r: r["date"] or "", reverse=True)
+
+        for i, row in enumerate(rows, start=1):
+            row["no"] = i
+
+        return {"class_name": classroom.name, "rows": rows}
+
+    finally:
+        db.close()
+
+
 @app.get("/api/classrooms/{class_code}/assignments/{assignment_id}/submissions/{member_id}")
 def assignment_submission_detail(class_code: str, assignment_id: int, member_id: int, member_token: str):
     """

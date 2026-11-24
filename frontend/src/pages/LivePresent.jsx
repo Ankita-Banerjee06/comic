@@ -11,6 +11,8 @@ import {
   CheckCircle2,
   Maximize,
   Minimize,
+  GraduationCap,
+  User,
 } from 'lucide-react';
 
 import {
@@ -342,6 +344,17 @@ export default function LivePresent() {
               <Radio className="w-3.5 h-3.5" /> {t('Live')}
             </span>
           ) : null}
+          {/* Makes it unmistakable at a glance whose screen this is —
+              the teacher's controlling view or a student's following
+              view — since both render from this same component. */}
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-widest rounded-full px-3 py-1 shrink-0 ${
+              isTeacher ? 'bg-indigo-500/20 text-indigo-200' : 'bg-teal-500/20 text-teal-200'
+            }`}
+          >
+            {isTeacher ? <GraduationCap className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+            {isTeacher ? t('Teacher') : t('Student')}
+          </span>
           <p className="text-white font-bold truncate">
             {project?.title || t('Live presentation')}
           </p>
