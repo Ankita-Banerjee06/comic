@@ -96,6 +96,14 @@ export default function Amivi() {
 
   const [videoUrl, setVideoUrl] = useState('');
 
+  // "Click here to see the video" used to be a plain <a target="_blank">
+  // straight to the raw .mp4 file — that opened a brand-new browser tab
+  // with nothing but the native video player in it, no app UI at all,
+  // so there was no way back into AMIVI short of closing the tab. This
+  // plays the video in an in-app modal instead, with its own visible
+  // close button, the same pattern as the image lightbox below.
+  const [showVideoModal, setShowVideoModal] = useState(false);
+
   // UPLOADS box, option 2: paste a website URL (e.g. a Wikipedia
   // article) instead of uploading a file. AMIVI fetches the page,
   // pulls out the readable text, and fills it into the same
@@ -1391,15 +1399,14 @@ export default function Amivi() {
             {result.video_url && (
               <div className="w-full mt-6 pt-6 border-t-2 border-indigo-100 flex flex-col items-center justify-center text-center">
                 <div className="flex flex-wrap items-center justify-center gap-3">
-                  <a
-                    href={getMediaUrl(result.video_url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => setShowVideoModal(true)}
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
                   >
                     <Video size={18} />
                     {t('Click here to see the video')}
-                  </a>
+                  </button>
                   <button
                     onClick={() => handleDownload(getMediaUrl(result.video_url), 'amivi-video.mp4')}
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-black font-bold rounded-2xl transition-colors shadow-lg flex-1 min-w-[200px]"
@@ -1783,19 +1790,17 @@ export default function Amivi() {
 
               return (
                 <div className="flex flex-wrap items-center gap-3 mt-4">
-                  <a
-                    href={videoReady ? getMediaUrl(result.video_url) : undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-disabled={!videoReady}
-                    onClick={(e) => { if (!videoReady) e.preventDefault(); }}
+                  <button
+                    type="button"
+                    disabled={!videoReady}
+                    onClick={() => { if (videoReady) setShowVideoModal(true); }}
                     className={`inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl transition-colors shadow-lg ${
                       videoReady ? 'hover:bg-slate-800' : 'opacity-40 cursor-not-allowed'
                     }`}
                   >
                     <Video size={18} />
                     {t('Click here to see the video')}
-                  </a>
+                  </button>
                   <button
                     type="button"
                     disabled={!videoReady}
@@ -2104,6 +2109,33 @@ export default function Amivi() {
               {lightboxIndex + 1} / {result.chunks.length}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Video modal — plays the generated narrated video in-app with
+          its own visible close button, instead of opening the raw
+          file in a new browser tab with no way back into AMIVI. */}
+      {showVideoModal && result?.video_url && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center p-4"
+          onClick={() => setShowVideoModal(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setShowVideoModal(false)}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            aria-label="Close"
+          >
+            <X size={22} />
+          </button>
+
+          <video
+            src={getMediaUrl(result.video_url)}
+            controls
+            autoPlay
+            className="max-w-full max-h-[85vh] rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
 

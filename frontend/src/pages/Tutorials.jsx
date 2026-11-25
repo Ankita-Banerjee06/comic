@@ -1,52 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Clock, Star, ArrowRight, Video, Layers, Palette, BookOpen, Puzzle, Rocket, Brain, Lightbulb, Compass, GraduationCap } from 'lucide-react';
+import { Play, Clock, Star, ArrowRight, Video, Layers, Compass, GraduationCap, Palette, Lightbulb } from 'lucide-react';
 
-const categories = ['All', 'AMIVI', 'AMICO', 'Quiz', 'Study Tips', 'Getting Started', 'For Teachers'];
-
+// Tutorials without their own video/thumbnail used to render as a flat
+// coloured box with a lone icon in it — a placeholder that never had
+// real content behind it. Rather than keep showing that empty box,
+// those six video-less entries (AMIVI/AMICO/Quiz/Getting-Started/Study
+// Tips placeholders with no .mp4) were removed; every tutorial listed
+// below has a real video file in public/videos. Categories are derived
+// from whatever tutorials actually exist, so a tab never shows up with
+// nothing behind it.
 const tutorials = [
-  {
-    id: 1, icon: Palette, title: 'How to create your first visual with AMIVI',
-    category: 'AMIVI', duration: '4:30', level: 'Beginner', rating: 4.9, views: '12.4k',
-    tint: 'bg-blue-50', iconColor: 'text-blue-600',
-    steps: ['Paste your learning text', 'Choose a visual style', 'Let AI generate your visual', 'Download or share'],
-    description: 'Learn to turn any text or document into a clear visual explanation in just a few clicks.'
-  },
-  {
-    id: 2, icon: BookOpen, title: 'Creating comic stories with AMICO',
-    category: 'AMICO', duration: '6:15', level: 'Beginner', rating: 4.8, views: '9.8k',
-    tint: 'bg-pink-50', iconColor: 'text-pink-600',
-    steps: ['Enter your topic', 'Choose characters', 'Generate comic panels', 'Review and save'],
-    description: 'Turn any subject into a memorable multi-panel comic story with AMICO\'s AI engine.'
-  },
-  {
-    id: 3, icon: Puzzle, title: 'Taking interactive quizzes effectively',
-    category: 'Quiz', duration: '3:45', level: 'Beginner', rating: 4.7, views: '7.2k',
-    tint: 'bg-purple-50', iconColor: 'text-purple-600',
-    steps: ['Choose a topic', 'Set difficulty level', 'Answer visual questions', 'Review your score'],
-    description: 'Discover how to use the Quiz feature to test your knowledge and track your progress.'
-  },
-  {
-    id: 4, icon: Rocket, title: 'Getting started with VLQ — platform overview',
-    category: 'Getting Started', duration: '8:00', level: 'Beginner', rating: 5.0, views: '21.1k',
-    tint: 'bg-indigo-50', iconColor: 'text-indigo-600',
-    steps: ['Create your account', 'Explore AMIVI, AMICO & Quiz', 'Build your library', 'Track your journey'],
-    description: 'Your complete guide to VLQ — what it does, how it works and how to get the most out of it.'
-  },
-  {
-    id: 5, icon: Brain, title: 'Advanced AMIVI: custom visual styles',
-    category: 'AMIVI', duration: '7:20', level: 'Intermediate', rating: 4.8, views: '5.6k',
-    tint: 'bg-cyan-50', iconColor: 'text-cyan-600',
-    steps: ['Upload a PDF or paste text', 'Select advanced visual mode', 'Customize layout & colours', 'Export and share'],
-    description: 'Dive deeper into AMIVI and learn how to customise the visual output to match your subject.'
-  },
-  {
-    id: 6, icon: Lightbulb, title: 'Study tips for visual learners',
-    category: 'Study Tips', duration: '5:50', level: 'All Levels', rating: 4.9, views: '15.3k',
-    tint: 'bg-yellow-50', iconColor: 'text-yellow-600',
-    steps: ['Use images over text', 'Create mind maps', 'Practice with quizzes', 'Review visuals regularly'],
-    description: 'Proven visual learning strategies that help you understand, remember and apply knowledge faster.'
-  },
   {
     id: 7, icon: Compass, title: 'Introduction to Project VLQ',
     category: 'Getting Started', duration: '0:52', level: 'All Levels',
@@ -114,6 +78,11 @@ const tutorials = [
     description: 'A deep dive into exactly how and why the VLQ methodology benefits every kind of learner.'
   },
 ];
+
+// Derived from the tutorials that actually exist, rather than a fixed
+// list — so a category tab never shows up empty just because every
+// tutorial under it was removed (as AMICO and Quiz were, above).
+const categories = ['All', ...new Set(tutorials.map((t) => t.category))];
 
 const levelBadge = {
   'Beginner': 'bg-green-50 text-green-700',

@@ -8942,12 +8942,26 @@ def serialize_library_project(project) -> dict:
 
     elif project.project_type == "quiz":
 
+        # The quiz's own cover thumbnail lives on the PROJECT's data
+        # (set by quiz_generate via update_project_data, the same way
+        # AMIVI/AMICO record theirs), not on the Quiz row below — grab
+        # it before that row's data replaces `data` wholesale, so the
+        # Preview popup can show the real generated picture too.
+        thumbnail_media_id = data.get("thumbnail_media_id")
+
         quiz = latest_quiz_for_project(
             project.id
         )
 
         if quiz:
             data = dict(quiz.data or {})
+
+        data["thumbnail_media_id"] = thumbnail_media_id
+        data["thumbnail_url"] = (
+            f"/api/media/{thumbnail_media_id}"
+            if thumbnail_media_id
+            else None
+        )
 
     return {
         "id": project.id,
@@ -9759,7 +9773,15 @@ def quiz_generate(
                 ),
             }
 
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        # A real, AI-generated cover picture for this quiz's own
+        # topic — shown on the Library card and in the Preview popup
+        # instead of (or alongside, as a fallback) a hand-picked
+        # generic illustration. Generated in parallel with the
+        # per-question images on the same executor so it adds no
+        # extra wait time.
+        thumbnail_future = None
+
+        with ThreadPoolExecutor(max_workers=9) as executor:
 
             futures = {
                 executor.submit(
@@ -9768,10 +9790,47 @@ def quiz_generate(
                 for idx, q in enumerate(questions)
             }
 
+            if generate_images:
+
+                thumbnail_future = executor.submit(
+                    generate_image_resilient,
+                    prompt=(
+                        "A colorful, eye-catching cover "
+                        "illustration representing the quiz "
+                        f"topic: {quiz_title}. Single clear focal "
+                        "subject, no text, no words, no letters, "
+                        "no numbers."
+                    ),
+                    filename=f"quiz_{project_id}_cover.png",
+                    project_id=project_id,
+                    fallback_label=quiz_title,
+                )
+
             for future in concurrent.futures.as_completed(futures):
 
                 idx = futures[future]
                 processed_questions[idx] = future.result()
+
+            thumbnail_id = None
+
+            if thumbnail_future is not None:
+
+                try:
+                    thumbnail_id = thumbnail_future.result()
+
+                except Exception as thumb_exc:
+
+                    print(
+                        "Quiz cover thumbnail generation failed "
+                        f"for project {project_id}: {thumb_exc}"
+                    )
+
+        if thumbnail_id:
+
+            update_project_data(
+                project_id,
+                {"thumbnail_media_id": thumbnail_id},
+            )
 
         final_quiz = {
             "title": quiz_title,

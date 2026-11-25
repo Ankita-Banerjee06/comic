@@ -40,11 +40,141 @@ function Field({ label, hint, children }) {
 // gives teachers a concrete sense of what belongs here (material the
 // syllabus doesn't cover) rather than an empty page with no context.
 const EXAMPLE_TOPICS = [
-  { title: 'Royal Bengal Tiger vs. Siberian Tiger', blurb: 'A side-by-side comparison of the two great tiger subspecies.', shape: 'wide' },
-  { title: 'The Eurasian Red Squirrel', blurb: "An overview of one of Europe's most recognisable woodland animals.", shape: 'square' },
-  { title: 'How Volcanoes Shape Islands', blurb: 'A closer look at the islands volcanic activity builds over time.', shape: 'tall' },
-  { title: 'The Science of Auroras', blurb: 'Why the night sky glows green and purple near the poles.', shape: 'circle' },
+  { title: 'Royal Bengal Tiger vs. Siberian Tiger', blurb: 'A side-by-side comparison of the two great tiger subspecies.', shape: 'wide', art: 'tiger' },
+  { title: 'The Eurasian Red Squirrel', blurb: "An overview of one of Europe's most recognisable woodland animals.", shape: 'square', art: 'squirrel' },
+  { title: 'How Volcanoes Shape Islands', blurb: 'A closer look at the islands volcanic activity builds over time.', shape: 'tall', art: 'volcano' },
+  { title: 'The Science of Auroras', blurb: 'Why the night sky glows green and purple near the poles.', shape: 'circle', art: 'aurora' },
 ];
+
+// Small, fully self-contained vector illustrations for the example
+// cards — drawn inline as SVG rather than pulled from an external image
+// host, so they always render (no network request that can fail, get
+// blocked, or 404) and always match each topic at a glance.
+function TigerArt({ className }) {
+  return (
+    <svg viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="tigerSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fb923c" />
+          <stop offset="100%" stopColor="#ea580c" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="240" fill="url(#tigerSky)" />
+      <path d="M0 40 Q40 20 80 40 T160 40" stroke="#431407" strokeWidth="10" fill="none" opacity="0.35" />
+      <path d="M260 20 Q300 0 340 20 T400 15" stroke="#431407" strokeWidth="10" fill="none" opacity="0.35" />
+      <path d="M0 210 Q60 190 120 210 T240 205" stroke="#431407" strokeWidth="10" fill="none" opacity="0.3" />
+      {/* face */}
+      <polygon points="150,55 185,20 195,70" fill="#431407" />
+      <polygon points="250,55 215,20 205,70" fill="#431407" />
+      <ellipse cx="200" cy="130" rx="95" ry="85" fill="#fb923c" stroke="#431407" strokeWidth="6" />
+      <path d="M115 90 Q140 70 165 90" stroke="#431407" strokeWidth="9" fill="none" />
+      <path d="M285 90 Q260 70 235 90" stroke="#431407" strokeWidth="9" fill="none" />
+      <path d="M108 125 Q140 110 168 128" stroke="#431407" strokeWidth="9" fill="none" />
+      <path d="M292 125 Q260 110 232 128" stroke="#431407" strokeWidth="9" fill="none" />
+      <ellipse cx="200" cy="150" rx="55" ry="45" fill="#fff7ed" />
+      <circle cx="165" cy="110" r="11" fill="#1c1917" />
+      <circle cx="235" cy="110" r="11" fill="#1c1917" />
+      <circle cx="168" cy="106" r="3" fill="#fff" />
+      <circle cx="238" cy="106" r="3" fill="#fff" />
+      <polygon points="190,150 210,150 200,165" fill="#1c1917" />
+      <path d="M200 165 Q200 175 200 180" stroke="#1c1917" strokeWidth="4" />
+      <path d="M160 175 Q180 185 198 180" stroke="#1c1917" strokeWidth="4" fill="none" />
+      <path d="M240 175 Q220 185 202 180" stroke="#1c1917" strokeWidth="4" fill="none" />
+    </svg>
+  );
+}
+
+function SquirrelArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="squirrelBg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#4ade80" />
+          <stop offset="100%" stopColor="#15803d" />
+        </linearGradient>
+      </defs>
+      <rect width="300" height="300" fill="url(#squirrelBg)" />
+      <circle cx="80" cy="60" r="34" fill="#166534" opacity="0.4" />
+      <circle cx="240" cy="230" r="46" fill="#166534" opacity="0.4" />
+      {/* bushy tail */}
+      <path d="M205 230 C150 230 140 130 190 90 C230 60 265 95 250 135 C238 165 200 160 205 195 C208 215 220 220 235 225 Z" fill="#c2410c" stroke="#7c2d12" strokeWidth="4" />
+      <path d="M195 110 C210 140 200 175 215 195" stroke="#fed7aa" strokeWidth="6" fill="none" opacity="0.6" />
+      {/* body */}
+      <ellipse cx="130" cy="205" rx="55" ry="48" fill="#ea580c" stroke="#7c2d12" strokeWidth="4" />
+      <ellipse cx="118" cy="218" rx="30" ry="24" fill="#fed7aa" />
+      {/* head */}
+      <circle cx="95" cy="140" r="38" fill="#ea580c" stroke="#7c2d12" strokeWidth="4" />
+      <polygon points="70,112 62,80 90,105" fill="#ea580c" stroke="#7c2d12" strokeWidth="4" />
+      <polygon points="112,108 128,78 122,112" fill="#ea580c" stroke="#7c2d12" strokeWidth="4" />
+      <circle cx="84" cy="138" r="6" fill="#1c1917" />
+      <circle cx="86" cy="136" r="2" fill="#fff" />
+      <ellipse cx="68" cy="150" rx="12" ry="9" fill="#fed7aa" />
+      <circle cx="62" cy="148" r="3" fill="#431407" />
+    </svg>
+  );
+}
+
+function VolcanoArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="volcanoSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#1e293b" />
+          <stop offset="55%" stopColor="#be185d" />
+          <stop offset="100%" stopColor="#f97316" />
+        </linearGradient>
+      </defs>
+      <rect width="300" height="400" fill="url(#volcanoSky)" />
+      <circle cx="150" cy="130" r="95" fill="#fb923c" opacity="0.55" />
+      <ellipse cx="90" cy="60" rx="45" ry="18" fill="#e5e7eb" opacity="0.5" />
+      <ellipse cx="150" cy="40" rx="60" ry="20" fill="#e5e7eb" opacity="0.4" />
+      <path d="M150 90 L95 95 Q130 60 150 40 Q170 60 205 95 Z" fill="#dc2626" />
+      <polygon points="150,95 240,330 60,330" fill="#3f3f46" />
+      <polygon points="150,95 185,170 115,170" fill="#ef4444" />
+      <path d="M150 110 L120 220" stroke="#f97316" strokeWidth="7" opacity="0.85" />
+      <path d="M150 110 L180 235" stroke="#f97316" strokeWidth="7" opacity="0.85" />
+      <path d="M150 110 L150 260" stroke="#fbbf24" strokeWidth="6" opacity="0.8" />
+      <rect y="330" width="300" height="70" fill="#0ea5e9" />
+      <path d="M0 335 Q20 328 40 335 T80 335 T120 335 T160 335 T200 335 T240 335 T280 335" stroke="#bae6fd" strokeWidth="4" fill="none" opacity="0.7" />
+      <ellipse cx="235" cy="350" rx="32" ry="12" fill="#3f3f46" />
+      <ellipse cx="235" cy="344" rx="14" ry="10" fill="#22c55e" />
+    </svg>
+  );
+}
+
+function AuroraArt({ className }) {
+  return (
+    <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="auroraSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#0f172a" />
+          <stop offset="100%" stopColor="#312e81" />
+        </linearGradient>
+        <linearGradient id="auroraBand1" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#34d399" stopOpacity="0" />
+          <stop offset="50%" stopColor="#34d399" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="auroraBand2" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#c084fc" stopOpacity="0" />
+          <stop offset="50%" stopColor="#f472b6" stopOpacity="0.8" />
+          <stop offset="100%" stopColor="#c084fc" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <circle cx="100" cy="100" r="100" fill="url(#auroraSky)" />
+      <circle cx="40" cy="35" r="1.6" fill="#fff" opacity="0.9" />
+      <circle cx="150" cy="25" r="1.3" fill="#fff" opacity="0.8" />
+      <circle cx="170" cy="60" r="1.8" fill="#fff" opacity="0.9" />
+      <circle cx="60" cy="20" r="1.2" fill="#fff" opacity="0.7" />
+      <circle cx="120" cy="45" r="1.1" fill="#fff" opacity="0.6" />
+      <path d="M0 70 Q50 40 100 65 T200 55" stroke="url(#auroraBand1)" strokeWidth="22" fill="none" />
+      <path d="M0 95 Q60 130 110 95 T200 100" stroke="url(#auroraBand2)" strokeWidth="18" fill="none" />
+      <path d="M0 150 Q50 135 100 150 T200 145 L200 200 L0 200 Z" fill="#1e1b4b" opacity="0.9" />
+    </svg>
+  );
+}
+
+const EXAMPLE_ART = { tiger: TigerArt, squirrel: SquirrelArt, volcano: VolcanoArt, aurora: AuroraArt };
 
 const SHAPE_OPTIONS = [
   { value: 'square', label: 'Square' },
@@ -359,6 +489,13 @@ export default function CreativeLearning() {
   return (
     <div className="py-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-[95%] max-w-[100rem] mx-auto">
 
+      {/* Banner */}
+      <img
+        src="/vlq-creative-learning-banner.webp"
+        alt="Creative Learning — spark your creative talent"
+        className="w-full h-auto rounded-2xl shadow-md"
+      />
+
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto">
         <div
@@ -403,25 +540,29 @@ export default function CreativeLearning() {
             {EXAMPLE_TOPICS.map((ex) => {
               const colors = COLOR_BY_SHAPE[ex.shape] || COLOR_BY_SHAPE.square;
               const minHeight = ex.shape === 'tall' ? ROW_H * 2 + ROW_GAP : ROW_H;
+              const Art = EXAMPLE_ART[ex.art];
               return (
                 <div
                   key={ex.title}
-                  className={`relative rounded-2xl border-2 border-dashed ${colors.dash} overflow-hidden ${SHAPE_CELL[ex.shape]} ${ex.shape === 'circle' ? 'bg-white flex flex-col items-center justify-center text-center p-4' : `bg-gradient-to-br ${colors.grad}`}`}
+                  className={`relative rounded-2xl border-2 border-dashed ${colors.dash} overflow-hidden ${SHAPE_CELL[ex.shape]} ${ex.shape === 'circle' ? 'bg-white flex flex-col items-center justify-center text-center p-4' : 'bg-slate-900'}`}
                   style={{ minHeight }}
                 >
                   {ex.shape === 'circle' ? (
                     <>
-                      <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${colors.grad} flex items-center justify-center mb-2 shadow-sm`}>
-                        <Sparkles className="w-6 h-6 text-white" />
+                      <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center mb-2 shadow-sm">
+                        {Art ? <Art className="w-full h-full" /> : <Sparkles className="w-6 h-6 text-fuchsia-500" />}
                       </div>
                       <p className="font-bold text-black text-sm">{ex.title}</p>
                       <p className="text-xs text-slate-500 mt-1">{ex.blurb}</p>
                     </>
                   ) : (
-                    <div className="absolute inset-0 p-4 flex flex-col justify-end bg-gradient-to-t from-black/70 via-black/10 to-transparent">
-                      <p className="font-extrabold text-white text-base leading-snug drop-shadow">{ex.title}</p>
-                      <p className="text-sm text-white/90 mt-1 line-clamp-2 drop-shadow">{ex.blurb}</p>
-                    </div>
+                    <>
+                      {Art && <Art className="absolute inset-0 w-full h-full" />}
+                      <div className="absolute inset-0 p-4 flex flex-col justify-end bg-gradient-to-t from-black/75 via-black/15 to-transparent">
+                        <p className="font-extrabold text-white text-base leading-snug drop-shadow">{ex.title}</p>
+                        <p className="text-sm text-white/90 mt-1 line-clamp-2 drop-shadow">{ex.blurb}</p>
+                      </div>
+                    </>
                   )}
                 </div>
               );

@@ -25,6 +25,253 @@ import {
 } from 'lucide-react';
 import { getLibrary, getLibraryProject, deleteLibraryProject, generateQuiz, recomposeAmico, mediaUrl } from '../services/api';
 
+// Quizzes don't carry a generated cover image the way AMIVI/AMICO
+// projects do, so the card (and the Preview popup) used to fall back
+// to one plain brain emoji for every single quiz regardless of topic.
+// These are small, fully self-contained scene illustrations — drawn
+// inline as flat-colour SVG rather than a single generic icon, and
+// with no gradients/ids (several of the same one can be on screen at
+// once, e.g. three different "Photosynthesis" quizzes, so nothing here
+// can collide) — picked by matching keywords in the quiz's own title.
+function PlantArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#bbf7d0" />
+      <circle cx="245" cy="45" r="30" fill="#fde047" />
+      <rect y="160" width="300" height="40" fill="#78350f" />
+      <rect x="140" y="95" width="10" height="70" rx="5" fill="#16a34a" />
+      <ellipse cx="118" cy="110" rx="34" ry="18" fill="#22c55e" transform="rotate(-25 118 110)" />
+      <ellipse cx="178" cy="100" rx="34" ry="18" fill="#16a34a" transform="rotate(20 178 100)" />
+      <ellipse cx="145" cy="75" rx="22" ry="30" fill="#4ade80" />
+      <circle cx="90" cy="150" r="5" fill="#60a5fa" />
+      <circle cx="205" cy="155" r="4" fill="#60a5fa" />
+    </svg>
+  );
+}
+
+function SpaceArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#1e1b4b" />
+      {[...Array(14)].map((_, i) => (
+        <circle key={i} cx={(i * 47 + 20) % 300} cy={(i * 83 + 15) % 200} r={i % 3 === 0 ? 2 : 1.2} fill="#fff" opacity={0.8} />
+      ))}
+      <circle cx="225" cy="120" r="34" fill="#0a0a0a" />
+      <ellipse cx="225" cy="120" rx="58" ry="14" fill="none" stroke="#fb923c" strokeWidth="7" transform="rotate(-18 225 120)" />
+      <circle cx="70" cy="60" r="20" fill="#f97316" />
+      <circle cx="62" cy="54" r="5" fill="#fdba74" />
+      <circle cx="80" cy="68" r="4" fill="#c2410c" />
+      <circle cx="120" cy="150" r="11" fill="#60a5fa" />
+    </svg>
+  );
+}
+
+function RiverArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#bae6fd" />
+      <polygon points="0,110 90,40 170,110" fill="#166534" />
+      <polygon points="120,120 210,55 300,120" fill="#15803d" />
+      <rect y="120" width="300" height="80" fill="#4d7c0f" />
+      <path d="M0 165 Q60 140 100 165 T200 160 T300 170 L300 200 L0 200 Z" fill="#38bdf8" />
+      <path d="M0 165 Q60 140 100 165 T200 160 T300 170" stroke="#bae6fd" strokeWidth="4" fill="none" opacity="0.7" />
+    </svg>
+  );
+}
+
+function HistoryArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#fed7aa" />
+      <circle cx="245" cy="45" r="26" fill="#fb923c" />
+      <rect y="175" width="300" height="25" fill="#92400e" />
+      {[70, 125, 180].map((x, i) => (
+        <g key={i}>
+          <rect x={x} y="75" width="26" height="100" fill="#e7e5e4" />
+          <rect x={x - 6} y="68" width="38" height="10" fill="#d6d3d1" />
+          <rect x={x - 6} y="175" width="38" height="8" fill="#a8a29e" />
+          <line x1={x + 6} y1="78" x2={x + 6} y2="172" stroke="#a8a29e" strokeWidth="2" />
+          <line x1={x + 20} y1="78" x2={x + 20} y2="172" stroke="#a8a29e" strokeWidth="2" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function FestivalArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#1e1b3a" />
+      <circle cx="60" cy="40" r="10" fill="#fbbf24" opacity="0.9" />
+      <circle cx="230" cy="55" r="7" fill="#f472b6" opacity="0.9" />
+      <circle cx="150" cy="30" r="5" fill="#fff" opacity="0.8" />
+      <circle cx="260" cy="120" r="6" fill="#34d399" opacity="0.8" />
+      <rect y="150" width="300" height="50" fill="#451a03" />
+      {[55, 130, 205].map((x, i) => (
+        <g key={i}>
+          <ellipse cx={x} cy="150" rx="26" ry="8" fill="#92400e" />
+          <path d={`M${x - 8} 148 Q${x} 110 ${x + 8} 148 Z`} fill="#fbbf24" />
+          <path d={`M${x - 4} 142 Q${x} 118 ${x + 4} 142 Z`} fill="#fde68a" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function MagicArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#312e81" />
+      <circle cx="235" cy="45" r="24" fill="#fef3c7" />
+      <circle cx="245" cy="38" r="22" fill="#312e81" />
+      <circle cx="60" cy="40" r="2.4" fill="#fff" />
+      <circle cx="100" cy="65" r="1.8" fill="#fff" />
+      <circle cx="150" cy="35" r="2" fill="#fff" />
+      <circle cx="40" cy="90" r="1.6" fill="#fff" />
+      <polygon points="120,160 150,70 180,160" fill="#1e1b4b" />
+      <ellipse cx="150" cy="160" rx="46" ry="12" fill="#0f0e2e" />
+      <polygon points="138,90 150,70 162,90" fill="#fde047" />
+      <line x1="60" y1="175" x2="110" y2="130" stroke="#78350f" strokeWidth="6" strokeLinecap="round" />
+      <polygon points="110,130 120,118 124,132 112,140" fill="#fde047" />
+    </svg>
+  );
+}
+
+function PlayArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#bae6fd" />
+      <rect y="150" width="300" height="50" fill="#4ade80" />
+      {['#f87171', '#fbbf24', '#60a5fa', '#34d399', '#f472b6'].map((c, i) => (
+        <polygon key={i} points={`${i * 60},0 ${i * 60 + 30},0 ${i * 60 + 15},22`} fill={c} />
+      ))}
+      <circle cx="150" cy="105" r="30" fill="#fff" stroke="#1c1917" strokeWidth="4" />
+      <path d="M150 75 L150 135 M120 105 L180 105 M129 83 Q150 105 129 127 M171 83 Q150 105 171 127" stroke="#1c1917" strokeWidth="3" fill="none" />
+    </svg>
+  );
+}
+
+function PuzzleArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#a855f7" />
+      <path d="M100 60 h40 a12 12 0 0 1 0 24 a14 14 0 0 0 0 28 a12 12 0 0 1 0 24 h-40 v-38 a12 12 0 0 0 -24 0 v38 h-40 v-76 h40 v38 a12 12 0 0 0 24 0 z" fill="#f3e8ff" transform="translate(10,-4) scale(0.95)" />
+      <text x="150" y="150" textAnchor="middle" fontSize="42" fontWeight="bold" fill="#ffffff" fontFamily="sans-serif">?</text>
+    </svg>
+  );
+}
+
+function YogaArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#ccfbf1" />
+      <circle cx="245" cy="45" r="26" fill="#fde68a" />
+      <rect y="165" width="300" height="35" fill="#0f766e" />
+      <circle cx="150" cy="24" r="34" fill="none" stroke="#5eead4" strokeWidth="2" opacity="0.6" />
+      <circle cx="150" cy="24" r="46" fill="none" stroke="#5eead4" strokeWidth="2" opacity="0.4" />
+      <circle cx="150" cy="60" r="18" fill="#f3a97a" />
+      <path d="M150 78 C120 78 115 110 150 112 C185 110 180 78 150 78 Z" fill="#14b8a6" />
+      <path d="M150 108 C115 118 90 160 100 168 C112 176 128 150 150 130 C172 150 188 176 200 168 C210 160 185 118 150 108 Z" fill="#0d9488" />
+      <path d="M118 90 Q90 95 85 115" stroke="#14b8a6" strokeWidth="9" fill="none" strokeLinecap="round" />
+      <path d="M182 90 Q210 95 215 115" stroke="#14b8a6" strokeWidth="9" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BookArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#fde68a" />
+      <rect y="165" width="300" height="35" fill="#92400e" />
+      <path d="M40 65 Q110 45 150 65 L150 155 Q110 138 40 155 Z" fill="#fffbeb" stroke="#78350f" strokeWidth="3" />
+      <path d="M260 65 Q190 45 150 65 L150 155 Q190 138 260 155 Z" fill="#fef3c7" stroke="#78350f" strokeWidth="3" />
+      {[80, 95, 110].map((y, i) => (
+        <line key={i} x1="55" y1={y} x2="135" y2={y - 4} stroke="#d97706" strokeWidth="2.5" opacity="0.6" />
+      ))}
+      {[80, 95, 110].map((y, i) => (
+        <line key={i} x1="165" y1={y - 4} x2="245" y2={y} stroke="#d97706" strokeWidth="2.5" opacity="0.6" />
+      ))}
+      <ellipse cx="225" cy="150" rx="14" ry="18" fill="#1e3a8a" />
+      <path d="M232 92 L255 55" stroke="#78350f" strokeWidth="5" strokeLinecap="round" />
+      <path d="M255 55 L262 40 L247 52 Z" fill="#f8fafc" />
+    </svg>
+  );
+}
+
+function MathArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#312e81" />
+      {[40, 80, 120, 160, 200, 240, 280].map((x, i) => (
+        <line key={`v${i}`} x1={x} y1="0" x2={x} y2="200" stroke="#4338ca" strokeWidth="1" opacity="0.5" />
+      ))}
+      {[40, 80, 120, 160].map((y, i) => (
+        <line key={`h${i}`} x1="0" y1={y} x2="300" y2={y} stroke="#4338ca" strokeWidth="1" opacity="0.5" />
+      ))}
+      <polyline points="30,150 90,95 150,130 210,55 270,85" fill="none" stroke="#5eead4" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      <text x="55" y="55" fontSize="38" fontWeight="bold" fill="#fde047" fontFamily="sans-serif">π</text>
+      <text x="215" y="150" fontSize="34" fontWeight="bold" fill="#f472b6" fontFamily="sans-serif">∑</text>
+      <text x="140" y="45" fontSize="26" fontWeight="bold" fill="#fff" fontFamily="sans-serif">x²</text>
+    </svg>
+  );
+}
+
+function BodyArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#fce7f3" />
+      <circle cx="150" cy="45" r="24" fill="#334155" />
+      <path d="M150 70 C110 70 100 110 108 150 C112 172 188 172 192 150 C200 110 190 70 150 70 Z" fill="#334155" />
+      <path d="M108 95 C85 100 75 130 80 150" stroke="#334155" strokeWidth="16" strokeLinecap="round" fill="none" />
+      <path d="M192 95 C215 100 225 130 220 150" stroke="#334155" strokeWidth="16" strokeLinecap="round" fill="none" />
+      <path d="M128 105 C128 90 150 85 150 100 C150 85 172 90 172 105 C172 125 150 140 150 140 C150 140 128 125 128 105 Z" fill="#fb7185" />
+      <circle cx="150" cy="105" r="46" fill="none" stroke="#f472b6" strokeWidth="2" opacity="0.5" />
+      <circle cx="150" cy="105" r="60" fill="none" stroke="#f472b6" strokeWidth="2" opacity="0.3" />
+    </svg>
+  );
+}
+
+function RobotArt({ className }) {
+  return (
+    <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <rect width="300" height="200" fill="#0f172a" />
+      <line x1="30" y1="40" x2="90" y2="40" stroke="#22d3ee" strokeWidth="2" opacity="0.5" />
+      <line x1="220" y1="160" x2="280" y2="160" stroke="#22d3ee" strokeWidth="2" opacity="0.5" />
+      <circle cx="30" cy="40" r="3" fill="#22d3ee" />
+      <circle cx="280" cy="160" r="3" fill="#22d3ee" />
+      <line x1="150" y1="45" x2="150" y2="25" stroke="#94a3b8" strokeWidth="5" />
+      <circle cx="150" cy="20" r="8" fill="#f472b6" />
+      <rect x="95" y="50" width="110" height="90" rx="18" fill="#475569" />
+      <circle cx="128" cy="90" r="14" fill="#22d3ee" />
+      <circle cx="172" cy="90" r="14" fill="#22d3ee" />
+      <rect x="120" y="115" width="60" height="12" rx="6" fill="#1e293b" />
+      <line x1="130" y1="115" x2="130" y2="127" stroke="#334155" strokeWidth="2" />
+      <line x1="150" y1="115" x2="150" y2="127" stroke="#334155" strokeWidth="2" />
+      <line x1="170" y1="115" x2="170" y2="127" stroke="#334155" strokeWidth="2" />
+    </svg>
+  );
+}
+
+const QUIZ_ART_RULES = [
+  { test: /yoga|meditat|mindful|wellness/i, Art: YogaArt },
+  { test: /photosynthesis|plant|leaf|ecosystem/i, Art: PlantArt },
+  { test: /black hole|solar system|space|planet|galaxy|universe|astronomy|star/i, Art: SpaceArt },
+  { test: /river|ocean|geography|mountain|climate|weather|continent/i, Art: RiverArt },
+  { test: /history|ancient|war|king|empire|freedom|independence/i, Art: HistoryArt },
+  { test: /diwali|durga|puja|festival|celebrat|holiday|christmas|eid/i, Art: FestivalArt },
+  { test: /harry potter|magic|wizard|fantasy|myth/i, Art: MagicArt },
+  { test: /play|game|sport|fun/i, Art: PlayArt },
+  { test: /shakespeare|macbeth|hamlet|literature|poem|poetry|novel|drama|story|grammar|english/i, Art: BookArt },
+  { test: /math|algebra|geometry|calculus|equation|fourier|trigonometry|arithmetic|number/i, Art: MathArt },
+  { test: /human|anatomy|organ|skeleton|muscle|biology|cell|life science/i, Art: BodyArt },
+  { test: /\bai\b|artificial intelligence|computer|technology|coding|program|robot|machine learning|software/i, Art: RobotArt },
+];
+
+function pickQuizArt(title = '') {
+  const match = QUIZ_ART_RULES.find((rule) => rule.test.test(title));
+  return match || { Art: PuzzleArt };
+}
+
 const TYPE_META = {
   amivi: {
     label: 'AMIVI',
@@ -574,7 +821,7 @@ function LibraryCard({ item, onPreview, onDelete }) {
   const meta = TYPE_META[item.type] || TYPE_META.amivi;
   const Icon = meta.icon;
   const [imgFailed, setImgFailed] = useState(false);
-  const hasThumbnail = item.type !== 'quiz' && item.thumbnail_url && !imgFailed;
+  const hasThumbnail = item.thumbnail_url && !imgFailed;
 
   const date = item.created_at
     ? new Date(item.created_at).toLocaleDateString()
@@ -596,7 +843,10 @@ function LibraryCard({ item, onPreview, onDelete }) {
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : item.type === 'quiz' ? (
-          <span className="text-5xl">🧠</span>
+          (() => {
+            const { Art } = pickQuizArt(item.title);
+            return <Art className="absolute inset-0 w-full h-full" />;
+          })()
         ) : (
           <Icon className={`w-12 h-12 ${meta.iconColor}`} />
         )}
@@ -728,7 +978,9 @@ function PreviewModal({ item, data, loading, error, onRetry, onClose, onOpenFull
           {!loading && !error && data && item.type === 'amico' && (
             <AmicoPreview item={item} data={data} onRepaired={onAmicoRepaired} onToast={onToast} />
           )}
-          {!loading && !error && data && item.type === 'quiz' && <QuizPreview data={data} />}
+          {!loading && !error && data && item.type === 'quiz' && (
+            <QuizPreview data={data} title={data?.title || item.title} />
+          )}
         </div>
 
         {/* Footer Quick Actions */}
@@ -1144,16 +1396,44 @@ function AmicoPreview({ item, data, onRepaired, onToast }) {
   );
 }
 
-function QuizPreview({ data }) {
+function QuizPreview({ data, title }) {
   const project = data.data || {};
   const questions = project.questions || [];
+  const { Art } = pickQuizArt(title || data?.title);
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const hasRealThumbnail = project.thumbnail_url && !thumbFailed;
+
+  // A real AI-generated cover picture for this quiz's own topic, when
+  // one exists (quizzes made after this feature shipped); older quizzes
+  // fall back to the same hand-drawn topic illustration as the card.
+  const banner = (
+    <div className="rounded-2xl h-36 mb-4 overflow-hidden shadow-sm">
+      {hasRealThumbnail ? (
+        <img
+          src={mediaUrl(project.thumbnail_url)}
+          alt={title || data?.title || 'Quiz cover'}
+          loading="lazy"
+          onError={() => setThumbFailed(true)}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <Art className="w-full h-full" />
+      )}
+    </div>
+  );
 
   if (questions.length === 0) {
-    return <EmptyPreviewNote text="No questions were saved for this quiz." />;
+    return (
+      <>
+        {banner}
+        <EmptyPreviewNote text="No questions were saved for this quiz." />
+      </>
+    );
   }
 
   return (
     <div className="space-y-4">
+      {banner}
       <p className="text-sm font-bold text-black uppercase tracking-wide">
         {questions.length} question{questions.length === 1 ? '' : 's'} · saved answers below
       </p>
