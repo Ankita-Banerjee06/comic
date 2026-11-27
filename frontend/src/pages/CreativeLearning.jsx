@@ -14,13 +14,15 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { Palette, Plus, X, Loader2, Trash2, ExternalLink, Upload, Link as LinkIcon, Sparkles } from 'lucide-react';
+import { Palette, Plus, X, Loader2, Trash2, ExternalLink, Link as LinkIcon, Sparkles, PenLine, ImagePlus, Check, GraduationCap } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   getMyCreativeLearning,
   createCreativeLearningItem,
   deleteCreativeLearningItem,
   uploadClassroomMedia,
+  createClassroom,
 } from '../services/api';
 
 const inputClass =
@@ -176,6 +178,11 @@ function AuroraArt({ className }) {
 
 const EXAMPLE_ART = { tiger: TigerArt, squirrel: SquirrelArt, volcano: VolcanoArt, aurora: AuroraArt };
 
+// Reuses the same illustrations as the example cards so the "Card shape"
+// picker in the Add form shows an actual little picture per shape instead
+// of a flat color block.
+const SHAPE_PREVIEW_ART = { square: SquirrelArt, wide: TigerArt, tall: VolcanoArt, circle: AuroraArt };
+
 const SHAPE_OPTIONS = [
   { value: 'square', label: 'Square' },
   { value: 'wide', label: 'Wide' },
@@ -217,6 +224,10 @@ const COLOR_BY_SHAPE = {
 function TopicImage({ shape, imageUrl, title }) {
   const commonImgClass = 'w-full h-full object-cover';
   const colors = COLOR_BY_SHAPE[shape] || COLOR_BY_SHAPE.square;
+  // Until a real photo is uploaded, fall back to the same illustration used
+  // in the shape picker and the example cards, rather than a flat color
+  // block with a sparkle — so the card never looks like an empty box.
+  const FallbackArt = SHAPE_PREVIEW_ART[shape] || SquirrelArt;
 
   if (shape === 'circle') {
     return (
@@ -225,7 +236,7 @@ function TopicImage({ shape, imageUrl, title }) {
           {imageUrl ? (
             <img src={imageUrl} alt={title} className={commonImgClass} />
           ) : (
-            <Sparkles className={`w-8 h-8 ${colors.icon}`} />
+            <FallbackArt className="w-full h-full" />
           )}
         </div>
       </div>
@@ -237,9 +248,7 @@ function TopicImage({ shape, imageUrl, title }) {
       {imageUrl ? (
         <img src={imageUrl} alt={title} className={commonImgClass} />
       ) : (
-        <div className={`w-full h-full bg-gradient-to-br ${colors.grad} flex items-center justify-center`}>
-          <Sparkles className="w-8 h-8 text-white drop-shadow" />
-        </div>
+        <FallbackArt className="w-full h-full" />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
     </div>
@@ -368,81 +377,256 @@ function AddCreativeLearningForm({ teacherClassrooms, onClose, onSaved }) {
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-extrabold text-xl text-black flex items-center gap-2">
-            <Palette className="w-5 h-5 text-fuchsia-600" /> {t('Add Creative Learning link')}
-          </h2>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black">
+        <div className="flex items-start justify-between px-6 pt-6 pb-5 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-fuchsia-50 flex items-center justify-center shrink-0">
+              <Palette className="w-5 h-5 text-fuchsia-600" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-xl text-black">{t('Add something to Creative Learning')}</h2>
+              <p className="text-sm font-medium text-slate-500 mt-0.5">{t('Give your class a new topic to explore.')}</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black shrink-0">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid md:grid-cols-[1.3fr_1fr] gap-6 p-6">
+          <div className="space-y-4">
+            <Field label={t("Who's this for?")}>
+              <div className="flex gap-2 flex-wrap">
+                {teacherClassrooms.map((c) => (
+                  <button
+                    key={c.class_code}
+                    type="button"
+                    onClick={() => setClassCode(c.class_code)}
+                    className={`px-3.5 py-2 rounded-full border text-sm font-bold transition-colors ${
+                      classCode === c.class_code
+                        ? 'bg-fuchsia-600 border-fuchsia-600 text-white'
+                        : 'border-slate-200 text-black hover:bg-slate-50'
+                    }`}
+                  >
+                    {c.classroom_name}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label={t('Title')}>
+              <div className="relative">
+                <PenLine className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input className={`${inputClass} pl-9`} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder={t('e.g. Royal Bengal Tiger vs. Siberian Tiger')} />
+              </div>
+            </Field>
+
+            <Field label={t('Link')} hint={t('Where this topic actually lives — an article, video, or page.')}>
+              <div className="relative">
+                <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input className={`${inputClass} pl-9`} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
+              </div>
+            </Field>
+
+            <Field label={t('Short blurb')}>
+              <textarea className={`${inputClass} resize-none`} rows={2} value={blurb} onChange={(e) => setBlurb(e.target.value)} placeholder={t('One line that makes students curious.')} />
+            </Field>
+
+            <Field label={t('Card shape')}>
+              <div className="flex gap-3 flex-wrap">
+                {SHAPE_OPTIONS.map((opt) => {
+                  const colors = COLOR_BY_SHAPE[opt.value];
+                  const selected = shape === opt.value;
+                  const Art = SHAPE_PREVIEW_ART[opt.value];
+                  const swatchShape =
+                    opt.value === 'square' ? 'w-16 h-16 rounded-xl'
+                    : opt.value === 'wide' ? 'w-20 h-12 rounded-xl'
+                    : opt.value === 'tall' ? 'w-12 h-20 rounded-xl'
+                    : 'w-16 h-16 rounded-full';
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setShape(opt.value)}
+                      className={`relative flex flex-col items-center gap-2 px-4 py-3.5 rounded-2xl border-2 transition-colors w-24 ${
+                        selected ? `${colors.dash} ${colors.chipBg}` : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {selected && (
+                        <span className={`absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gradient-to-br ${colors.grad} flex items-center justify-center shadow-sm`}>
+                          <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                        </span>
+                      )}
+                      <span className={`overflow-hidden shadow-sm ring-1 ring-black/5 ${swatchShape}`}>
+                        <Art className="w-full h-full" />
+                      </span>
+                      <span className={`text-sm font-bold ${selected ? colors.chipText : 'text-black'}`}>{t(opt.label)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+
+            <Field label={t('Cover image (optional)')}>
+              <label className="flex items-center gap-3 p-3 rounded-2xl border-2 border-dashed border-slate-200 hover:border-fuchsia-300 hover:bg-fuchsia-50/40 cursor-pointer transition-colors">
+                <span className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="" className="w-full h-full object-cover" />
+                  ) : uploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                  ) : (
+                    <ImagePlus className="w-5 h-5 text-slate-400" />
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-black">
+                    {uploading ? t('Uploading…') : imagePreview ? t('Change picture') : t('Click to upload a picture')}
+                  </span>
+                  <span className="block text-xs font-medium text-slate-500 mt-0.5">
+                    {t("Or skip it — we'll use a colourful illustration instead.")}
+                  </span>
+                </span>
+                <input type="file" accept="image/*" className="hidden" disabled={uploading || !selectedClassroom} onChange={(e) => e.target.files?.[0] && handleImage(e.target.files[0])} />
+              </label>
+            </Field>
+
+            {error && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={submitting || !selectedClassroom}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-60 transition-colors"
+            >
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+              {submitting ? t('Saving…') : t('Add to Creative Learning')}
+            </button>
+          </div>
+
+          <div className="hidden md:block">
+            <span className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">{t('Live preview')}</span>
+            <div
+              className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${shape === 'circle' ? 'bg-white flex flex-col' : 'bg-slate-900'}`}
+              style={{ minHeight: shape === 'tall' ? 300 : 190 }}
+            >
+              <TopicImage shape={shape} imageUrl={imagePreview} title={title} />
+              <div className={shape === 'circle' ? 'px-4 pb-4 pt-3 text-center' : 'absolute inset-x-0 bottom-0 p-4'}>
+                {selectedClassroom && (
+                  <span className={`inline-block text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1.5 ${shape === 'circle' ? 'bg-fuchsia-50 text-fuchsia-700' : 'bg-white/20 text-white'}`}>
+                    {selectedClassroom.classroom_name}
+                  </span>
+                )}
+                <h3 className={`font-extrabold leading-snug ${shape === 'circle' ? 'text-black text-base' : 'text-white text-lg'}`}>
+                  {title || t('Your topic title goes here')}
+                </h3>
+                {blurb && (
+                  <p className={`text-sm font-medium mt-1 line-clamp-2 ${shape === 'circle' ? 'text-slate-600' : 'text-white/85'}`}>
+                    {blurb}
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="text-xs font-medium text-slate-400 mt-3 leading-relaxed">
+              {t('This is what students will see in the grid.')}
+            </p>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// Shown in place of the (missing) "Add Creative Learning link" button
+// when a teacher has no classroom yet — a link has to belong to one,
+// but there's no reason to send them away to a different page just to
+// set that up. This creates a classroom in one short step and then
+// drops them straight into the Add form, so "I want to share a link"
+// stays a single, continuous flow instead of two separate errands.
+function QuickCreateClassroomForm({ onClose, onCreated }) {
+  const { t } = useLanguage();
+  const { user } = useAuth();
+  const [name, setName] = useState('');
+  const [subject, setSubject] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!name.trim()) {
+      setError(t('Classroom name is required.'));
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const data = await createClassroom({
+        name: name.trim(),
+        subject: subject.trim(),
+        displayName: user?.name || t('Teacher'),
+      });
+      onCreated(data);
+    } catch (err) {
+      setError(err?.message || t('Failed to create classroom.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <form
+        onSubmit={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-y-auto"
+      >
+        <div className="flex items-start justify-between px-6 pt-6 pb-5 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-fuchsia-50 flex items-center justify-center shrink-0">
+              <GraduationCap className="w-5 h-5 text-fuchsia-600" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-xl text-black">{t('Create your classroom')}</h2>
+              <p className="text-sm font-medium text-slate-500 mt-0.5">{t("Just enough to get you sharing — you can fill in the rest later.")}</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-black shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-4">
-          <Field label={t('Class')}>
-            <select className={inputClass} value={classCode} onChange={(e) => setClassCode(e.target.value)}>
-              {teacherClassrooms.map((c) => (
-                <option key={c.class_code} value={c.class_code}>{c.classroom_name}</option>
-              ))}
-            </select>
+          <Field label={t('Classroom name')}>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('e.g. 7th Grade Biology')}
+              className={inputClass}
+              autoFocus
+            />
           </Field>
 
-          <Field label={t('Title')}>
-            <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder={t('e.g. Royal Bengal Tiger vs. Siberian Tiger')} />
+          <Field label={t('Subject (optional)')}>
+            <input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder={t('e.g. Biology')}
+              className={inputClass}
+            />
           </Field>
 
-          <Field label={t('Link')} hint={t('Where this topic actually lives — an article, video, or page.')}>
-            <div className="relative">
-              <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input className={`${inputClass} pl-9`} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
-            </div>
-          </Field>
+          {error && <p className="text-red-500 font-bold text-sm text-center whitespace-pre-wrap">{error}</p>}
 
-          <Field label={t('Short blurb')}>
-            <textarea className={`${inputClass} resize-none`} rows={2} value={blurb} onChange={(e) => setBlurb(e.target.value)} placeholder={t('One line that makes students curious.')} />
-          </Field>
-
-          <Field label={t('Card shape')}>
-            <div className="flex gap-2 flex-wrap">
-              {SHAPE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setShape(opt.value)}
-                  className={`px-3 py-2 rounded-xl border-2 font-bold text-sm transition-colors ${
-                    shape === opt.value ? 'bg-fuchsia-600 border-fuchsia-600 text-white' : 'border-slate-200 text-black hover:bg-slate-50'
-                  }`}
-                >
-                  {t(opt.label)}
-                </button>
-              ))}
-            </div>
-          </Field>
-
-          <Field label={t('Cover image (optional)')}>
-            <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 text-base font-bold text-black hover:bg-slate-50 cursor-pointer transition-colors">
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              {uploading ? t('Uploading…') : t('Upload an image')}
-              <input type="file" accept="image/*" className="hidden" disabled={uploading || !selectedClassroom} onChange={(e) => e.target.files?.[0] && handleImage(e.target.files[0])} />
-            </label>
-            {imagePreview && (
-              <img src={imagePreview} alt="" className="w-20 h-20 object-cover rounded-xl mt-3 border border-slate-200" />
-            )}
-          </Field>
-
-          {error && <p className="text-base font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
-        </div>
-
-        <div className="px-6 py-4 border-t border-slate-100">
-          <button
-            type="submit"
-            disabled={submitting || !selectedClassroom}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-60 transition-colors"
-          >
-            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-            {submitting ? t('Saving…') : t('Add to Creative Learning')}
-          </button>
+          <div className="flex items-center gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-sm text-black bg-slate-100 hover:bg-slate-200 transition-colors">
+              {t('Cancel')}
+            </button>
+            <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-60 transition-colors inline-flex items-center justify-center gap-2">
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {submitting ? t('Creating…') : t('Create & continue')}
+            </button>
+          </div>
         </div>
       </form>
     </div>
@@ -451,13 +635,18 @@ function AddCreativeLearningForm({ teacherClassrooms, onClose, onSaved }) {
 
 export default function CreativeLearning() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
 
   const load = useCallback(() => {
     setError(null);
-    getMyCreativeLearning()
+    // Returned so a caller that needs the fresh data in place first
+    // (e.g. opening the Add form right after creating a classroom) can
+    // wait on it instead of racing the state update.
+    return getMyCreativeLearning()
       .then((res) => setData(res.classrooms || []))
       .catch((err) => setError(err?.message || t('Unable to load Creative Learning.')));
   }, [t]);
@@ -489,12 +678,18 @@ export default function CreativeLearning() {
   return (
     <div className="py-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-[95%] max-w-[100rem] mx-auto">
 
-      {/* Banner */}
-      <img
-        src="/vlq-creative-learning-banner.webp"
-        alt="Creative Learning — spark your creative talent"
-        className="w-full h-auto rounded-2xl shadow-md"
-      />
+      {/* Banner — this image is 16:9, so stretching it to the full browser
+          width (as a previous version did) makes it roughly as tall as the
+          whole screen on most monitors, pushing every real topic below the
+          fold. Capping its width keeps it a big, uncropped hero without it
+          swallowing the page. */}
+      <div className="max-w-4xl mx-auto">
+        <img
+          src="/vlq-creative-learning-banner.webp"
+          alt="Creative Learning — spark your creative talent"
+          className="w-full h-auto rounded-2xl shadow-md"
+        />
+      </div>
 
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto">
@@ -521,6 +716,26 @@ export default function CreativeLearning() {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 shadow-md transition-colors"
           >
             <Plus className="w-4 h-4" /> {t('Add Creative Learning link')}
+          </button>
+        </div>
+      )}
+
+      {/* A teacher account with no classroom yet can't share a link (it
+          has to belong to one) — but rather than just hiding the button
+          with no explanation, offer to set one up right here so sharing
+          a link stays a single flow instead of a trip to another page. */}
+      {!error && data !== null && teacherClassrooms.length === 0 && user?.role === 'teacher' && (
+        <div className="max-w-xl mx-auto bg-white rounded-2xl border border-dashed border-fuchsia-200 shadow-sm p-6 text-center space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-fuchsia-50 flex items-center justify-center mx-auto">
+            <GraduationCap className="w-6 h-6 text-fuchsia-600" />
+          </div>
+          <p className="font-bold text-black">{t("You'll need a classroom before you can share a Creative Learning link.")}</p>
+          <p className="text-sm text-slate-500">{t('Set one up now — it only takes a few seconds.')}</p>
+          <button
+            onClick={() => setShowQuickCreate(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-700 shadow-md transition-colors"
+          >
+            <Plus className="w-4 h-4" /> {t('Create a classroom')}
           </button>
         </div>
       )}
@@ -584,6 +799,19 @@ export default function CreativeLearning() {
           teacherClassrooms={teacherClassrooms}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); load(); }}
+        />
+      )}
+
+      {showQuickCreate && (
+        <QuickCreateClassroomForm
+          onClose={() => setShowQuickCreate(false)}
+          onCreated={() => {
+            setShowQuickCreate(false);
+            // Wait for the refreshed classroom list before opening the
+            // Add form, so it already sees the new classroom instead of
+            // momentarily rendering with none selected.
+            load().then(() => setShowForm(true));
+          }}
         />
       )}
     </div>

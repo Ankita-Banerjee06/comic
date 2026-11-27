@@ -58,6 +58,56 @@ import LiveJoinBanner from '../components/live/LiveJoinBanner';
 
 const SESSION_KEY = 'vlq_classroom_session';
 
+// Small, self-contained illustrations for the "I'm a teacher / student /
+// parent" picker cards — a little picture per role instead of a bare
+// colored icon square, drawn inline as SVG so they always render (no
+// external image host, no network request that can fail).
+function TeacherPersonArt({ className }) {
+  return (
+    <svg viewBox="0 0 80 80" className={className} aria-hidden="true">
+      <rect width="80" height="80" rx="18" fill="#CCFBF1" />
+      <rect x="40" y="16" width="26" height="19" rx="2" fill="#0F766E" />
+      <path d="M46 25l4 4 7-8" stroke="#CCFBF1" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="40" y="35" width="26" height="4" fill="#0D9488" />
+      <path d="M24 66c0-10 7-16 15-16s15 6 15 16" fill="#14B8A6" />
+      <circle cx="39" cy="38" r="11" fill="#FBCFA3" />
+      <path d="M28 35c0-7 5-12 11-12s11 5 11 12c-4-2-7-4-11-4s-7 2-11 4z" fill="#3F2A1D" />
+      <rect x="31" y="54" width="16" height="10" rx="3" fill="#0F766E" />
+    </svg>
+  );
+}
+
+function StudentPersonArt({ className }) {
+  return (
+    <svg viewBox="0 0 80 80" className={className} aria-hidden="true">
+      <rect width="80" height="80" rx="18" fill="#E0E7FF" />
+      <path d="M24 66c0-10 7-16 15-16s15 6 15 16" fill="#6366F1" />
+      <circle cx="39" cy="40" r="11" fill="#FBCFA3" />
+      <path d="M39 26l16 6.5-16 6.5-16-6.5z" fill="#312E81" />
+      <path d="M27 34v6c0 3 5.5 5 12 5s12-2 12-5v-6" fill="none" stroke="#312E81" strokeWidth="2" />
+      <circle cx="55" cy="33" r="1.8" fill="#FACC15" />
+      <path d="M55 34.5v8" stroke="#FACC15" strokeWidth="1.6" />
+      <rect x="29" y="54" width="20" height="12" rx="3" fill="#4F46E5" />
+      <rect x="33" y="50" width="12" height="7" rx="2" fill="#818CF8" />
+    </svg>
+  );
+}
+
+function ParentPersonArt({ className }) {
+  return (
+    <svg viewBox="0 0 80 80" className={className} aria-hidden="true">
+      <rect width="80" height="80" rx="18" fill="#FFE4E6" />
+      <path d="M14 66c0-9 6-14.5 13-14.5s13 5.5 13 14.5" fill="#FB7185" />
+      <circle cx="27" cy="38" r="9.5" fill="#FBCFA3" />
+      <path d="M18 36c0-6 4-10.5 9-10.5s9 4.5 9 10.5c-3-1.5-6-3-9-3s-6 1.5-9 3z" fill="#5C3A21" />
+      <path d="M44 66c0-7 4.5-11 10-11s10 4 10 11" fill="#F43F5E" />
+      <circle cx="54" cy="44" r="7.5" fill="#FBCFA3" />
+      <path d="M47 42.5c0-5 3-8.5 7-8.5s7 3.5 7 8.5c-2-1-4.5-2-7-2s-5 1-7 2z" fill="#3F2A1D" />
+      <path d="M38 24c-2.5-3-7-2.6-7 1.3 0 3 4 6.2 7 8.3 3-2.1 7-5.3 7-8.3 0-3.9-4.5-4.3-7-1.3z" fill="#E11D48" />
+    </svg>
+  );
+}
+
 const INPUT_CLASS =
   'w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-black placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-300 transition-all';
 
@@ -487,8 +537,8 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
         onClick={onGoTeacher}
         className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
       >
-        <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-          <Plus className="w-6 h-6 text-teal-600" />
+        <div className="w-16 h-16 rounded-2xl overflow-hidden mb-4 shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-transform">
+          <TeacherPersonArt className="w-full h-full" />
         </div>
         <h2 className="text-xl font-bold text-black mb-1.5">{t("I'm a teacher")}</h2>
         <p className="text-black font-medium text-sm mb-4">
@@ -503,8 +553,8 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
         onClick={onGoStudent}
         className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
       >
-        <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-          <GraduationCap className="w-6 h-6 text-indigo-600" />
+        <div className="w-16 h-16 rounded-2xl overflow-hidden mb-4 shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-transform">
+          <StudentPersonArt className="w-full h-full" />
         </div>
         <h2 className="text-xl font-bold text-black mb-1.5">{t("I'm a student")}</h2>
         <p className="text-black font-medium text-sm mb-4">
@@ -519,8 +569,8 @@ function ClassroomHub({ onGoTeacher, onGoStudent, onGoParent }) {
         onClick={onGoParent}
         className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 hover:shadow-md hover:-translate-y-0.5 transition-all group"
       >
-        <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-          <Heart className="w-6 h-6 text-rose-500" />
+        <div className="w-16 h-16 rounded-2xl overflow-hidden mb-4 shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-transform">
+          <ParentPersonArt className="w-full h-full" />
         </div>
         <h2 className="text-xl font-bold text-black mb-1.5">{t("I'm a parent")}</h2>
         <p className="text-black font-medium text-sm mb-4">

@@ -11463,7 +11463,7 @@ def join_classroom(payload: ClassroomJoinRequest, current_user=Depends(get_curre
 
 
 @app.get("/api/classrooms/{class_code}")
-def classroom_detail(class_code: str):
+def classroom_detail(class_code: str, current_user=Depends(get_current_user_optional)):
 
     db = SessionLocal()
 
@@ -11477,6 +11477,20 @@ def classroom_detail(class_code: str):
             .order_by(ClassroomMember.joined_at.asc())
             .all()
         )
+
+        # Opportunistically link the teacher's membership to whoever's
+        # logged in right now — same idea as create_classroom and
+        # classroom_teacher_login. This is the page every teacher
+        # naturally loads just by opening their classroom, so it heals
+        # a never-linked membership (one created, or normally used,
+        # without being logged into a real account) automatically,
+        # instead of relying on the teacher knowing to re-enter their
+        # teacher code to trigger the link.
+        if current_user:
+            teacher_member = next((m for m in members if m.role == "teacher"), None)
+            if teacher_member and not teacher_member.user_id:
+                teacher_member.user_id = current_user.id
+                db.commit()
 
         student_count = sum(1 for m in members if m.role == "student")
 

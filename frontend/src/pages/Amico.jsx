@@ -1549,7 +1549,7 @@ export default function Amico() {
       )}
 
       {mode === 'photostory' && !psProcessing && !psResult && (
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="max-w-5xl mx-auto grid lg:grid-cols-[minmax(0,1fr)_360px] gap-6">
           <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-6 sm:p-8 flex flex-col">
             {/* Source tabs */}
             <div className="flex gap-2 mb-6">
@@ -1654,6 +1654,56 @@ export default function Amico() {
               {t('Generate Photo Story')} 📷
             </button>
             {psError && <p className="text-red-500 mt-4 font-bold text-center">{psError}</p>}
+          </div>
+
+          {/* How it works — a visual explainer beside the form so a first-time
+              user can see what Photo Story actually does before uploading
+              anything, instead of just a bare upload box. */}
+          <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-8 flex flex-col lg:sticky lg:top-6">
+            <h3 className="text-xl font-bold text-black flex items-center gap-2.5 mb-7">
+              <Wand2 className="w-6 h-6 text-pink-500" /> {t('How Photo Story works')}
+            </h3>
+
+            <div className="grid grid-cols-[auto_1fr_auto_1fr_auto] items-start gap-x-1 mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-pink-50 border-2 border-pink-200 flex items-center justify-center">
+                <Camera className="w-7 h-7 text-pink-500" />
+              </div>
+              <ArrowRight className="w-5 h-5 text-pink-300 mx-auto mt-6" />
+              <div className="w-16 h-16 rounded-2xl bg-purple-50 border-2 border-purple-200 flex items-center justify-center">
+                <Sparkles className="w-7 h-7 text-purple-500" />
+              </div>
+              <ArrowRight className="w-5 h-5 text-pink-300 mx-auto mt-6" />
+              <div className="w-16 h-16 rounded-2xl bg-pink-50 border-2 border-pink-200 flex items-center justify-center">
+                <ScrollText className="w-7 h-7 text-pink-500" />
+              </div>
+
+              <span className="text-sm font-bold text-black text-center pt-2">{t('Upload')}</span>
+              <span />
+              <span className="text-sm font-bold text-black text-center pt-2">{t('AMICO reads it')}</span>
+              <span />
+              <span className="text-sm font-bold text-black text-center pt-2">{t('Diagram story')}</span>
+            </div>
+
+            <ol className="space-y-5">
+              <li className="flex gap-3">
+                <span className="w-7 h-7 rounded-full bg-pink-500 text-white text-sm font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                <span className="text-base font-medium text-black">{t('Upload one clear photo — a plant, a machine, a diagram, anything with steps or parts.')}</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="w-7 h-7 rounded-full bg-pink-500 text-white text-sm font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <span className="text-base font-medium text-black">{t('Choose how many stages you want the story broken into.')}</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="w-7 h-7 rounded-full bg-pink-500 text-white text-sm font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                <span className="text-base font-medium text-black">{t('AMICO labels each stage like a real science poster — no cartoon characters, just clear visuals.')}</span>
+              </li>
+            </ol>
+
+            <div className="mt-auto pt-7">
+              <p className="text-sm font-bold text-pink-600 bg-pink-50 border border-pink-100 rounded-xl px-4 py-3">
+                💡 {t('Works great for science diagrams, recipes, assembly steps — anything with a clear sequence.')}
+              </p>
+            </div>
           </div>
         </div>
       )}

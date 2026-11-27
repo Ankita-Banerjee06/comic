@@ -986,7 +986,15 @@ export async function joinClassroom({ classCode, displayName }) {
 }
 
 export async function getClassroom(classCode) {
-  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}`);
+  // Sending the auth header (when the browser is logged into a real
+  // account) lets the backend opportunistically link this classroom's
+  // teacher membership to that account — otherwise a classroom created
+  // or used without being logged in stays permanently unlinked, and
+  // features that depend on the account (like Creative Learning) never
+  // see it. See classroom_detail in main.py.
+  const response = await fetch(`${API_URL}/api/classrooms/${encodeURIComponent(classCode)}`, {
+    headers: { ...authHeaders() },
+  });
   if (!response.ok) throw await parseClassroomError(response, 'Unable to load this classroom.');
   return response.json();
 }
